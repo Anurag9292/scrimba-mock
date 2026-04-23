@@ -236,7 +236,7 @@ export default function PlayerPage() {
                 </div>
               )}
               <EditorPanel
-                key={playback.isInteractive ? `interactive-${id}` : `playback-${id}-${Object.keys(playback.currentFiles).join(",")}`}
+                key={playback.isInteractive ? `interactive-${id}` : `playback-${id}-v${playback.seekVersion}`}
                 initialFiles={playback.currentFiles}
                 readOnly={!playback.isInteractive}
                 onFilesChange={playback.isInteractive ? playback.updateFiles : undefined}
