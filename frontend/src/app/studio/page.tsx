@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { Scrim, ScrimSegment } from "@/lib/types";
 import {
   fetchScrims,
+  fetchScrim,
   fetchSegments,
   deleteScrim,
   deleteSegment,
@@ -59,6 +60,7 @@ export default function StudioPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sectionId = searchParams.get("sectionId");
+  const scrimIdParam = searchParams.get("scrimId");
   const { toast } = useToast();
   const [view, setView] = useState<StudioView>({ type: "drafts" });
   const [drafts, setDrafts] = useState<Scrim[]>([]);
@@ -69,6 +71,31 @@ export default function StudioPage() {
   const [trimmingSegment, setTrimmingSegment] = useState<ScrimSegment | null>(null);
   const [previewSegment, setPreviewSegment] = useState<ScrimSegment | null>(null);
   const [checkpointSegment, setCheckpointSegment] = useState<ScrimSegment | null>(null);
+
+  // If a scrimId is provided in the URL, load that scrim directly into segments view
+  useEffect(() => {
+    if (!scrimIdParam) return;
+    let cancelled = false;
+
+    async function loadScrimDirectly() {
+      setIsLoading(true);
+      const result = await fetchScrim(scrimIdParam!);
+      if (cancelled) return;
+      if (result.success && result.data) {
+        setView({
+          type: "segments",
+          scrimId: result.data.id,
+          scrimTitle: result.data.title,
+        });
+      } else {
+        toast(result.error?.message ?? "Failed to load scrim", "error");
+        setIsLoading(false);
+      }
+    }
+
+    loadScrimDirectly();
+    return () => { cancelled = true; };
+  }, [scrimIdParam, toast]);
 
   // Load drafts
   const loadDrafts = useCallback(async () => {
@@ -91,12 +118,12 @@ export default function StudioPage() {
   }, []);
 
   useEffect(() => {
-    if (view.type === "drafts") {
+    if (view.type === "drafts" && !scrimIdParam) {
       loadDrafts();
     } else if (view.type === "segments") {
       loadSegments(view.scrimId);
     }
-  }, [view, loadDrafts, loadSegments]);
+  }, [view, loadDrafts, loadSegments, scrimIdParam]);
 
   const handleNewRecording = useCallback(() => {
     setView({ type: "recording", scrimId: null, scrimTitle: "New Scrim" });
@@ -203,10 +230,13 @@ export default function StudioPage() {
         scrimId: view.scrimId,
         scrimTitle: view.scrimTitle,
       });
+    } else if (scrimIdParam) {
+      // Came from creator dashboard via ?scrimId=... — go back in history
+      router.back();
     } else {
       setView({ type: "drafts" });
     }
-  }, [view]);
+  }, [view, scrimIdParam, router]);
 
   // --- Reorder handler ---
   const handleReorder = useCallback(
