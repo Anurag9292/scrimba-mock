@@ -10,9 +10,10 @@ from app.db.database import get_session
 from app.models.course_path import CoursePath
 from app.models.course import Course, CourseCreate, CourseUpdate, CourseRead
 from app.models.user import User
-from app.api.auth_deps import get_current_user, require_role
+from app.api.auth_deps import get_current_user, get_optional_user, require_role
 
 router = APIRouter(prefix="/api/paths/{path_id}/courses", tags=["courses"])
+course_lookup_router = APIRouter(prefix="/api/courses", tags=["courses"])
 
 
 def _slugify(text: str) -> str:
@@ -81,7 +82,7 @@ async def create_course(
 @router.get("/", response_model=list[CourseRead])
 async def list_courses(
     path_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[Course]:
     await _get_path_or_404(path_id, session)
@@ -96,7 +97,7 @@ async def list_courses(
 async def get_course(
     path_id: uuid.UUID,
     course_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_session),
 ) -> Course:
     await _get_path_or_404(path_id, session)
@@ -221,4 +222,16 @@ async def reorder_course(
     session.add(course)
     await session.commit()
     await session.refresh(course)
+    return course
+
+
+@course_lookup_router.get("/{course_id}", response_model=CourseRead)
+async def get_course_by_id(
+    course_id: uuid.UUID,
+    user: User | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_session),
+) -> Course:
+    course = await session.get(Course, course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
     return course

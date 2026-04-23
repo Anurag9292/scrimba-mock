@@ -10,7 +10,7 @@ from app.models.course import Course
 from app.models.section import Section, SectionCreate, SectionUpdate, SectionRead
 from app.models.scrim import Scrim, ScrimRead
 from app.models.user import User
-from app.api.auth_deps import get_current_user, require_role
+from app.api.auth_deps import get_current_user, get_optional_user, require_role
 
 router = APIRouter(prefix="/api/courses/{course_id}/sections", tags=["sections"])
 
@@ -56,7 +56,7 @@ async def create_section(
 @router.get("/", response_model=list[SectionRead])
 async def list_sections(
     course_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[Section]:
     await _get_course_or_404(course_id, session)
@@ -71,7 +71,7 @@ async def list_sections(
 async def get_section(
     course_id: uuid.UUID,
     section_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_session),
 ) -> Section:
     await _get_course_or_404(course_id, session)
@@ -188,7 +188,7 @@ async def reorder_section(
 async def list_section_scrims(
     course_id: uuid.UUID,
     section_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[Scrim]:
     await _get_course_or_404(course_id, session)

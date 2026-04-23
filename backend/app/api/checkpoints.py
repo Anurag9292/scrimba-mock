@@ -9,7 +9,7 @@ from app.db.database import get_session
 from app.models.scrim import Scrim
 from app.models.segment import ScrimSegment
 from app.models.checkpoint import Checkpoint, CheckpointCreate, CheckpointUpdate, CheckpointRead
-from app.api.auth_deps import get_current_user, require_role
+from app.api.auth_deps import get_current_user, get_optional_user, require_role
 from app.models.user import User
 
 router = APIRouter(
@@ -86,7 +86,7 @@ async def list_checkpoints(
     scrim_id: uuid.UUID,
     segment_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
 ) -> list[Checkpoint]:
     await _get_segment_or_404(scrim_id, segment_id, session)
 
@@ -105,7 +105,7 @@ async def get_checkpoint(
     segment_id: uuid.UUID,
     checkpoint_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
 ) -> Checkpoint:
     await _get_segment_or_404(scrim_id, segment_id, session)
 
@@ -242,7 +242,7 @@ async def reorder_checkpoint(
 async def list_scrim_checkpoints(
     scrim_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
 ) -> list[Checkpoint]:
     """Fetch all checkpoints across all segments of a scrim, ordered by segment order then checkpoint order."""
     scrim = await session.get(Scrim, scrim_id)

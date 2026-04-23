@@ -9,7 +9,7 @@ from sqlmodel import select
 from app.db.database import get_session
 from app.models.course_path import CoursePath, CoursePathCreate, CoursePathUpdate, CoursePathRead
 from app.models.user import User
-from app.api.auth_deps import get_current_user, require_role
+from app.api.auth_deps import get_current_user, get_optional_user, require_role
 
 router = APIRouter(prefix="/api/paths", tags=["course-paths"])
 
@@ -66,10 +66,13 @@ async def create_course_path(
 
 @router.get("/", response_model=list[CoursePathRead])
 async def list_course_paths(
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[CoursePath]:
-    if user.role == "admin":
+    if user is None:
+        # Anonymous users see published only
+        query = select(CoursePath).where(CoursePath.status == "published").order_by(CoursePath.order.asc())
+    elif user.role == "admin":
         query = select(CoursePath).order_by(CoursePath.order.asc())
     else:
         # Creators see their own; regular users see published only
@@ -84,14 +87,31 @@ async def list_course_paths(
     return list(result.scalars().all())
 
 
+@router.get("/by-slug/{slug}", response_model=CoursePathRead)
+async def get_course_path_by_slug(
+    slug: str,
+    user: User | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_session),
+) -> CoursePath:
+    result = await session.execute(select(CoursePath).where(CoursePath.slug == slug))
+    path = result.scalars().first()
+    if path is None:
+        raise HTTPException(status_code=404, detail="Course path not found")
+    if path.status != "published" and (user is None or (user.role != "admin" and path.created_by != user.id)):
+        raise HTTPException(status_code=404, detail="Course path not found")
+    return path
+
+
 @router.get("/{path_id}", response_model=CoursePathRead)
 async def get_course_path(
     path_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_session),
 ) -> CoursePath:
     path = await session.get(CoursePath, path_id)
     if path is None:
+        raise HTTPException(status_code=404, detail="Course path not found")
+    if path.status != "published" and user is None:
         raise HTTPException(status_code=404, detail="Course path not found")
     return path
 
