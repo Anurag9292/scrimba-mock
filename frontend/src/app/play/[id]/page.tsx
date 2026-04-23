@@ -172,13 +172,44 @@ export default function PlayerPage() {
           <div className="flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900 px-3 py-1.5 text-xs text-gray-400">
             <span
               className={`h-2 w-2 rounded-full ${
-                playback.isPlaying
-                  ? "animate-pulse bg-green-500"
-                  : "bg-gray-600"
+                playback.isInteractive
+                  ? "bg-amber-500"
+                  : playback.isPlaying
+                    ? "animate-pulse bg-green-500"
+                    : "bg-gray-600"
               }`}
             />
-            {playback.isPlaying ? "Playing" : "Paused"}
+            {playback.isInteractive
+              ? "Editing"
+              : playback.isPlaying
+                ? "Playing"
+                : "Paused"}
           </div>
+
+          {/* Interactive mode toggle */}
+          {playback.isInteractive ? (
+            <button
+              type="button"
+              onClick={playback.exitInteractive}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-300 transition-colors hover:bg-amber-500/20"
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+              </svg>
+              Resume Playback
+            </button>
+          ) : !playback.isPlaying ? (
+            <button
+              type="button"
+              onClick={playback.enterInteractive}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white"
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
+              </svg>
+              Edit Code
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -189,10 +220,26 @@ export default function PlayerPage() {
           <div className="flex flex-1 min-h-0">
             {/* Editor panel */}
             <div className="flex h-full w-1/2 flex-col border-r border-gray-800">
+              {/* Interactive mode banner */}
+              {playback.isInteractive && (
+                <div className="flex items-center justify-between border-b border-amber-500/20 bg-amber-500/5 px-4 py-2">
+                  <span className="text-xs text-amber-300">
+                    Interactive mode — edit the code freely
+                  </span>
+                  <button
+                    type="button"
+                    onClick={playback.exitInteractive}
+                    className="text-xs text-amber-400 underline hover:text-amber-300"
+                  >
+                    Resume playback
+                  </button>
+                </div>
+              )}
               <EditorPanel
-                key={`${id}-${Object.keys(playback.currentFiles).join(",")}`}
+                key={playback.isInteractive ? `interactive-${id}` : `playback-${id}-${Object.keys(playback.currentFiles).join(",")}`}
                 initialFiles={playback.currentFiles}
-                readOnly
+                readOnly={!playback.isInteractive}
+                onFilesChange={playback.isInteractive ? playback.updateFiles : undefined}
               />
             </div>
 
