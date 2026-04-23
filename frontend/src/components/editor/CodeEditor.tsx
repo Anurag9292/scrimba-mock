@@ -8,7 +8,6 @@ interface CodeEditorProps {
   onChange: (value: string) => void;
   readOnly?: boolean;
   onMount?: OnMount;
-  path?: string;
 }
 
 export default function CodeEditor({
@@ -17,11 +16,9 @@ export default function CodeEditor({
   onChange,
   readOnly = false,
   onMount,
-  path,
 }: CodeEditorProps) {
   return (
     <Editor
-      path={path}
       value={value}
       language={language}
       theme="vs-dark"
