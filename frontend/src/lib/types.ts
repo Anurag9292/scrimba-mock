@@ -59,57 +59,22 @@ export interface SelectionRange {
   endColumn: number;
 }
 
-/** Audio track metadata */
-export interface AudioTrack {
-  /** URL to the audio file (could be a blob URL or remote URL) */
-  url: string;
-  /** Duration in milliseconds */
-  durationMs: number;
-  /** MIME type of the audio (e.g., "audio/webm") */
-  mimeType: string;
-}
-
-/** Status of a scrim */
-export type ScrimStatus = "draft" | "recording" | "processing" | "published" | "archived";
+/** Recording status for the UI */
+export type RecordingStatus = "idle" | "recording" | "paused" | "stopped";
 
 /** A complete scrim (recorded interactive coding session) */
 export interface Scrim {
-  /** Unique identifier */
   id: string;
-  /** Display title */
   title: string;
-  /** Optional description */
   description?: string;
-  /** Author user ID */
-  authorId: string;
-  /** Author display name */
-  authorName: string;
-  /** Current status */
-  status: ScrimStatus;
-  /** Programming language of the primary file */
-  language: Language;
-  /** Initial file state when the recording starts */
-  initialFiles: FileMap;
-  /** Ordered list of code events making up the recording */
-  events: CodeEvent[];
-  /** Audio narration track */
-  audio?: AudioTrack;
-  /** Total duration in milliseconds */
-  durationMs: number;
-  /** ISO 8601 creation timestamp */
-  createdAt: string;
-  /** ISO 8601 last-updated timestamp */
-  updatedAt: string;
-  /** Tags for categorization */
-  tags?: string[];
-  /** Thumbnail image URL */
-  thumbnailUrl?: string;
-  /** Number of views */
-  viewCount: number;
-  /** Number of forks */
-  forkCount: number;
-  /** ID of the scrim this was forked from, if any */
-  forkedFromId?: string;
+  duration_ms: number;
+  video_filename?: string;
+  code_events: CodeEvent[];
+  initial_code: string;
+  language: string;
+  files?: FileMap;
+  created_at: string;
+  updated_at: string;
 }
 
 /** Playback state for the player */

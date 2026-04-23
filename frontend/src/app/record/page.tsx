@@ -1,9 +1,105 @@
 "use client";
 
+import { useRef, useCallback, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import type { editor } from "monaco-editor";
 import EditorWithPreview from "@/components/editor/EditorWithPreview";
+import CameraPreview from "@/components/recording/CameraPreview";
+import { useRecorder } from "@/hooks/useRecorder";
+import type { RecordingStatus } from "@/lib/types";
+
+/** Format milliseconds to mm:ss display */
+function formatTime(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+/** Status indicator component */
+function StatusBadge({ status, elapsedMs }: { status: RecordingStatus; elapsedMs: number }) {
+  const config: Record<RecordingStatus, { color: string; label: string }> = {
+    idle: { color: "bg-gray-600", label: "Ready to record" },
+    recording: { color: "bg-red-500 animate-pulse", label: `Recording ${formatTime(elapsedMs)}` },
+    paused: { color: "bg-yellow-500", label: `Paused ${formatTime(elapsedMs)}` },
+    stopped: { color: "bg-blue-500", label: "Saving..." },
+  };
+  const { color, label } = config[status];
+
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900 px-3 py-1.5 text-xs text-gray-400">
+      <span className={`h-2 w-2 rounded-full ${color}`} />
+      {label}
+    </div>
+  );
+}
 
 export default function RecordPage() {
+  const router = useRouter();
+  const recorder = useRecorder();
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const filesRef = useRef<Record<string, string>>({});
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      recorder.cleanup();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleEditorMount = useCallback((editorInstance: editor.IStandaloneCodeEditor) => {
+    editorRef.current = editorInstance;
+  }, []);
+
+  const handleFilesChange = useCallback((files: Record<string, string>) => {
+    filesRef.current = files;
+  }, []);
+
+  const handleActiveFileChange = useCallback(
+    (fileName: string) => {
+      if (recorder.status === "recording") {
+        recorder.recordFileSwitch(fileName);
+      }
+    },
+    [recorder]
+  );
+
+  const handleRecord = useCallback(async () => {
+    if (recorder.status === "idle" || recorder.status === "stopped") {
+      // Initialize camera if not done yet
+      if (!isInitialized) {
+        const success = await recorder.initialize();
+        if (!success) return;
+        setIsInitialized(true);
+        // Small delay to let the stream initialize
+        await new Promise((r) => setTimeout(r, 300));
+      }
+
+      if (!editorRef.current) {
+        return;
+      }
+
+      recorder.startRecording(editorRef.current, filesRef.current);
+    } else if (recorder.status === "recording") {
+      // Stop recording
+      const scrimId = await recorder.stopRecording(filesRef.current);
+      if (scrimId) {
+        router.push(`/play/${scrimId}`);
+      }
+    }
+  }, [recorder, isInitialized, router]);
+
+  const handlePause = useCallback(() => {
+    if (recorder.status === "recording") {
+      recorder.pauseRecording();
+    } else if (recorder.status === "paused") {
+      recorder.resumeRecording();
+    }
+  }, [recorder]);
+
   return (
     <div className="flex h-screen flex-col">
       {/* Top bar */}
@@ -28,36 +124,95 @@ export default function RecordPage() {
             Back
           </Link>
           <div className="h-5 w-px bg-gray-800" />
-          <h1 className="text-sm font-semibold text-white">
-            Recording Studio
-          </h1>
+          <h1 className="text-sm font-semibold text-white">Recording Studio</h1>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900 px-3 py-1.5 text-xs text-gray-400">
-            <span className="h-2 w-2 rounded-full bg-gray-600" />
-            Ready to record
-          </div>
+          {/* Status badge */}
+          <StatusBadge status={recorder.status} elapsedMs={recorder.elapsedMs} />
+
+          {/* Error display */}
+          {recorder.error && (
+            <span className="text-xs text-red-400">{recorder.error}</span>
+          )}
+
+          {/* Pause/Resume button (only during recording) */}
+          {(recorder.status === "recording" || recorder.status === "paused") && (
+            <button
+              type="button"
+              onClick={handlePause}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-300 transition-all hover:bg-gray-700 hover:text-white active:scale-[0.98]"
+            >
+              {recorder.status === "paused" ? (
+                <>
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                  </svg>
+                  Resume
+                </>
+              ) : (
+                <>
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
+                  </svg>
+                  Pause
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Main Record/Stop button */}
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-1.5 text-sm font-medium text-white transition-all hover:bg-red-500 hover:shadow-lg hover:shadow-red-600/25 active:scale-[0.98]"
+            onClick={handleRecord}
+            disabled={recorder.isSaving}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium text-white transition-all active:scale-[0.98] ${
+              recorder.status === "recording" || recorder.status === "paused"
+                ? "bg-gray-700 hover:bg-gray-600"
+                : recorder.isSaving
+                  ? "cursor-not-allowed bg-gray-700 opacity-50"
+                  : "bg-red-600 hover:bg-red-500 hover:shadow-lg hover:shadow-red-600/25"
+            }`}
           >
-            <svg
-              className="h-3.5 w-3.5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <circle cx="10" cy="10" r="6" />
-            </svg>
-            Record
+            {recorder.status === "recording" || recorder.status === "paused" ? (
+              <>
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <rect x="5" y="5" width="10" height="10" rx="1" />
+                </svg>
+                Stop
+              </>
+            ) : recorder.isSaving ? (
+              <>
+                <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <circle cx="10" cy="10" r="7" strokeWidth="2" strokeDasharray="30 10" />
+                </svg>
+                Saving...
+              </>
+            ) : (
+              <>
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <circle cx="10" cy="10" r="6" />
+                </svg>
+                Record
+              </>
+            )}
           </button>
         </div>
       </header>
 
       {/* Main editor + preview area */}
-      <div className="flex-1 min-h-0">
-        <EditorWithPreview />
+      <div className="relative flex-1 min-h-0">
+        <EditorWithPreview
+          onEditorMount={handleEditorMount}
+          onFilesChange={handleFilesChange}
+          onActiveFileChange={handleActiveFileChange}
+        />
+
+        {/* Camera preview overlay */}
+        <CameraPreview
+          mediaStream={recorder.mediaStream}
+          isRecording={recorder.status === "recording"}
+        />
       </div>
     </div>
   );

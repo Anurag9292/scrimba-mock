@@ -91,6 +91,8 @@ interface EditorPanelProps {
   readOnly?: boolean;
   /** Optional callback when the Monaco editor mounts */
   onEditorMount?: OnMount;
+  /** Callback when the active file tab changes */
+  onActiveFileChange?: (fileName: string) => void;
 }
 
 export default function EditorPanel({
@@ -98,6 +100,7 @@ export default function EditorPanel({
   onFilesChange,
   readOnly = false,
   onEditorMount,
+  onActiveFileChange,
 }: EditorPanelProps) {
   const [files, setFiles] = useState<Record<string, string>>(
     initialFiles ?? DEFAULT_FILES
@@ -121,6 +124,11 @@ export default function EditorPanel({
     onFilesChange?.(files);
   }, [files, onFilesChange]);
 
+  // Notify parent of the active file on mount and when it changes
+  useEffect(() => {
+    onActiveFileChange?.(activeFile);
+  }, [activeFile, onActiveFileChange]);
+
   const filenames = Object.keys(files);
 
   return (
@@ -132,7 +140,9 @@ export default function EditorPanel({
             key={name}
             filename={name}
             isActive={name === activeFile}
-            onClick={() => setActiveFile(name)}
+            onClick={() => {
+              setActiveFile(name);
+            }}
           />
         ))}
       </div>
