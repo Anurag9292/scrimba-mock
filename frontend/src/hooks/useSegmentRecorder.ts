@@ -38,8 +38,8 @@ interface UseSegmentRecorderReturn extends SegmentRecorderState {
     editorInstance: editor.IStandaloneCodeEditor,
     files: FileMap
   ) => void;
-  /** Stop recording and save segment to backend */
-  stopRecording: (files: FileMap) => Promise<string | null>;
+  /** Stop recording and save segment to backend. Returns { segmentId, scrimId } or null. */
+  stopRecording: (files: FileMap) => Promise<{ segmentId: string; scrimId: string } | null>;
   /** Pause recording */
   pauseRecording: () => void;
   /** Resume recording */
@@ -111,7 +111,7 @@ export function useSegmentRecorder(options?: { sectionId?: string | null }): Use
   );
 
   const stopRecording = useCallback(
-    async (files: FileMap): Promise<string | null> => {
+    async (files: FileMap): Promise<{ segmentId: string; scrimId: string } | null> => {
       // Stop all systems
       const durationMs = clock.stop();
       const videoBlob = await media.stop();
@@ -178,7 +178,7 @@ export function useSegmentRecorder(options?: { sectionId?: string | null }): Use
 
         setSavedSegmentId(segmentId);
         setIsSaving(false);
-        return segmentId;
+        return { segmentId, scrimId: currentScrimId };
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to save segment";
