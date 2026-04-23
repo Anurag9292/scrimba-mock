@@ -12,12 +12,12 @@ import {
   publishScrim,
   updateScrim,
   reorderSegment,
-  getSegmentVideoUrl,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import SegmentRecorder from "@/components/studio/SegmentRecorder";
 import SegmentTimeline from "@/components/studio/SegmentTimeline";
 import TrimEditor from "@/components/studio/TrimEditor";
+import SegmentPreview from "@/components/studio/SegmentPreview";
 import { segmentEffectiveDuration, computeFinalFiles } from "@/lib/segments";
 
 /** Format milliseconds to mm:ss display */
@@ -458,7 +458,7 @@ export default function StudioPage() {
               </button>
             </div>
           ) : (
-            <div className="mx-auto max-w-3xl space-y-4">
+            <div className="mx-auto max-w-6xl space-y-4">
               <SegmentTimeline
                 segments={segments}
                 onReorder={handleReorder}
@@ -480,33 +480,10 @@ export default function StudioPage() {
               )}
 
               {previewSegment && !trimmingSegment && (
-                <div className="mx-auto w-full max-w-3xl rounded-xl border border-gray-800 bg-gray-900 shadow-2xl">
-                  <div className="flex items-center justify-between border-b border-gray-800 px-4 py-2">
-                    <h3 className="text-sm font-medium text-white">
-                      Preview — Segment {segments.findIndex((s) => s.id === previewSegment.id) + 1}
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => setPreviewSegment(null)}
-                      className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
-                      title="Close preview"
-                    >
-                      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="overflow-hidden rounded-b-xl bg-black">
-                    <video
-                      key={previewSegment.id}
-                      src={getSegmentVideoUrl(previewSegment.id)}
-                      className="aspect-video w-full"
-                      controls
-                      autoPlay
-                      playsInline
-                    />
-                  </div>
-                </div>
+                <SegmentPreview
+                  segment={previewSegment}
+                  onClose={() => setPreviewSegment(null)}
+                />
               )}
             </div>
           )}
