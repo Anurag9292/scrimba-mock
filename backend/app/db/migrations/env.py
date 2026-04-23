@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel import SQLModel
 
 from app.config import settings
-from app.models.scrim import Scrim  # noqa: F401 - ensure models are registered
-from app.models.segment import ScrimSegment  # noqa: F401
+from app.models.lesson import Lesson  # noqa: F401 - ensure models are registered
+from app.models.segment import LessonSegment  # noqa: F401
 from app.models.checkpoint import Checkpoint  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.course_path import CoursePath  # noqa: F401
