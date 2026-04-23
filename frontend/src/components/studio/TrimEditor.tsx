@@ -143,7 +143,11 @@ export default function TrimEditor({
 
         const timeline = timelineRef.current;
         const video = videoRef.current;
+        const target = e.currentTarget as HTMLElement;
         if (!timeline || !video) return;
+
+        // Capture pointer for reliable tracking even when cursor leaves handle
+        target.setPointerCapture(e.pointerId);
 
         const rect = timeline.getBoundingClientRect();
 
@@ -173,7 +177,8 @@ export default function TrimEditor({
           }
         }
 
-        function onPointerUp() {
+        function onPointerUp(upEvent: PointerEvent) {
+          target.releasePointerCapture(upEvent.pointerId);
           document.removeEventListener("pointermove", onPointerMove);
           document.removeEventListener("pointerup", onPointerUp);
         }
@@ -288,7 +293,7 @@ export default function TrimEditor({
           <div
             onPointerDown={useDragHandle("start")}
             className="absolute inset-y-0 z-20 flex w-3 cursor-ew-resize items-center justify-center rounded-sm bg-brand-400 shadow-lg transition-colors hover:bg-brand-300"
-            style={{ left: `${startPct}%`, transform: "translateX(-50%)" }}
+            style={{ left: `${startPct}%`, transform: "translateX(-50%)", touchAction: "none" }}
           >
             <div className="h-4 w-0.5 rounded-full bg-white/60" />
           </div>
@@ -297,7 +302,7 @@ export default function TrimEditor({
           <div
             onPointerDown={useDragHandle("end")}
             className="absolute inset-y-0 z-20 flex w-3 cursor-ew-resize items-center justify-center rounded-sm bg-brand-400 shadow-lg transition-colors hover:bg-brand-300"
-            style={{ left: `${endPct}%`, transform: "translateX(-50%)" }}
+            style={{ left: `${endPct}%`, transform: "translateX(-50%)", touchAction: "none" }}
           >
             <div className="h-4 w-0.5 rounded-full bg-white/60" />
           </div>

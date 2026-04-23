@@ -102,8 +102,28 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
       (a, b) => a.timestamp - b.timestamp
     );
     eventsRef.current = sorted;
-    lastAppliedIndexRef.current = 0;
-    currentFilesRef.current = { ...seg.initial_files };
+
+    // Pre-apply events up to trim_start_ms so the editor shows the correct
+    // file state at the trim start point (not at time 0)
+    if (seg.trim_start_ms > 0) {
+      const targetIndex = findEventIndex(sorted, seg.trim_start_ms);
+      const { files, activeFileName: newActive } = replayEvents(
+        seg.initial_files,
+        sorted,
+        0,
+        targetIndex
+      );
+      currentFilesRef.current = files;
+      lastAppliedIndexRef.current = targetIndex;
+      if (newActive) {
+        activeFileRef.current = newActive;
+        setActiveFileName(newActive);
+      }
+      setCurrentFiles(files);
+    } else {
+      lastAppliedIndexRef.current = 0;
+      currentFilesRef.current = { ...seg.initial_files };
+    }
 
     // Set the video URL for this segment
     if (seg.video_filename) {
@@ -174,20 +194,36 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
         // Initialize with first segment
         const firstSeg = segments[0];
         initialFilesRef.current = firstSeg.initial_files;
-        currentFilesRef.current = { ...firstSeg.initial_files };
-        setCurrentFiles(firstSeg.initial_files);
 
         const sorted = [...firstSeg.code_events].sort(
           (a, b) => a.timestamp - b.timestamp
         );
         eventsRef.current = sorted;
-        lastAppliedIndexRef.current = 0;
         currentSegmentIndexRef.current = 0;
 
-        const firstName =
-          Object.keys(firstSeg.initial_files)[0] ?? "index.html";
-        activeFileRef.current = firstName;
-        setActiveFileName(firstName);
+        // Pre-apply events up to trim_start_ms for correct initial display
+        if (firstSeg.trim_start_ms > 0) {
+          const targetIndex = findEventIndex(sorted, firstSeg.trim_start_ms);
+          const { files: preApplied, activeFileName: preActive } = replayEvents(
+            firstSeg.initial_files,
+            sorted,
+            0,
+            targetIndex
+          );
+          currentFilesRef.current = preApplied;
+          lastAppliedIndexRef.current = targetIndex;
+          setCurrentFiles(preApplied);
+          const firstName = preActive ?? Object.keys(preApplied)[0] ?? "index.html";
+          activeFileRef.current = firstName;
+          setActiveFileName(firstName);
+        } else {
+          currentFilesRef.current = { ...firstSeg.initial_files };
+          lastAppliedIndexRef.current = 0;
+          setCurrentFiles(firstSeg.initial_files);
+          const firstName = Object.keys(firstSeg.initial_files)[0] ?? "index.html";
+          activeFileRef.current = firstName;
+          setActiveFileName(firstName);
+        }
 
         if (firstSeg.video_filename) {
           setVideoUrl(getSegmentVideoUrl(firstSeg.id));
@@ -307,9 +343,6 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
           }
 
           loadSegmentState(nextIdx);
-
-          // Apply initial state
-          setCurrentFiles(segments[nextIdx].initial_files);
 
           // Set pending seek for when the new video loads
           const nextSeg = segments[nextIdx];
