@@ -49,9 +49,10 @@ export default function ScrimList() {
   const loadScrims = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    const result = await fetchScrims("published");
+    const result = await fetchScrims("published", { standalone: true });
     if (result.success && result.data) {
-      setScrims(result.data);
+      // Double-filter: exclude scrims belonging to a course section
+      setScrims(result.data.filter((s) => !s.section_id));
     } else {
       setError(result.error?.message ?? "Failed to load scrims");
     }
