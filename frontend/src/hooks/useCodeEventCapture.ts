@@ -160,6 +160,7 @@ export function useCodeEventCapture(): CodeEventCapture {
   const recordFileCreate = useCallback(
     (fileName: string) => {
       if (!startTimeRef.current) return;
+      activeFileRef.current = fileName;
       const event: CodeEvent = {
         type: "file_create",
         timestamp: getTimestamp(),

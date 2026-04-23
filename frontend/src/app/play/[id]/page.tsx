@@ -238,6 +238,7 @@ export default function PlayerPage() {
               <EditorPanel
                 key={playback.isInteractive ? `interactive-${id}` : `playback-${id}-v${playback.seekVersion}`}
                 initialFiles={playback.currentFiles}
+                controlledActiveFile={!playback.isInteractive ? playback.activeFileName : undefined}
                 readOnly={!playback.isInteractive}
                 onFilesChange={playback.isInteractive ? playback.updateFiles : undefined}
               />
