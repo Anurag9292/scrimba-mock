@@ -53,6 +53,11 @@ async function apiFetch<T>(
       };
     }
 
+    // 204 No Content has no body
+    if (response.status === 204) {
+      return { success: true, data: undefined as unknown as T };
+    }
+
     const data = await response.json();
     return { success: true, data };
   } catch (err) {
