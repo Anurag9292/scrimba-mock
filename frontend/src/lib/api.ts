@@ -170,9 +170,16 @@ export async function uploadVideo(
   formData.append("file", videoBlob, "recording.webm");
 
   try {
+    const headers: Record<string, string> = {};
+    const token = getAuthToken();
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(url, {
       method: "POST",
       body: formData,
+      headers,
     });
 
     if (!response.ok) {
@@ -284,9 +291,16 @@ export async function uploadSegmentVideo(
   formData.append("file", videoBlob, "recording.webm");
 
   try {
+    const headers: Record<string, string> = {};
+    const token = getAuthToken();
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(url, {
       method: "POST",
       body: formData,
+      headers,
     });
 
     if (!response.ok) {

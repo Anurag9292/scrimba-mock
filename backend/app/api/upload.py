@@ -102,7 +102,6 @@ async def get_video(
     scrim_id: uuid.UUID,
     request: Request,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
 ) -> Response:
     scrim = await session.get(Scrim, scrim_id)
     if scrim is None:
@@ -152,7 +151,6 @@ async def get_segment_video(
     segment_id: uuid.UUID,
     request: Request,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
 ) -> Response:
     segment = await session.get(ScrimSegment, segment_id)
     if segment is None:
