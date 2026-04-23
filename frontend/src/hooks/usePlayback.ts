@@ -122,6 +122,8 @@ export interface UsePlaybackReturn {
   videoUrl: string | null;
   /** Whether interactive edit mode is active */
   isInteractive: boolean;
+  /** Increments on each seek to signal editor remount */
+  seekVersion: number;
   /** Ref to attach to the <video> element */
   videoRef: React.RefObject<HTMLVideoElement>;
   /** Start or resume playback */
@@ -150,6 +152,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
   const [currentFiles, setCurrentFiles] = useState<FileMap>({});
   const [activeFileName, setActiveFileName] = useState("index.html");
   const [isInteractive, setIsInteractive] = useState(false);
+  const [seekVersion, setSeekVersion] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null!) as React.RefObject<HTMLVideoElement>;
   const rafRef = useRef<number>(0);
@@ -330,6 +333,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
       setCurrentFiles(files);
       currentTimeMsRef.current = timeMs;
       setCurrentTimeMs(timeMs);
+      setSeekVersion((v) => v + 1);
     },
     []
   );
@@ -401,6 +405,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
     currentFiles,
     activeFileName,
     isInteractive,
+    seekVersion,
     videoUrl,
     videoRef,
     play,
