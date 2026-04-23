@@ -236,6 +236,18 @@ export async function deleteSegment(
   });
 }
 
+/** Reorder a segment to a new position */
+export async function reorderSegment(
+  scrimId: string,
+  segmentId: string,
+  newOrder: number
+): Promise<ApiResponse<ScrimSegment>> {
+  return apiFetch<ScrimSegment>(
+    `/api/scrims/${scrimId}/segments/${segmentId}/reorder?new_order=${newOrder}`,
+    { method: "PUT" }
+  );
+}
+
 /** Upload video for a segment */
 export async function uploadSegmentVideo(
   segmentId: string,

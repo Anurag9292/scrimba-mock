@@ -91,7 +91,7 @@ export interface ScrimSegment {
   initial_files: FileMap;
   duration_ms: number;
   trim_start_ms: number;
-  trim_end_ms?: number;
+  trim_end_ms: number | null;
   created_at: string;
   updated_at: string;
 }
