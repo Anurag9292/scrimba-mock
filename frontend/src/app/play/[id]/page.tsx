@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import EditorPanel from "@/components/editor/EditorPanel";
@@ -49,6 +49,44 @@ export default function PlayerPage() {
     const currentIndex = SPEED_OPTIONS.indexOf(playback.playbackRate);
     const nextIndex = (currentIndex + 1) % SPEED_OPTIONS.length;
     playback.setPlaybackRate(SPEED_OPTIONS[nextIndex]);
+  }, [playback]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Don't capture when user is typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      switch (e.key) {
+        case " ": // Space = play/pause
+          e.preventDefault();
+          if (playback.isPlaying) {
+            playback.pause();
+          } else {
+            playback.play();
+          }
+          break;
+        case "ArrowRight": // → = seek forward 5s (shift = 10s)
+          e.preventDefault();
+          playback.seek(
+            Math.min(
+              playback.durationMs,
+              playback.currentTimeMs + (e.shiftKey ? 10000 : 5000)
+            )
+          );
+          break;
+        case "ArrowLeft": // ← = seek backward 5s (shift = 10s)
+          e.preventDefault();
+          playback.seek(
+            Math.max(0, playback.currentTimeMs - (e.shiftKey ? 10000 : 5000))
+          );
+          break;
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [playback]);
 
   const progressFraction =
@@ -325,18 +363,38 @@ export default function PlayerPage() {
               </div>
             </div>
 
-            <div className="mt-6 space-y-3">
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
-                Synchronized code + video playback
+            <div className="mt-6 space-y-2.5">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-gray-600">
+                Keyboard shortcuts
+              </p>
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Play / Pause</span>
+                <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+                  Space
+                </kbd>
               </div>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
-                Click progress bar to seek
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Seek ±5s</span>
+                <div className="flex gap-1">
+                  <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+                    ←
+                  </kbd>
+                  <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+                    →
+                  </kbd>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
-                Change playback speed with the speed button
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Seek ±10s</span>
+                <div className="flex gap-1">
+                  <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+                    Shift
+                  </kbd>
+                  <span className="text-gray-600">+</span>
+                  <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+                    ←→
+                  </kbd>
+                </div>
               </div>
             </div>
           </div>

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import type { Scrim } from "@/lib/types";
-import { fetchScrims, deleteScrim } from "@/lib/api";
+import { fetchScrims, deleteScrim, updateScrim } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 
 /** Format milliseconds to a human-readable duration */
 function formatDuration(ms: number): string {
@@ -38,7 +39,11 @@ export default function ScrimList() {
   const [scrims, setScrims] = useState<Scrim[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   const loadScrims = useCallback(async () => {
     setIsLoading(true);
@@ -64,12 +69,41 @@ export default function ScrimList() {
       const result = await deleteScrim(id);
       if (result.success) {
         setScrims((prev) => prev.filter((s) => s.id !== id));
+        toast("Scrim deleted", "success");
       } else {
-        alert(result.error?.message ?? "Failed to delete scrim");
+        toast(result.error?.message ?? "Failed to delete scrim", "error");
       }
       setDeletingId(null);
     },
     []
+  );
+
+  const startEditing = useCallback((scrim: Scrim) => {
+    setEditingId(scrim.id);
+    setEditTitle(scrim.title);
+    // Focus the input after render
+    setTimeout(() => editInputRef.current?.focus(), 0);
+  }, []);
+
+  const saveTitle = useCallback(
+    async (id: string) => {
+      const trimmed = editTitle.trim();
+      if (!trimmed) {
+        setEditingId(null);
+        return;
+      }
+      const result = await updateScrim(id, { title: trimmed });
+      if (result.success && result.data) {
+        setScrims((prev) =>
+          prev.map((s) => (s.id === id ? { ...s, title: trimmed } : s))
+        );
+        toast("Title updated", "success");
+      } else {
+        toast(result.error?.message ?? "Failed to rename", "error");
+      }
+      setEditingId(null);
+    },
+    [editTitle]
   );
 
   // Loading state
@@ -166,13 +200,34 @@ export default function ScrimList() {
           </Link>
 
           {/* Info */}
-          <Link
-            href={`/play/${scrim.id}`}
-            className="flex-1 min-w-0"
-          >
-            <h3 className="truncate text-sm font-medium text-white group-hover:text-brand-300 transition-colors">
-              {scrim.title}
-            </h3>
+          <div className="flex-1 min-w-0">
+            {editingId === scrim.id ? (
+              <input
+                ref={editInputRef}
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onBlur={() => saveTitle(scrim.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveTitle(scrim.id);
+                  if (e.key === "Escape") setEditingId(null);
+                }}
+                className="w-full rounded border border-brand-500/50 bg-gray-800 px-2 py-0.5 text-sm font-medium text-white outline-none focus:border-brand-500"
+              />
+            ) : (
+              <Link href={`/play/${scrim.id}`}>
+                <h3
+                  className="truncate text-sm font-medium text-white group-hover:text-brand-300 transition-colors"
+                  onDoubleClick={(e) => {
+                    e.preventDefault();
+                    startEditing(scrim);
+                  }}
+                  title="Double-click to rename"
+                >
+                  {scrim.title}
+                </h3>
+              </Link>
+            )}
             <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
               <span>{formatDuration(scrim.duration_ms)}</span>
               <span className="h-1 w-1 rounded-full bg-gray-700" />
@@ -186,7 +241,7 @@ export default function ScrimList() {
                 </>
               )}
             </div>
-          </Link>
+          </div>
 
           {/* Actions */}
           <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -204,6 +259,21 @@ export default function ScrimList() {
                 <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
               </svg>
             </Link>
+            <button
+              type="button"
+              onClick={() => startEditing(scrim)}
+              className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
+              title="Rename"
+            >
+              <svg
+                className="h-4 w-4"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
+              </svg>
+            </button>
             <button
               type="button"
               onClick={() => handleDelete(scrim.id, scrim.title)}
