@@ -279,6 +279,18 @@ export async function uploadSegmentVideo(
   }
 }
 
+/** Reorder a segment to a new position */
+export async function reorderSegment(
+  scrimId: string,
+  segmentId: string,
+  newOrder: number
+): Promise<ApiResponse<ScrimSegment>> {
+  return apiFetch<ScrimSegment>(
+    `/api/scrims/${scrimId}/segments/${segmentId}/reorder?new_order=${newOrder}`,
+    { method: "PUT" }
+  );
+}
+
 /** Get the URL for a segment's video */
 export function getSegmentVideoUrl(segmentId: string): string {
   return `${API_URL}/api/upload/video/segment/${segmentId}`;
