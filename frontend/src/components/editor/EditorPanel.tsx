@@ -84,6 +84,17 @@ export const DEFAULT_FILES: Record<string, string> = {
   "script.js": DEFAULT_JS,
 };
 
+/** Shallow-compare two file maps by keys and values */
+function filesEqual(a: Record<string, string>, b: Record<string, string>): boolean {
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const key of keysA) {
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+}
+
 interface EditorPanelProps {
   /** Optional initial files to load instead of defaults */
   initialFiles?: Record<string, string>;
@@ -101,6 +112,8 @@ interface EditorPanelProps {
   onFileDelete?: (fileName: string) => void;
   /** Callback when a file is renamed */
   onFileRename?: (oldName: string, newName: string) => void;
+  /** Externally controlled active file (used during playback) */
+  controlledActiveFile?: string;
 }
 
 export default function EditorPanel({
@@ -112,6 +125,7 @@ export default function EditorPanel({
   onFileCreate,
   onFileDelete,
   onFileRename,
+  controlledActiveFile,
 }: EditorPanelProps) {
   const [files, setFiles] = useState<Record<string, string>>(
     initialFiles ?? DEFAULT_FILES
@@ -148,6 +162,22 @@ export default function EditorPanel({
   useEffect(() => {
     onActiveFileChange?.(activeFile);
   }, [activeFile, onActiveFileChange]);
+
+  // In readOnly/playback mode, sync files from parent when they actually change
+  useEffect(() => {
+    if (readOnly && initialFiles) {
+      setFiles((prev) => (filesEqual(prev, initialFiles) ? prev : initialFiles));
+    }
+  }, [readOnly, initialFiles]);
+
+  // In readOnly/playback mode, sync active file from parent
+  useEffect(() => {
+    if (readOnly && controlledActiveFile) {
+      setActiveFile((prev) =>
+        prev === controlledActiveFile ? prev : controlledActiveFile
+      );
+    }
+  }, [readOnly, controlledActiveFile]);
 
   const handleCreateFile = useCallback(() => {
     const trimmed = newFileName.trim();
@@ -275,6 +305,7 @@ export default function EditorPanel({
       {/* Editor area */}
       <div className="flex-1 min-h-0">
         <CodeEditor
+          path={activeFile}
           value={files[activeFile] ?? ""}
           language={getLanguage(activeFile)}
           onChange={handleChange}
