@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-950 text-gray-100;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-900;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-600;
+  }
+
+  ::selection {
+    @apply bg-brand-600/40 text-white;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-gray-800 bg-gray-900/60 backdrop-blur-sm
+           shadow-lg shadow-black/20 transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply card hover:border-brand-500/50 hover:shadow-brand-500/10
+           hover:shadow-xl hover:-translate-y-0.5;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg
+           bg-brand-600 px-4 py-2.5 text-sm font-medium text-white
+           transition-all duration-200
+           hover:bg-brand-500 hover:shadow-lg hover:shadow-brand-600/25
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2
+           focus:ring-offset-gray-950
+           active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg
+           border border-gray-700 bg-gray-800/50 px-4 py-2.5 text-sm
+           font-medium text-gray-300 transition-all duration-200
+           hover:border-gray-600 hover:bg-gray-800 hover:text-white
+           focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2
+           focus:ring-offset-gray-950
+           active:scale-[0.98];
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-brand-400 to-purple-400 bg-clip-text text-transparent;
+  }
+}
+
+@layer utilities {
+  .glow {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.15),
+                0 0 60px rgba(99, 102, 241, 0.05);
+  }
+
+  .glow-sm {
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.1);
+  }
+}

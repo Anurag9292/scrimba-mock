@@ -1,0 +1,69 @@
+"use client";
+
+import { useState, useCallback } from "react";
+import EditorPanel from "./EditorPanel";
+import LivePreview from "./LivePreview";
+
+interface EditorWithPreviewProps {
+  /** Optional initial files to seed the editor */
+  initialFiles?: Record<string, string>;
+  /** Whether the editor is read-only (for playback mode) */
+  readOnly?: boolean;
+}
+
+export default function EditorWithPreview({
+  initialFiles,
+  readOnly = false,
+}: EditorWithPreviewProps) {
+  const [files, setFiles] = useState<Record<string, string>>({});
+
+  const handleFilesChange = useCallback((updated: Record<string, string>) => {
+    setFiles(updated);
+  }, []);
+
+  // Extract HTML/CSS/JS for the live preview by matching common filenames
+  const html = files["index.html"] ?? "";
+  const css = files["styles.css"] ?? files["style.css"] ?? "";
+  const javascript = files["script.js"] ?? files["main.js"] ?? files["index.js"] ?? "";
+
+  return (
+    <div className="flex h-full">
+      {/* Editor panel - left half */}
+      <div className="flex h-full w-1/2 flex-col border-r border-gray-800">
+        <EditorPanel
+          initialFiles={initialFiles}
+          onFilesChange={handleFilesChange}
+          readOnly={readOnly}
+        />
+      </div>
+
+      {/* Preview panel - right half */}
+      <div className="flex h-full w-1/2 flex-col">
+        {/* Preview header */}
+        <div className="flex h-10 shrink-0 items-center border-b border-gray-800 bg-[#252526] px-4">
+          <div className="flex items-center gap-2">
+            <svg
+              className="h-4 w-4 text-gray-500"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+              <path
+                fillRule="evenodd"
+                d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span className="text-xs font-medium text-gray-400">Preview</span>
+          </div>
+        </div>
+
+        {/* Preview iframe */}
+        <div className="flex-1 min-h-0">
+          <LivePreview html={html} css={css} javascript={javascript} />
+        </div>
+      </div>
+    </div>
+  );
+}
