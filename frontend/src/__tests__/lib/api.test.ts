@@ -3,7 +3,9 @@ import {
   fetchScrims,
   fetchScrim,
   createScrim,
+  updateScrim,
   deleteScrim,
+  uploadVideo,
   getVideoUrl,
 } from "@/lib/api";
 import type { ScrimCreate } from "@/lib/api";
@@ -19,34 +21,22 @@ beforeEach(() => {
 });
 
 describe("fetchScrims", () => {
-  it("calls correct endpoint with default pagination", async () => {
+  it("calls correct endpoint without pagination", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ items: [], total: 0, page: 1, pageSize: 20, hasMore: false }),
+      json: async () => [],
     });
 
     await fetchScrims();
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims?page=1&pageSize=20`);
+    expect(url).toBe(`${API_URL}/api/scrims`);
     expect(options.headers["Content-Type"]).toBe("application/json");
   });
 
-  it("calls correct endpoint with custom pagination", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ items: [], total: 0, page: 2, pageSize: 10, hasMore: false }),
-    });
-
-    await fetchScrims(2, 10);
-
-    const [url] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims?page=2&pageSize=10`);
-  });
-
   it("returns success response with data", async () => {
-    const mockData = { items: [], total: 0, page: 1, pageSize: 20, hasMore: false };
+    const mockData = [{ id: "abc", title: "Test" }];
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => mockData,
@@ -89,9 +79,8 @@ describe("createScrim", () => {
     const scrimData: ScrimCreate = {
       title: "My Scrim",
       language: "javascript",
-      initialFiles: { "index.html": "<h1>Hi</h1>" },
+      files: { "index.html": "<h1>Hi</h1>" },
       description: "A test scrim",
-      tags: ["test"],
     };
 
     mockFetch.mockResolvedValueOnce({
@@ -106,6 +95,24 @@ describe("createScrim", () => {
     expect(options.method).toBe("POST");
     expect(JSON.parse(options.body)).toEqual(scrimData);
     expect(options.headers["Content-Type"]).toBe("application/json");
+  });
+});
+
+describe("updateScrim", () => {
+  it("sends PUT with correct body", async () => {
+    const updateData = { title: "Updated Title", duration_ms: 5000 };
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: "upd123", ...updateData }),
+    });
+
+    await updateScrim("upd123", updateData);
+
+    const [url, options] = mockFetch.mock.calls[0];
+    expect(url).toBe(`${API_URL}/api/scrims/upd123`);
+    expect(options.method).toBe("PUT");
+    expect(JSON.parse(options.body)).toEqual(updateData);
   });
 });
 
@@ -134,16 +141,49 @@ describe("deleteScrim", () => {
   });
 });
 
+describe("uploadVideo", () => {
+  it("sends POST with FormData to correct upload URL", async () => {
+    const blob = new Blob(["video data"], { type: "video/webm" });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ url: "/video/vid123.webm" }),
+    });
+
+    await uploadVideo("vid123", blob);
+
+    const [url, options] = mockFetch.mock.calls[0];
+    expect(url).toBe(`${API_URL}/api/upload/video/vid123`);
+    expect(options.method).toBe("POST");
+    expect(options.body).toBeInstanceOf(FormData);
+  });
+
+  it("returns error on upload failure", async () => {
+    const blob = new Blob(["video data"], { type: "video/webm" });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 413,
+      json: async () => ({ detail: "File too large" }),
+    });
+
+    const result = await uploadVideo("vid123", blob);
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("HTTP_413");
+    expect(result.error?.message).toBe("File too large");
+  });
+});
+
 describe("getVideoUrl", () => {
-  it("returns correct URL string", () => {
+  it("returns correct upload URL string", () => {
     const url = getVideoUrl("vid123");
-    expect(url).toBe(`${API_URL}/api/scrims/vid123/video`);
+    expect(url).toBe(`${API_URL}/api/upload/video/vid123`);
   });
 
   it("includes the scrim ID in the URL", () => {
     const url = getVideoUrl("my-scrim-id");
     expect(url).toContain("my-scrim-id");
-    expect(url).toBe(`${API_URL}/api/scrims/my-scrim-id/video`);
+    expect(url).toBe(`${API_URL}/api/upload/video/my-scrim-id`);
   });
 });
 

@@ -15,7 +15,7 @@ def _make_scrim_payload(**overrides) -> dict:
         "duration_ms": 5000,
         "initial_code": "<h1>Hello</h1>",
         "language": "html",
-        "code_events": {"0": {"type": "insert", "text": "h"}},
+        "code_events": [{"type": "insert", "text": "h"}],
         "files": {"index.html": "<h1>Hello</h1>"},
     }
     defaults.update(overrides)
@@ -57,7 +57,7 @@ async def test_create_scrim_with_defaults(client: AsyncClient):
     assert data["duration_ms"] == 0
     assert data["initial_code"] == ""
     assert data["language"] == "html"
-    assert data["code_events"] == {}
+    assert data["code_events"] == []
     assert data["files"] is None
 
 

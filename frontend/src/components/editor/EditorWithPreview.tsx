@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import type { OnMount } from "@monaco-editor/react";
 import EditorPanel, { DEFAULT_FILES } from "./EditorPanel";
 import LivePreview from "./LivePreview";
 
@@ -9,17 +10,27 @@ interface EditorWithPreviewProps {
   initialFiles?: Record<string, string>;
   /** Whether the editor is read-only (for playback mode) */
   readOnly?: boolean;
+  /** Callback when the Monaco editor mounts */
+  onEditorMount?: OnMount;
+  /** Callback when files change */
+  onFilesChange?: (files: Record<string, string>) => void;
+  /** Callback when the active file tab changes */
+  onActiveFileChange?: (fileName: string) => void;
 }
 
 export default function EditorWithPreview({
   initialFiles,
   readOnly = false,
+  onEditorMount,
+  onFilesChange: externalOnFilesChange,
+  onActiveFileChange,
 }: EditorWithPreviewProps) {
   const [files, setFiles] = useState<Record<string, string>>(initialFiles ?? DEFAULT_FILES);
 
   const handleFilesChange = useCallback((updated: Record<string, string>) => {
     setFiles(updated);
-  }, []);
+    externalOnFilesChange?.(updated);
+  }, [externalOnFilesChange]);
 
   // Extract HTML/CSS/JS for the live preview by matching common filenames
   const html = files["index.html"] ?? "";
@@ -34,6 +45,8 @@ export default function EditorWithPreview({
           initialFiles={initialFiles}
           onFilesChange={handleFilesChange}
           readOnly={readOnly}
+          onEditorMount={onEditorMount}
+          onActiveFileChange={onActiveFileChange}
         />
       </div>
 

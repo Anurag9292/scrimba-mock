@@ -1,4 +1,4 @@
-import type { Scrim, ApiResponse, PaginatedResponse, FileMap } from "./types";
+import type { Scrim, ApiResponse } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -6,19 +6,22 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export interface ScrimCreate {
   title: string;
   description?: string;
-  language: string;
-  initialFiles: FileMap;
-  tags?: string[];
+  language?: string;
+  initial_code?: string;
+  code_events?: Array<Record<string, unknown>>;
+  files?: Record<string, string>;
+  duration_ms?: number;
 }
 
 /** Data for updating an existing scrim */
 export interface ScrimUpdate {
   title?: string;
   description?: string;
-  status?: Scrim["status"];
-  events?: Scrim["events"];
-  durationMs?: number;
-  tags?: string[];
+  duration_ms?: number;
+  initial_code?: string;
+  language?: string;
+  code_events?: Array<Record<string, unknown>>;
+  files?: Record<string, string>;
 }
 
 /** Generic fetch wrapper with error handling */
@@ -64,14 +67,9 @@ async function apiFetch<T>(
   }
 }
 
-/** Fetch all scrims with optional pagination */
-export async function fetchScrims(
-  page = 1,
-  pageSize = 20
-): Promise<ApiResponse<PaginatedResponse<Scrim>>> {
-  return apiFetch<PaginatedResponse<Scrim>>(
-    `/api/scrims?page=${page}&pageSize=${pageSize}`
-  );
+/** Fetch all scrims */
+export async function fetchScrims(): Promise<ApiResponse<Scrim[]>> {
+  return apiFetch<Scrim[]>("/api/scrims");
 }
 
 /** Fetch a single scrim by ID */
@@ -95,7 +93,7 @@ export async function updateScrim(
   data: ScrimUpdate
 ): Promise<ApiResponse<Scrim>> {
   return apiFetch<Scrim>(`/api/scrims/${id}`, {
-    method: "PATCH",
+    method: "PUT",
     body: JSON.stringify(data),
   });
 }
@@ -114,7 +112,7 @@ export async function uploadVideo(
   scrimId: string,
   videoBlob: Blob
 ): Promise<ApiResponse<{ url: string }>> {
-  const url = `${API_URL}/api/scrims/${scrimId}/video`;
+  const url = `${API_URL}/api/upload/video/${scrimId}`;
   const formData = new FormData();
   formData.append("file", videoBlob, "recording.webm");
 
@@ -154,5 +152,5 @@ export async function uploadVideo(
 
 /** Get the URL for a scrim's video/audio recording */
 export function getVideoUrl(scrimId: string): string {
-  return `${API_URL}/api/scrims/${scrimId}/video`;
+  return `${API_URL}/api/upload/video/${scrimId}`;
 }
