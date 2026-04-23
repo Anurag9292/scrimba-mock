@@ -6,7 +6,7 @@ import type { RecordingStatus, CodeEvent, FileMap } from "@/lib/types";
 import { useRecordingClock } from "./useRecordingClock";
 import { useMediaRecorder } from "./useMediaRecorder";
 import { useCodeEventCapture } from "./useCodeEventCapture";
-import { createScrim, updateScrim, uploadVideo } from "@/lib/api";
+import { createLesson, updateLesson, uploadVideo } from "@/lib/api";
 
 interface RecorderState {
   /** Current recording status */
@@ -17,8 +17,8 @@ interface RecorderState {
   mediaStream: MediaStream | null;
   /** Any error message */
   error: string | null;
-  /** The ID of the saved scrim (available after stop) */
-  savedScrimId: string | null;
+  /** The ID of the saved lesson (available after stop) */
+  savedLessonId: string | null;
   /** Whether the recording is being saved */
   isSaving: boolean;
 }
@@ -49,7 +49,7 @@ interface UseRecorderReturn extends RecorderState {
 export function useRecorder(): UseRecorderReturn {
   const [status, setStatus] = useState<RecordingStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [savedScrimId, setSavedScrimId] = useState<string | null>(null);
+  const [savedLessonId, setSavedLessonId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const initialFilesRef = useRef<FileMap>({});
@@ -79,7 +79,7 @@ export function useRecorder(): UseRecorderReturn {
 
       setStatus("recording");
       setError(null);
-      setSavedScrimId(null);
+      setSavedLessonId(null);
     },
     [clock, media, capture]
   );
@@ -95,8 +95,8 @@ export function useRecorder(): UseRecorderReturn {
       setIsSaving(true);
 
       try {
-        // Create the scrim record
-        const scrimResult = await createScrim({
+        // Create the lesson record
+        const lessonResult = await createLesson({
           title: `Recording ${new Date().toLocaleString()}`,
           language: "html",
           files: initialFilesRef.current,
@@ -104,30 +104,30 @@ export function useRecorder(): UseRecorderReturn {
           duration_ms: durationMs,
         });
 
-        if (!scrimResult.success || !scrimResult.data) {
-          throw new Error(scrimResult.error?.message ?? "Failed to create scrim");
+        if (!lessonResult.success || !lessonResult.data) {
+          throw new Error(lessonResult.error?.message ?? "Failed to create lesson");
         }
 
-        const scrimId = scrimResult.data.id;
+        const lessonId = lessonResult.data.id;
 
         // Upload video if we have one
         if (videoBlob) {
-          const uploadResult = await uploadVideo(scrimId, videoBlob);
+          const uploadResult = await uploadVideo(lessonId, videoBlob);
           if (!uploadResult.success) {
             console.warn("Video upload failed:", uploadResult.error?.message);
             // Don't fail the whole save just because video upload failed
           }
         }
 
-        // Update scrim with final file state
-        await updateScrim(scrimId, {
+        // Update lesson with final file state
+        await updateLesson(lessonId, {
           duration_ms: durationMs,
           code_events: events as unknown as Array<Record<string, unknown>>,
         });
 
-        setSavedScrimId(scrimId);
+        setSavedLessonId(lessonId);
         setIsSaving(false);
-        return scrimId;
+        return lessonId;
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to save recording";
         setError(message);
@@ -183,7 +183,7 @@ export function useRecorder(): UseRecorderReturn {
     capture.stopCapture();
     setStatus("idle");
     setError(null);
-    setSavedScrimId(null);
+    setSavedLessonId(null);
     setIsSaving(false);
   }, [media, capture]);
 
@@ -192,7 +192,7 @@ export function useRecorder(): UseRecorderReturn {
     elapsedMs: clock.elapsedMs,
     mediaStream: media.mediaStream,
     error: error ?? media.error,
-    savedScrimId,
+    savedLessonId,
     isSaving,
     initialize,
     startRecording,

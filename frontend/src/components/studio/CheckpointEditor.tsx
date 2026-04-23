@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { ScrimSegment, Checkpoint } from "@/lib/types";
+import type { LessonSegment, Checkpoint } from "@/lib/types";
 import {
   fetchCheckpoints,
   createCheckpoint,
@@ -13,8 +13,8 @@ import {
 import { segmentEffectiveDuration } from "@/lib/segments";
 
 interface CheckpointEditorProps {
-  segment: ScrimSegment;
-  scrimId: string;
+  segment: LessonSegment;
+  lessonId: string;
   /** Current preview time in ms (segment-local, for placing new checkpoints) */
   currentPreviewTimeMs?: number;
   /** Content from the live preview iframe (used for "Capture Expected Output") */
@@ -32,7 +32,7 @@ function formatTime(ms: number): string {
 
 export default function CheckpointEditor({
   segment,
-  scrimId,
+  lessonId,
   currentPreviewTimeMs,
   previewContent,
   onClose,
@@ -54,12 +54,12 @@ export default function CheckpointEditor({
   // Load checkpoints
   const loadCheckpoints = useCallback(async () => {
     setIsLoading(true);
-    const result = await fetchCheckpoints(scrimId, segment.id);
+    const result = await fetchCheckpoints(lessonId, segment.id);
     if (result.success && result.data) {
       setCheckpoints(result.data);
     }
     setIsLoading(false);
-  }, [scrimId, segment.id]);
+  }, [lessonId, segment.id]);
 
   useEffect(() => {
     loadCheckpoints();
@@ -108,7 +108,7 @@ export default function CheckpointEditor({
         timestamp_ms: formTimestampMs,
         validation_config: { expected_output: formExpectedOutput },
       };
-      const result = await updateCheckpoint(scrimId, segment.id, editingId, data);
+      const result = await updateCheckpoint(lessonId, segment.id, editingId, data);
       if (result.success && result.data) {
         setCheckpoints((prev) =>
           prev.map((cp) => (cp.id === editingId ? result.data! : cp))
@@ -123,7 +123,7 @@ export default function CheckpointEditor({
         validation_type: "output_match",
         validation_config: { expected_output: formExpectedOutput },
       };
-      const result = await createCheckpoint(scrimId, segment.id, data);
+      const result = await createCheckpoint(lessonId, segment.id, data);
       if (result.success && result.data) {
         setCheckpoints((prev) => [...prev, result.data!].sort((a, b) => a.order - b.order));
       }
@@ -131,18 +131,18 @@ export default function CheckpointEditor({
 
     setIsSaving(false);
     resetForm();
-  }, [formTitle, formInstructions, formTimestampMs, formExpectedOutput, editingId, scrimId, segment.id, resetForm]);
+  }, [formTitle, formInstructions, formTimestampMs, formExpectedOutput, editingId, lessonId, segment.id, resetForm]);
 
   // Delete checkpoint
   const handleDelete = useCallback(
     async (checkpointId: string) => {
       if (!confirm("Delete this checkpoint?")) return;
-      const result = await deleteCheckpoint(scrimId, segment.id, checkpointId);
+      const result = await deleteCheckpoint(lessonId, segment.id, checkpointId);
       if (result.success) {
         setCheckpoints((prev) => prev.filter((cp) => cp.id !== checkpointId));
       }
     },
-    [scrimId, segment.id]
+    [lessonId, segment.id]
   );
 
   // Capture current preview output as expected

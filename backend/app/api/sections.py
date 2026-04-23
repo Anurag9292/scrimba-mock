@@ -8,7 +8,7 @@ from sqlmodel import select
 from app.db.database import get_session
 from app.models.course import Course
 from app.models.section import Section, SectionCreate, SectionUpdate, SectionRead
-from app.models.scrim import Scrim, ScrimRead
+from app.models.lesson import Lesson, LessonRead
 from app.models.user import User
 from app.api.auth_deps import get_current_user, get_optional_user, require_role
 
@@ -182,15 +182,15 @@ async def reorder_section(
     return section
 
 
-# --- Scrims within a section ---
+# --- Lessons within a section ---
 
-@router.get("/{section_id}/scrims", response_model=list[ScrimRead])
-async def list_section_scrims(
+@router.get("/{section_id}/lessons", response_model=list[LessonRead])
+async def list_section_lessons(
     course_id: uuid.UUID,
     section_id: uuid.UUID,
     user: User | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_session),
-) -> list[Scrim]:
+) -> list[Lesson]:
     await _get_course_or_404(course_id, session)
 
     section = await session.get(Section, section_id)
@@ -198,6 +198,6 @@ async def list_section_scrims(
         raise HTTPException(status_code=404, detail="Section not found")
 
     result = await session.execute(
-        select(Scrim).where(Scrim.section_id == section_id).order_by(Scrim.created_at.asc())
+        select(Lesson).where(Lesson.section_id == section_id).order_by(Lesson.created_at.asc())
     )
     return list(result.scalars().all())

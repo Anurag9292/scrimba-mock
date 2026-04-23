@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-  fetchScrims,
-  fetchScrim,
-  createScrim,
-  updateScrim,
-  deleteScrim,
+  fetchLessons,
+  fetchLesson,
+  createLesson,
+  updateLesson,
+  deleteLesson,
   uploadVideo,
   getVideoUrl,
   registerUser,
@@ -31,7 +31,7 @@ import {
   createSection,
   updateSection,
   deleteSection,
-  fetchSectionScrims,
+  fetchSectionLessons,
   fetchSegments,
   createSegment,
   updateSegment as updateSegmentFn,
@@ -40,16 +40,16 @@ import {
   uploadSegmentVideo,
   getSegmentVideoUrl,
   fetchCheckpoints,
-  fetchScrimCheckpoints,
+  fetchLessonCheckpoints,
   createCheckpoint,
   updateCheckpoint,
   deleteCheckpoint,
   reorderCheckpoint,
-  publishScrim,
+  publishLesson,
   setAuthToken,
   getAuthToken,
 } from "@/lib/api";
-import type { ScrimCreate } from "@/lib/api";
+import type { LessonCreate } from "@/lib/api";
 
 const API_URL = "http://localhost:8000";
 
@@ -63,18 +63,18 @@ beforeEach(() => {
   setAuthToken(null);
 });
 
-describe("fetchScrims", () => {
+describe("fetchLessons", () => {
   it("calls correct endpoint without pagination", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => [],
     });
 
-    await fetchScrims();
+    await fetchLessons();
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims/`);
+    expect(url).toBe(`${API_URL}/api/lessons/`);
     expect(options.headers["Content-Type"]).toBe("application/json");
   });
 
@@ -85,22 +85,22 @@ describe("fetchScrims", () => {
       json: async () => mockData,
     });
 
-    const result = await fetchScrims();
+    const result = await fetchLessons();
     expect(result).toEqual({ success: true, data: mockData });
   });
 });
 
-describe("fetchScrim", () => {
+describe("fetchLesson", () => {
   it("calls correct endpoint with ID", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ id: "abc123" }),
     });
 
-    await fetchScrim("abc123");
+    await fetchLesson("abc123");
 
     const [url] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims/abc123`);
+    expect(url).toBe(`${API_URL}/api/lessons/abc123`);
   });
 
   it("returns error on non-ok response", async () => {
@@ -110,38 +110,38 @@ describe("fetchScrim", () => {
       json: async () => ({ message: "Not found" }),
     });
 
-    const result = await fetchScrim("nonexistent");
+    const result = await fetchLesson("nonexistent");
     expect(result.success).toBe(false);
     expect(result.error?.code).toBe("HTTP_404");
     expect(result.error?.message).toBe("Not found");
   });
 });
 
-describe("createScrim", () => {
+describe("createLesson", () => {
   it("sends POST with correct body", async () => {
-    const scrimData: ScrimCreate = {
-      title: "My Scrim",
+    const lessonData: LessonCreate = {
+      title: "My Lesson",
       language: "javascript",
       files: { "index.html": "<h1>Hi</h1>" },
-      description: "A test scrim",
+      description: "A test lesson",
     };
 
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ id: "new123", ...scrimData }),
+      json: async () => ({ id: "new123", ...lessonData }),
     });
 
-    await createScrim(scrimData);
+    await createLesson(lessonData);
 
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims/`);
+    expect(url).toBe(`${API_URL}/api/lessons/`);
     expect(options.method).toBe("POST");
-    expect(JSON.parse(options.body)).toEqual(scrimData);
+    expect(JSON.parse(options.body)).toEqual(lessonData);
     expect(options.headers["Content-Type"]).toBe("application/json");
   });
 });
 
-describe("updateScrim", () => {
+describe("updateLesson", () => {
   it("sends PUT with correct body", async () => {
     const updateData = { title: "Updated Title", duration_ms: 5000 };
 
@@ -150,26 +150,26 @@ describe("updateScrim", () => {
       json: async () => ({ id: "upd123", ...updateData }),
     });
 
-    await updateScrim("upd123", updateData);
+    await updateLesson("upd123", updateData);
 
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims/upd123`);
+    expect(url).toBe(`${API_URL}/api/lessons/upd123`);
     expect(options.method).toBe("PUT");
     expect(JSON.parse(options.body)).toEqual(updateData);
   });
 });
 
-describe("deleteScrim", () => {
+describe("deleteLesson", () => {
   it("sends DELETE with correct ID", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ deleted: true }),
     });
 
-    await deleteScrim("del123");
+    await deleteLesson("del123");
 
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims/del123`);
+    expect(url).toBe(`${API_URL}/api/lessons/del123`);
     expect(options.method).toBe("DELETE");
   });
 
@@ -179,7 +179,7 @@ describe("deleteScrim", () => {
       json: async () => ({ deleted: true }),
     });
 
-    const result = await deleteScrim("del123");
+    const result = await deleteLesson("del123");
     expect(result).toEqual({ success: true, data: { deleted: true } });
   });
 });
@@ -223,10 +223,10 @@ describe("getVideoUrl", () => {
     expect(url).toBe(`${API_URL}/api/upload/video/vid123`);
   });
 
-  it("includes the scrim ID in the URL", () => {
-    const url = getVideoUrl("my-scrim-id");
-    expect(url).toContain("my-scrim-id");
-    expect(url).toBe(`${API_URL}/api/upload/video/my-scrim-id`);
+  it("includes the lesson ID in the URL", () => {
+    const url = getVideoUrl("my-lesson-id");
+    expect(url).toContain("my-lesson-id");
+    expect(url).toBe(`${API_URL}/api/upload/video/my-lesson-id`);
   });
 });
 
@@ -234,7 +234,7 @@ describe("API error handling", () => {
   it("returns NETWORK_ERROR on fetch failure", async () => {
     mockFetch.mockRejectedValueOnce(new Error("Network failure"));
 
-    const result = await fetchScrims();
+    const result = await fetchLessons();
     expect(result.success).toBe(false);
     expect(result.error?.code).toBe("NETWORK_ERROR");
     expect(result.error?.message).toBe("Network failure");
@@ -249,7 +249,7 @@ describe("API error handling", () => {
       },
     });
 
-    const result = await fetchScrim("bad");
+    const result = await fetchLesson("bad");
     expect(result.success).toBe(false);
     expect(result.error?.code).toBe("HTTP_500");
     expect(result.error?.message).toBe("Request failed with status 500");
@@ -754,20 +754,20 @@ describe("Section API", () => {
     expect(options.method).toBe("DELETE");
   });
 
-  it("fetchSectionScrims sends GET to /api/courses/{courseId}/sections/{sectionId}/scrims", async () => {
+  it("fetchSectionLessons sends GET to /api/courses/{courseId}/sections/{sectionId}/lessons", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => [{ id: "scrim-1", title: "Scrim" }],
+      json: async () => [{ id: "lesson-1", title: "Lesson" }],
     });
 
-    const result = await fetchSectionScrims("course-1", "section-1");
+    const result = await fetchSectionLessons("course-1", "section-1");
 
     expect(result.success).toBe(true);
     expect(result.data).toHaveLength(1);
     const [url] = mockFetch.mock.calls[0];
     expect(url).toBe(
-      `${API_URL}/api/courses/course-1/sections/section-1/scrims`
+      `${API_URL}/api/courses/course-1/sections/section-1/lessons`
     );
   });
 });
@@ -777,67 +777,67 @@ describe("Section API", () => {
 // =============================================================================
 
 describe("Segment API", () => {
-  it("fetchSegments sends GET to /api/scrims/{scrimId}/segments/", async () => {
+  it("fetchSegments sends GET to /api/lessons/{lessonId}/segments/", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => [{ id: "seg1", order: 0 }],
     });
 
-    const result = await fetchSegments("scrim-1");
+    const result = await fetchSegments("lesson-1");
 
     expect(result.success).toBe(true);
     expect(result.data).toHaveLength(1);
     const [url] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims/scrim-1/segments/`);
+    expect(url).toBe(`${API_URL}/api/lessons/lesson-1/segments/`);
   });
 
-  it("createSegment sends POST to /api/scrims/{scrimId}/segments/", async () => {
+  it("createSegment sends POST to /api/lessons/{lessonId}/segments/", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 201,
       json: async () => ({ id: "seg1", order: 0 }),
     });
 
-    const result = await createSegment("scrim-1", {
+    const result = await createSegment("lesson-1", {
       order: 0,
       initial_files: { "index.js": "console.log('hi')" },
     });
 
     expect(result.success).toBe(true);
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims/scrim-1/segments/`);
+    expect(url).toBe(`${API_URL}/api/lessons/lesson-1/segments/`);
     expect(options.method).toBe("POST");
   });
 
-  it("updateSegment sends PUT to /api/scrims/{scrimId}/segments/{segmentId}", async () => {
+  it("updateSegment sends PUT to /api/lessons/{lessonId}/segments/{segmentId}", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => ({ id: "seg1", duration_ms: 5000 }),
     });
 
-    const result = await updateSegmentFn("scrim-1", "seg1", {
+    const result = await updateSegmentFn("lesson-1", "seg1", {
       duration_ms: 5000,
     });
 
     expect(result.success).toBe(true);
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims/scrim-1/segments/seg1`);
+    expect(url).toBe(`${API_URL}/api/lessons/lesson-1/segments/seg1`);
     expect(options.method).toBe("PUT");
   });
 
-  it("deleteSegment sends DELETE to /api/scrims/{scrimId}/segments/{segmentId}", async () => {
+  it("deleteSegment sends DELETE to /api/lessons/{lessonId}/segments/{segmentId}", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 204,
     });
 
-    const result = await deleteSegment("scrim-1", "seg1");
+    const result = await deleteSegment("lesson-1", "seg1");
 
     expect(result.success).toBe(true);
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims/scrim-1/segments/seg1`);
+    expect(url).toBe(`${API_URL}/api/lessons/lesson-1/segments/seg1`);
     expect(options.method).toBe("DELETE");
   });
 
@@ -848,12 +848,12 @@ describe("Segment API", () => {
       json: async () => ({ id: "seg1", order: 2 }),
     });
 
-    const result = await reorderSegment("scrim-1", "seg1", 2);
+    const result = await reorderSegment("lesson-1", "seg1", 2);
 
     expect(result.success).toBe(true);
     const [url, options] = mockFetch.mock.calls[0];
     expect(url).toBe(
-      `${API_URL}/api/scrims/scrim-1/segments/seg1/reorder?new_order=2`
+      `${API_URL}/api/lessons/lesson-1/segments/seg1/reorder?new_order=2`
     );
     expect(options.method).toBe("PUT");
   });
@@ -910,29 +910,29 @@ describe("Checkpoint API", () => {
       json: async () => [{ id: "cp1", title: "Check 1" }],
     });
 
-    const result = await fetchCheckpoints("scrim-1", "seg-1");
+    const result = await fetchCheckpoints("lesson-1", "seg-1");
 
     expect(result.success).toBe(true);
     expect(result.data).toHaveLength(1);
     const [url] = mockFetch.mock.calls[0];
     expect(url).toBe(
-      `${API_URL}/api/scrims/scrim-1/segments/seg-1/checkpoints/`
+      `${API_URL}/api/lessons/lesson-1/segments/seg-1/checkpoints/`
     );
   });
 
-  it("fetchScrimCheckpoints sends GET for bulk scrim checkpoints", async () => {
+  it("fetchLessonCheckpoints sends GET for bulk lesson checkpoints", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => [],
     });
 
-    const result = await fetchScrimCheckpoints("scrim-1");
+    const result = await fetchLessonCheckpoints("lesson-1");
 
     expect(result.success).toBe(true);
     expect(result.data).toHaveLength(0);
     const [url] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims/scrim-1/checkpoints/`);
+    expect(url).toBe(`${API_URL}/api/lessons/lesson-1/checkpoints/`);
   });
 
   it("createCheckpoint sends POST", async () => {
@@ -942,7 +942,7 @@ describe("Checkpoint API", () => {
       json: async () => ({ id: "cp1", title: "New CP", timestamp_ms: 1000 }),
     });
 
-    const result = await createCheckpoint("scrim-1", "seg-1", {
+    const result = await createCheckpoint("lesson-1", "seg-1", {
       title: "New CP",
       timestamp_ms: 1000,
     });
@@ -950,7 +950,7 @@ describe("Checkpoint API", () => {
     expect(result.success).toBe(true);
     const [url, options] = mockFetch.mock.calls[0];
     expect(url).toBe(
-      `${API_URL}/api/scrims/scrim-1/segments/seg-1/checkpoints/`
+      `${API_URL}/api/lessons/lesson-1/segments/seg-1/checkpoints/`
     );
     expect(options.method).toBe("POST");
     expect(JSON.parse(options.body)).toEqual({
@@ -966,14 +966,14 @@ describe("Checkpoint API", () => {
       json: async () => ({ id: "cp1", title: "Updated CP" }),
     });
 
-    const result = await updateCheckpoint("scrim-1", "seg-1", "cp1", {
+    const result = await updateCheckpoint("lesson-1", "seg-1", "cp1", {
       title: "Updated CP",
     });
 
     expect(result.success).toBe(true);
     const [url, options] = mockFetch.mock.calls[0];
     expect(url).toBe(
-      `${API_URL}/api/scrims/scrim-1/segments/seg-1/checkpoints/cp1`
+      `${API_URL}/api/lessons/lesson-1/segments/seg-1/checkpoints/cp1`
     );
     expect(options.method).toBe("PUT");
   });
@@ -984,12 +984,12 @@ describe("Checkpoint API", () => {
       status: 204,
     });
 
-    const result = await deleteCheckpoint("scrim-1", "seg-1", "cp1");
+    const result = await deleteCheckpoint("lesson-1", "seg-1", "cp1");
 
     expect(result.success).toBe(true);
     const [url, options] = mockFetch.mock.calls[0];
     expect(url).toBe(
-      `${API_URL}/api/scrims/scrim-1/segments/seg-1/checkpoints/cp1`
+      `${API_URL}/api/lessons/lesson-1/segments/seg-1/checkpoints/cp1`
     );
     expect(options.method).toBe("DELETE");
   });
@@ -1001,35 +1001,35 @@ describe("Checkpoint API", () => {
       json: async () => ({ id: "cp1", order: 3 }),
     });
 
-    const result = await reorderCheckpoint("scrim-1", "seg-1", "cp1", 3);
+    const result = await reorderCheckpoint("lesson-1", "seg-1", "cp1", 3);
 
     expect(result.success).toBe(true);
     const [url, options] = mockFetch.mock.calls[0];
     expect(url).toBe(
-      `${API_URL}/api/scrims/scrim-1/segments/seg-1/checkpoints/cp1/reorder?new_order=3`
+      `${API_URL}/api/lessons/lesson-1/segments/seg-1/checkpoints/cp1/reorder?new_order=3`
     );
     expect(options.method).toBe("PUT");
   });
 });
 
 // =============================================================================
-// publishScrim tests
+// publishLesson tests
 // =============================================================================
 
-describe("publishScrim", () => {
-  it("sends PUT to /api/scrims/{id}/publish", async () => {
+describe("publishLesson", () => {
+  it("sends PUT to /api/lessons/{id}/publish", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => ({ id: "s1", status: "published" }),
     });
 
-    const result = await publishScrim("s1");
+    const result = await publishLesson("s1");
 
     expect(result.success).toBe(true);
     expect(result.data?.status).toBe("published");
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims/s1/publish`);
+    expect(url).toBe(`${API_URL}/api/lessons/s1/publish`);
     expect(options.method).toBe("PUT");
   });
 
@@ -1037,14 +1037,14 @@ describe("publishScrim", () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 400,
-      json: async () => ({ detail: "Scrim has no segments" }),
+      json: async () => ({ detail: "Lesson has no segments" }),
     });
 
-    const result = await publishScrim("s1");
+    const result = await publishLesson("s1");
 
     expect(result.success).toBe(false);
     expect(result.error?.code).toBe("HTTP_400");
-    expect(result.error?.message).toBe("Scrim has no segments");
+    expect(result.error?.message).toBe("Lesson has no segments");
   });
 });
 

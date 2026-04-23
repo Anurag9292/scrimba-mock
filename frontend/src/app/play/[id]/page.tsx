@@ -117,19 +117,19 @@ export default function PlayerPage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-600 border-t-gray-300" />
-          <span className="text-sm text-gray-500">Loading scrim...</span>
+          <span className="text-sm text-gray-500">Loading lesson...</span>
         </div>
       </div>
     );
   }
 
   // Error state
-  if (playback.error || !playback.scrim) {
+  if (playback.error || !playback.lesson) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <p className="text-sm text-red-400">
-            {playback.error ?? "Scrim not found"}
+            {playback.error ?? "Lesson not found"}
           </p>
           <Link
             href="/"
@@ -168,7 +168,7 @@ export default function PlayerPage() {
           <div className="h-5 w-px bg-gray-800" />
           <h1 className="text-sm font-semibold text-white">Player</h1>
           <span className="max-w-[300px] truncate text-sm text-gray-400">
-            {playback.scrim.title}
+            {playback.lesson.title}
           </span>
         </div>
 
@@ -424,14 +424,14 @@ export default function PlayerPage() {
             </div>
           </div>
 
-          {/* Scrim info */}
+          {/* Lesson info */}
           <div className="flex-1 overflow-y-auto p-4">
             <h2 className="text-sm font-semibold text-white">
-              {playback.scrim.title}
+              {playback.lesson.title}
             </h2>
-            {playback.scrim.description && (
+            {playback.lesson.description && (
               <p className="mt-2 text-xs leading-relaxed text-gray-500">
-                {playback.scrim.description}
+                {playback.lesson.description}
               </p>
             )}
 
@@ -445,13 +445,13 @@ export default function PlayerPage() {
               <div className="flex justify-between">
                 <span>Language</span>
                 <span className="text-gray-400">
-                  {playback.scrim.language}
+                  {playback.lesson.language}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Events</span>
                 <span className="text-gray-400">
-                  {playback.scrim.code_events.length}
+                  {playback.lesson.code_events.length}
                 </span>
               </div>
             </div>

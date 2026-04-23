@@ -38,7 +38,7 @@ export default function PathCoursesPage() {
   }, [loadData]);
 
   const handleDelete = async (course: Course) => {
-    if (!confirm(`Delete "${course.title}"? All sections and scrims within it will be deleted.`)) return;
+    if (!confirm(`Delete "${course.title}"? All sections and lessons within it will be deleted.`)) return;
     const resp = await deleteCourse(pathId, course.id);
     if (resp.success) {
       toast("Course deleted", "success");

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import type { ScrimSegment } from "@/lib/types";
+import type { LessonSegment } from "@/lib/types";
 import { segmentEffectiveDuration } from "@/lib/segments";
 
 /** Format milliseconds to mm:ss display */
@@ -13,13 +13,13 @@ function formatTime(ms: number): string {
 }
 
 interface SegmentTimelineProps {
-  segments: ScrimSegment[];
+  segments: LessonSegment[];
   onReorder: (segmentId: string, newOrder: number) => void;
-  onTrim: (segment: ScrimSegment) => void;
-  onReRecord: (segment: ScrimSegment) => void;
+  onTrim: (segment: LessonSegment) => void;
+  onReRecord: (segment: LessonSegment) => void;
   onDelete: (segmentId: string) => void;
-  onPreview?: (segment: ScrimSegment) => void;
-  onCheckpoints?: (segment: ScrimSegment) => void;
+  onPreview?: (segment: LessonSegment) => void;
+  onCheckpoints?: (segment: LessonSegment) => void;
 }
 
 export default function SegmentTimeline({
@@ -102,7 +102,7 @@ export default function SegmentTimeline({
     [dropIndex, segments, onReorder],
   );
 
-  const isTrimmed = useCallback((segment: ScrimSegment): boolean => {
+  const isTrimmed = useCallback((segment: LessonSegment): boolean => {
     return segment.trim_start_ms > 0 || segment.trim_end_ms !== null;
   }, []);
 

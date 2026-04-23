@@ -6,12 +6,12 @@ from httpx import AsyncClient
 from tests.conftest import auth_headers
 
 
-SCRIMS_URL = "/api/scrims/"
+LESSONS_URL = "/api/lessons/"
 
 
-def _make_scrim_payload(**overrides) -> dict:
+def _make_lesson_payload(**overrides) -> dict:
     defaults = {
-        "title": "Test Scrim",
+        "title": "Test Lesson",
         "language": "html",
         "status": "draft",
     }
@@ -41,27 +41,27 @@ def _make_checkpoint_payload(**overrides) -> dict:
     return defaults
 
 
-async def _create_scrim_and_segment(client: AsyncClient, token: str) -> tuple[str, str]:
-    """Helper: create a scrim and a segment, return (scrim_id, segment_id)."""
+async def _create_lesson_and_segment(client: AsyncClient, token: str) -> tuple[str, str]:
+    """Helper: create a lesson and a segment, return (lesson_id, segment_id)."""
     headers = auth_headers(token)
-    scrim_resp = await client.post(SCRIMS_URL, json=_make_scrim_payload(), headers=headers)
-    scrim_id = scrim_resp.json()["id"]
+    lesson_resp = await client.post(LESSONS_URL, json=_make_lesson_payload(), headers=headers)
+    lesson_id = lesson_resp.json()["id"]
 
     seg_resp = await client.post(
-        f"{SCRIMS_URL}{scrim_id}/segments/",
+        f"{LESSONS_URL}{lesson_id}/segments/",
         json=_make_segment_payload(),
         headers=headers,
     )
     segment_id = seg_resp.json()["id"]
-    return scrim_id, segment_id
+    return lesson_id, segment_id
 
 
-def _checkpoints_url(scrim_id: str, segment_id: str) -> str:
-    return f"{SCRIMS_URL}{scrim_id}/segments/{segment_id}/checkpoints/"
+def _checkpoints_url(lesson_id: str, segment_id: str) -> str:
+    return f"{LESSONS_URL}{lesson_id}/segments/{segment_id}/checkpoints/"
 
 
-def _checkpoint_url(scrim_id: str, segment_id: str, checkpoint_id: str) -> str:
-    return f"{SCRIMS_URL}{scrim_id}/segments/{segment_id}/checkpoints/{checkpoint_id}"
+def _checkpoint_url(lesson_id: str, segment_id: str, checkpoint_id: str) -> str:
+    return f"{LESSONS_URL}{lesson_id}/segments/{segment_id}/checkpoints/{checkpoint_id}"
 
 
 # ── POST (create checkpoint) ────────────────────────────────────────
@@ -70,11 +70,11 @@ def _checkpoint_url(scrim_id: str, segment_id: str, checkpoint_id: str) -> str:
 async def test_create_checkpoint_returns_201(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_id, segment_id = await _create_scrim_and_segment(client, token)
+    lesson_id, segment_id = await _create_lesson_and_segment(client, token)
     payload = _make_checkpoint_payload()
 
     response = await client.post(
-        _checkpoints_url(scrim_id, segment_id), json=payload, headers=headers
+        _checkpoints_url(lesson_id, segment_id), json=payload, headers=headers
     )
 
     assert response.status_code == 201
@@ -95,11 +95,11 @@ async def test_create_checkpoint_returns_201(client: AsyncClient, creator_user):
 async def test_create_checkpoint_auto_assigns_order(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_id, segment_id = await _create_scrim_and_segment(client, token)
+    lesson_id, segment_id = await _create_lesson_and_segment(client, token)
 
     # Create first checkpoint
     resp1 = await client.post(
-        _checkpoints_url(scrim_id, segment_id),
+        _checkpoints_url(lesson_id, segment_id),
         json=_make_checkpoint_payload(title="First"),
         headers=headers,
     )
@@ -107,7 +107,7 @@ async def test_create_checkpoint_auto_assigns_order(client: AsyncClient, creator
 
     # Create second checkpoint — should auto-assign order 1
     resp2 = await client.post(
-        _checkpoints_url(scrim_id, segment_id),
+        _checkpoints_url(lesson_id, segment_id),
         json=_make_checkpoint_payload(title="Second", timestamp_ms=8000),
         headers=headers,
     )
@@ -118,10 +118,10 @@ async def test_create_checkpoint_auto_assigns_order(client: AsyncClient, creator
 async def test_create_checkpoint_with_explicit_order(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_id, segment_id = await _create_scrim_and_segment(client, token)
+    lesson_id, segment_id = await _create_lesson_and_segment(client, token)
 
     response = await client.post(
-        _checkpoints_url(scrim_id, segment_id),
+        _checkpoints_url(lesson_id, segment_id),
         json=_make_checkpoint_payload(order=5),
         headers=headers,
     )
@@ -133,12 +133,12 @@ async def test_create_checkpoint_with_explicit_order(client: AsyncClient, creato
 async def test_create_checkpoint_invalid_segment_returns_404(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_resp = await client.post(SCRIMS_URL, json=_make_scrim_payload(), headers=headers)
-    scrim_id = scrim_resp.json()["id"]
+    lesson_resp = await client.post(LESSONS_URL, json=_make_lesson_payload(), headers=headers)
+    lesson_id = lesson_resp.json()["id"]
     fake_segment_id = str(uuid.uuid4())
 
     response = await client.post(
-        _checkpoints_url(scrim_id, fake_segment_id),
+        _checkpoints_url(lesson_id, fake_segment_id),
         json=_make_checkpoint_payload(),
         headers=headers,
     )
@@ -151,9 +151,9 @@ async def test_create_checkpoint_invalid_segment_returns_404(client: AsyncClient
 async def test_list_checkpoints_empty(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_id, segment_id = await _create_scrim_and_segment(client, token)
+    lesson_id, segment_id = await _create_lesson_and_segment(client, token)
 
-    response = await client.get(_checkpoints_url(scrim_id, segment_id), headers=headers)
+    response = await client.get(_checkpoints_url(lesson_id, segment_id), headers=headers)
     assert response.status_code == 200
     assert response.json() == []
 
@@ -162,20 +162,20 @@ async def test_list_checkpoints_empty(client: AsyncClient, creator_user):
 async def test_list_checkpoints_with_data(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_id, segment_id = await _create_scrim_and_segment(client, token)
+    lesson_id, segment_id = await _create_lesson_and_segment(client, token)
 
     await client.post(
-        _checkpoints_url(scrim_id, segment_id),
+        _checkpoints_url(lesson_id, segment_id),
         json=_make_checkpoint_payload(title="First"),
         headers=headers,
     )
     await client.post(
-        _checkpoints_url(scrim_id, segment_id),
+        _checkpoints_url(lesson_id, segment_id),
         json=_make_checkpoint_payload(title="Second", timestamp_ms=8000),
         headers=headers,
     )
 
-    response = await client.get(_checkpoints_url(scrim_id, segment_id), headers=headers)
+    response = await client.get(_checkpoints_url(lesson_id, segment_id), headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
@@ -189,17 +189,17 @@ async def test_list_checkpoints_with_data(client: AsyncClient, creator_user):
 async def test_get_checkpoint_by_id(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_id, segment_id = await _create_scrim_and_segment(client, token)
+    lesson_id, segment_id = await _create_lesson_and_segment(client, token)
 
     create_resp = await client.post(
-        _checkpoints_url(scrim_id, segment_id),
+        _checkpoints_url(lesson_id, segment_id),
         json=_make_checkpoint_payload(),
         headers=headers,
     )
     checkpoint_id = create_resp.json()["id"]
 
     response = await client.get(
-        _checkpoint_url(scrim_id, segment_id, checkpoint_id), headers=headers
+        _checkpoint_url(lesson_id, segment_id, checkpoint_id), headers=headers
     )
     assert response.status_code == 200
     assert response.json()["id"] == checkpoint_id
@@ -210,11 +210,11 @@ async def test_get_checkpoint_by_id(client: AsyncClient, creator_user):
 async def test_get_checkpoint_not_found(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_id, segment_id = await _create_scrim_and_segment(client, token)
+    lesson_id, segment_id = await _create_lesson_and_segment(client, token)
     fake_id = str(uuid.uuid4())
 
     response = await client.get(
-        _checkpoint_url(scrim_id, segment_id, fake_id), headers=headers
+        _checkpoint_url(lesson_id, segment_id, fake_id), headers=headers
     )
     assert response.status_code == 404
 
@@ -225,10 +225,10 @@ async def test_get_checkpoint_not_found(client: AsyncClient, creator_user):
 async def test_update_checkpoint(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_id, segment_id = await _create_scrim_and_segment(client, token)
+    lesson_id, segment_id = await _create_lesson_and_segment(client, token)
 
     create_resp = await client.post(
-        _checkpoints_url(scrim_id, segment_id),
+        _checkpoints_url(lesson_id, segment_id),
         json=_make_checkpoint_payload(),
         headers=headers,
     )
@@ -240,7 +240,7 @@ async def test_update_checkpoint(client: AsyncClient, creator_user):
         "timestamp_ms": 7000,
     }
     response = await client.put(
-        _checkpoint_url(scrim_id, segment_id, checkpoint_id),
+        _checkpoint_url(lesson_id, segment_id, checkpoint_id),
         json=update_payload,
         headers=headers,
     )
@@ -258,10 +258,10 @@ async def test_update_checkpoint(client: AsyncClient, creator_user):
 async def test_update_checkpoint_partial(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_id, segment_id = await _create_scrim_and_segment(client, token)
+    lesson_id, segment_id = await _create_lesson_and_segment(client, token)
 
     create_resp = await client.post(
-        _checkpoints_url(scrim_id, segment_id),
+        _checkpoints_url(lesson_id, segment_id),
         json=_make_checkpoint_payload(),
         headers=headers,
     )
@@ -269,7 +269,7 @@ async def test_update_checkpoint_partial(client: AsyncClient, creator_user):
     original = create_resp.json()
 
     response = await client.put(
-        _checkpoint_url(scrim_id, segment_id, checkpoint_id),
+        _checkpoint_url(lesson_id, segment_id, checkpoint_id),
         json={"title": "Only title changed"},
         headers=headers,
     )
@@ -285,11 +285,11 @@ async def test_update_checkpoint_partial(client: AsyncClient, creator_user):
 async def test_update_checkpoint_not_found(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_id, segment_id = await _create_scrim_and_segment(client, token)
+    lesson_id, segment_id = await _create_lesson_and_segment(client, token)
     fake_id = str(uuid.uuid4())
 
     response = await client.put(
-        _checkpoint_url(scrim_id, segment_id, fake_id),
+        _checkpoint_url(lesson_id, segment_id, fake_id),
         json={"title": "Ghost"},
         headers=headers,
     )
@@ -302,23 +302,23 @@ async def test_update_checkpoint_not_found(client: AsyncClient, creator_user):
 async def test_delete_checkpoint(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_id, segment_id = await _create_scrim_and_segment(client, token)
+    lesson_id, segment_id = await _create_lesson_and_segment(client, token)
 
     create_resp = await client.post(
-        _checkpoints_url(scrim_id, segment_id),
+        _checkpoints_url(lesson_id, segment_id),
         json=_make_checkpoint_payload(),
         headers=headers,
     )
     checkpoint_id = create_resp.json()["id"]
 
     delete_resp = await client.delete(
-        _checkpoint_url(scrim_id, segment_id, checkpoint_id), headers=headers
+        _checkpoint_url(lesson_id, segment_id, checkpoint_id), headers=headers
     )
     assert delete_resp.status_code == 204
 
     # Confirm it's gone
     get_resp = await client.get(
-        _checkpoint_url(scrim_id, segment_id, checkpoint_id), headers=headers
+        _checkpoint_url(lesson_id, segment_id, checkpoint_id), headers=headers
     )
     assert get_resp.status_code == 404
 
@@ -327,31 +327,31 @@ async def test_delete_checkpoint(client: AsyncClient, creator_user):
 async def test_delete_checkpoint_reorders_remaining(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_id, segment_id = await _create_scrim_and_segment(client, token)
+    lesson_id, segment_id = await _create_lesson_and_segment(client, token)
 
     # Create three checkpoints
     resp1 = await client.post(
-        _checkpoints_url(scrim_id, segment_id),
+        _checkpoints_url(lesson_id, segment_id),
         json=_make_checkpoint_payload(title="First", timestamp_ms=2000),
         headers=headers,
     )
     resp2 = await client.post(
-        _checkpoints_url(scrim_id, segment_id),
+        _checkpoints_url(lesson_id, segment_id),
         json=_make_checkpoint_payload(title="Second", timestamp_ms=5000),
         headers=headers,
     )
     resp3 = await client.post(
-        _checkpoints_url(scrim_id, segment_id),
+        _checkpoints_url(lesson_id, segment_id),
         json=_make_checkpoint_payload(title="Third", timestamp_ms=8000),
         headers=headers,
     )
 
     # Delete the first checkpoint (order=0)
     first_id = resp1.json()["id"]
-    await client.delete(_checkpoint_url(scrim_id, segment_id, first_id), headers=headers)
+    await client.delete(_checkpoint_url(lesson_id, segment_id, first_id), headers=headers)
 
     # Remaining checkpoints should have been re-ordered
-    list_resp = await client.get(_checkpoints_url(scrim_id, segment_id), headers=headers)
+    list_resp = await client.get(_checkpoints_url(lesson_id, segment_id), headers=headers)
     data = list_resp.json()
     assert len(data) == 2
     assert data[0]["title"] == "Second"
@@ -364,34 +364,34 @@ async def test_delete_checkpoint_reorders_remaining(client: AsyncClient, creator
 async def test_delete_checkpoint_not_found(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_id, segment_id = await _create_scrim_and_segment(client, token)
+    lesson_id, segment_id = await _create_lesson_and_segment(client, token)
     fake_id = str(uuid.uuid4())
 
     response = await client.delete(
-        _checkpoint_url(scrim_id, segment_id, fake_id), headers=headers
+        _checkpoint_url(lesson_id, segment_id, fake_id), headers=headers
     )
     assert response.status_code == 404
 
 
-# ── GET (bulk fetch scrim checkpoints) ──────────────────────────────
+# ── GET (bulk fetch lesson checkpoints) ──────────────────────────────
 
 @pytest.mark.asyncio
-async def test_list_scrim_checkpoints(client: AsyncClient, creator_user):
+async def test_list_lesson_checkpoints(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_resp = await client.post(SCRIMS_URL, json=_make_scrim_payload(), headers=headers)
-    scrim_id = scrim_resp.json()["id"]
+    lesson_resp = await client.post(LESSONS_URL, json=_make_lesson_payload(), headers=headers)
+    lesson_id = lesson_resp.json()["id"]
 
     # Create two segments
     seg1_resp = await client.post(
-        f"{SCRIMS_URL}{scrim_id}/segments/",
+        f"{LESSONS_URL}{lesson_id}/segments/",
         json=_make_segment_payload(),
         headers=headers,
     )
     seg1_id = seg1_resp.json()["id"]
 
     seg2_resp = await client.post(
-        f"{SCRIMS_URL}{scrim_id}/segments/",
+        f"{LESSONS_URL}{lesson_id}/segments/",
         json=_make_segment_payload(),
         headers=headers,
     )
@@ -399,23 +399,23 @@ async def test_list_scrim_checkpoints(client: AsyncClient, creator_user):
 
     # Create checkpoints in each segment
     await client.post(
-        _checkpoints_url(scrim_id, seg1_id),
+        _checkpoints_url(lesson_id, seg1_id),
         json=_make_checkpoint_payload(title="Seg1 CP1"),
         headers=headers,
     )
     await client.post(
-        _checkpoints_url(scrim_id, seg2_id),
+        _checkpoints_url(lesson_id, seg2_id),
         json=_make_checkpoint_payload(title="Seg2 CP1"),
         headers=headers,
     )
     await client.post(
-        _checkpoints_url(scrim_id, seg2_id),
+        _checkpoints_url(lesson_id, seg2_id),
         json=_make_checkpoint_payload(title="Seg2 CP2", timestamp_ms=8000),
         headers=headers,
     )
 
-    # Bulk fetch all checkpoints for the scrim
-    response = await client.get(f"{SCRIMS_URL}{scrim_id}/checkpoints/", headers=headers)
+    # Bulk fetch all checkpoints for the lesson
+    response = await client.get(f"{LESSONS_URL}{lesson_id}/checkpoints/", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 3
@@ -426,21 +426,21 @@ async def test_list_scrim_checkpoints(client: AsyncClient, creator_user):
 
 
 @pytest.mark.asyncio
-async def test_list_scrim_checkpoints_empty(client: AsyncClient, creator_user):
+async def test_list_lesson_checkpoints_empty(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
-    scrim_resp = await client.post(SCRIMS_URL, json=_make_scrim_payload(), headers=headers)
-    scrim_id = scrim_resp.json()["id"]
+    lesson_resp = await client.post(LESSONS_URL, json=_make_lesson_payload(), headers=headers)
+    lesson_id = lesson_resp.json()["id"]
 
-    response = await client.get(f"{SCRIMS_URL}{scrim_id}/checkpoints/", headers=headers)
+    response = await client.get(f"{LESSONS_URL}{lesson_id}/checkpoints/", headers=headers)
     assert response.status_code == 200
     assert response.json() == []
 
 
 @pytest.mark.asyncio
-async def test_list_scrim_checkpoints_invalid_scrim(client: AsyncClient, creator_user):
+async def test_list_lesson_checkpoints_invalid_lesson(client: AsyncClient, creator_user):
     _, token = creator_user
     headers = auth_headers(token)
     fake_id = str(uuid.uuid4())
-    response = await client.get(f"{SCRIMS_URL}{fake_id}/checkpoints/", headers=headers)
+    response = await client.get(f"{LESSONS_URL}{fake_id}/checkpoints/", headers=headers)
     assert response.status_code == 404

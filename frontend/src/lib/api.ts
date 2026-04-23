@@ -1,4 +1,4 @@
-import type { Scrim, ScrimSegment, Checkpoint, ApiResponse, User, TokenResponse, CoursePath, Course, Section } from "./types";
+import type { Lesson, LessonSegment, Checkpoint, ApiResponse, User, TokenResponse, CoursePath, Course, Section } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -22,8 +22,8 @@ export function getAuthToken(): string | null {
   return _authToken;
 }
 
-/** Data required to create a new scrim */
-export interface ScrimCreate {
+/** Data required to create a new lesson */
+export interface LessonCreate {
   title: string;
   description?: string;
   language?: string;
@@ -53,8 +53,8 @@ export interface SegmentUpdate {
   trim_end_ms?: number | null;
 }
 
-/** Data for updating an existing scrim */
-export interface ScrimUpdate {
+/** Data for updating an existing lesson */
+export interface LessonUpdate {
   title?: string;
   description?: string;
   duration_ms?: number;
@@ -117,59 +117,59 @@ async function apiFetch<T>(
   }
 }
 
-/** Fetch all scrims, optionally filtered by status and/or standalone flag */
-export async function fetchScrims(
+/** Fetch all lessons, optionally filtered by status and/or standalone flag */
+export async function fetchLessons(
   status?: "draft" | "published",
   options?: { standalone?: boolean }
-): Promise<ApiResponse<Scrim[]>> {
+): Promise<ApiResponse<Lesson[]>> {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   if (options?.standalone) params.set("standalone", "true");
   const query = params.toString() ? `?${params.toString()}` : "";
-  return apiFetch<Scrim[]>(`/api/scrims/${query}`);
+  return apiFetch<Lesson[]>(`/api/lessons/${query}`);
 }
 
-/** Fetch a single scrim by ID */
-export async function fetchScrim(id: string): Promise<ApiResponse<Scrim>> {
-  return apiFetch<Scrim>(`/api/scrims/${id}`);
+/** Fetch a single lesson by ID */
+export async function fetchLesson(id: string): Promise<ApiResponse<Lesson>> {
+  return apiFetch<Lesson>(`/api/lessons/${id}`);
 }
 
-/** Create a new scrim */
-export async function createScrim(
-  data: ScrimCreate
-): Promise<ApiResponse<Scrim>> {
-  return apiFetch<Scrim>("/api/scrims/", {
+/** Create a new lesson */
+export async function createLesson(
+  data: LessonCreate
+): Promise<ApiResponse<Lesson>> {
+  return apiFetch<Lesson>("/api/lessons/", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
-/** Update an existing scrim */
-export async function updateScrim(
+/** Update an existing lesson */
+export async function updateLesson(
   id: string,
-  data: ScrimUpdate
-): Promise<ApiResponse<Scrim>> {
-  return apiFetch<Scrim>(`/api/scrims/${id}`, {
+  data: LessonUpdate
+): Promise<ApiResponse<Lesson>> {
+  return apiFetch<Lesson>(`/api/lessons/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),
   });
 }
 
-/** Delete a scrim */
-export async function deleteScrim(
+/** Delete a lesson */
+export async function deleteLesson(
   id: string
 ): Promise<ApiResponse<{ deleted: boolean }>> {
-  return apiFetch<{ deleted: boolean }>(`/api/scrims/${id}`, {
+  return apiFetch<{ deleted: boolean }>(`/api/lessons/${id}`, {
     method: "DELETE",
   });
 }
 
-/** Upload audio/video for a scrim */
+/** Upload audio/video for a lesson */
 export async function uploadVideo(
-  scrimId: string,
+  lessonId: string,
   videoBlob: Blob
 ): Promise<ApiResponse<{ url: string }>> {
-  const url = `${API_URL}/api/upload/video/${scrimId}`;
+  const url = `${API_URL}/api/upload/video/${lessonId}`;
   const formData = new FormData();
   formData.append("file", videoBlob, "recording.webm");
 
@@ -214,35 +214,35 @@ export async function uploadVideo(
   }
 }
 
-/** Get the URL for a scrim's video/audio recording */
-export function getVideoUrl(scrimId: string): string {
-  return `${API_URL}/api/upload/video/${scrimId}`;
+/** Get the URL for a lesson's video/audio recording */
+export function getVideoUrl(lessonId: string): string {
+  return `${API_URL}/api/upload/video/${lessonId}`;
 }
 
-/** Publish a draft scrim */
-export async function publishScrim(
-  scrimId: string
-): Promise<ApiResponse<Scrim>> {
-  return apiFetch<Scrim>(`/api/scrims/${scrimId}/publish`, {
+/** Publish a draft lesson */
+export async function publishLesson(
+  lessonId: string
+): Promise<ApiResponse<Lesson>> {
+  return apiFetch<Lesson>(`/api/lessons/${lessonId}/publish`, {
     method: "PUT",
   });
 }
 
 // --- Segment API ---
 
-/** Fetch all segments for a scrim */
+/** Fetch all segments for a lesson */
 export async function fetchSegments(
-  scrimId: string
-): Promise<ApiResponse<ScrimSegment[]>> {
-  return apiFetch<ScrimSegment[]>(`/api/scrims/${scrimId}/segments/`);
+  lessonId: string
+): Promise<ApiResponse<LessonSegment[]>> {
+  return apiFetch<LessonSegment[]>(`/api/lessons/${lessonId}/segments/`);
 }
 
-/** Create a new segment for a scrim */
+/** Create a new segment for a lesson */
 export async function createSegment(
-  scrimId: string,
+  lessonId: string,
   data: SegmentCreate
-): Promise<ApiResponse<ScrimSegment>> {
-  return apiFetch<ScrimSegment>(`/api/scrims/${scrimId}/segments/`, {
+): Promise<ApiResponse<LessonSegment>> {
+  return apiFetch<LessonSegment>(`/api/lessons/${lessonId}/segments/`, {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -250,12 +250,12 @@ export async function createSegment(
 
 /** Update an existing segment */
 export async function updateSegment(
-  scrimId: string,
+  lessonId: string,
   segmentId: string,
   data: SegmentUpdate
-): Promise<ApiResponse<ScrimSegment>> {
-  return apiFetch<ScrimSegment>(
-    `/api/scrims/${scrimId}/segments/${segmentId}`,
+): Promise<ApiResponse<LessonSegment>> {
+  return apiFetch<LessonSegment>(
+    `/api/lessons/${lessonId}/segments/${segmentId}`,
     {
       method: "PUT",
       body: JSON.stringify(data),
@@ -265,22 +265,22 @@ export async function updateSegment(
 
 /** Delete a segment */
 export async function deleteSegment(
-  scrimId: string,
+  lessonId: string,
   segmentId: string
 ): Promise<ApiResponse<void>> {
-  return apiFetch<void>(`/api/scrims/${scrimId}/segments/${segmentId}`, {
+  return apiFetch<void>(`/api/lessons/${lessonId}/segments/${segmentId}`, {
     method: "DELETE",
   });
 }
 
 /** Reorder a segment to a new position */
 export async function reorderSegment(
-  scrimId: string,
+  lessonId: string,
   segmentId: string,
   newOrder: number
-): Promise<ApiResponse<ScrimSegment>> {
-  return apiFetch<ScrimSegment>(
-    `/api/scrims/${scrimId}/segments/${segmentId}/reorder?new_order=${newOrder}`,
+): Promise<ApiResponse<LessonSegment>> {
+  return apiFetch<LessonSegment>(
+    `/api/lessons/${lessonId}/segments/${segmentId}/reorder?new_order=${newOrder}`,
     { method: "PUT" }
   );
 }
@@ -364,29 +364,29 @@ export interface CheckpointUpdate {
 
 /** Fetch all checkpoints for a specific segment */
 export async function fetchCheckpoints(
-  scrimId: string,
+  lessonId: string,
   segmentId: string
 ): Promise<ApiResponse<Checkpoint[]>> {
   return apiFetch<Checkpoint[]>(
-    `/api/scrims/${scrimId}/segments/${segmentId}/checkpoints/`
+    `/api/lessons/${lessonId}/segments/${segmentId}/checkpoints/`
   );
 }
 
-/** Fetch all checkpoints across all segments of a scrim (bulk fetch for the player) */
-export async function fetchScrimCheckpoints(
-  scrimId: string
+/** Fetch all checkpoints across all segments of a lesson (bulk fetch for the player) */
+export async function fetchLessonCheckpoints(
+  lessonId: string
 ): Promise<ApiResponse<Checkpoint[]>> {
-  return apiFetch<Checkpoint[]>(`/api/scrims/${scrimId}/checkpoints/`);
+  return apiFetch<Checkpoint[]>(`/api/lessons/${lessonId}/checkpoints/`);
 }
 
 /** Create a new checkpoint for a segment */
 export async function createCheckpoint(
-  scrimId: string,
+  lessonId: string,
   segmentId: string,
   data: CheckpointCreate
 ): Promise<ApiResponse<Checkpoint>> {
   return apiFetch<Checkpoint>(
-    `/api/scrims/${scrimId}/segments/${segmentId}/checkpoints/`,
+    `/api/lessons/${lessonId}/segments/${segmentId}/checkpoints/`,
     {
       method: "POST",
       body: JSON.stringify(data),
@@ -396,13 +396,13 @@ export async function createCheckpoint(
 
 /** Update an existing checkpoint */
 export async function updateCheckpoint(
-  scrimId: string,
+  lessonId: string,
   segmentId: string,
   checkpointId: string,
   data: CheckpointUpdate
 ): Promise<ApiResponse<Checkpoint>> {
   return apiFetch<Checkpoint>(
-    `/api/scrims/${scrimId}/segments/${segmentId}/checkpoints/${checkpointId}`,
+    `/api/lessons/${lessonId}/segments/${segmentId}/checkpoints/${checkpointId}`,
     {
       method: "PUT",
       body: JSON.stringify(data),
@@ -412,25 +412,25 @@ export async function updateCheckpoint(
 
 /** Delete a checkpoint */
 export async function deleteCheckpoint(
-  scrimId: string,
+  lessonId: string,
   segmentId: string,
   checkpointId: string
 ): Promise<ApiResponse<void>> {
   return apiFetch<void>(
-    `/api/scrims/${scrimId}/segments/${segmentId}/checkpoints/${checkpointId}`,
+    `/api/lessons/${lessonId}/segments/${segmentId}/checkpoints/${checkpointId}`,
     { method: "DELETE" }
   );
 }
 
 /** Reorder a checkpoint to a new position */
 export async function reorderCheckpoint(
-  scrimId: string,
+  lessonId: string,
   segmentId: string,
   checkpointId: string,
   newOrder: number
 ): Promise<ApiResponse<Checkpoint>> {
   return apiFetch<Checkpoint>(
-    `/api/scrims/${scrimId}/segments/${segmentId}/checkpoints/${checkpointId}/reorder?new_order=${newOrder}`,
+    `/api/lessons/${lessonId}/segments/${segmentId}/checkpoints/${checkpointId}/reorder?new_order=${newOrder}`,
     { method: "PUT" }
   );
 }
@@ -669,11 +669,11 @@ export async function deleteSection(
   });
 }
 
-export async function fetchSectionScrims(
+export async function fetchSectionLessons(
   courseId: string,
   sectionId: string
-): Promise<ApiResponse<Scrim[]>> {
-  return apiFetch<Scrim[]>(
-    `/api/courses/${courseId}/sections/${sectionId}/scrims`
+): Promise<ApiResponse<Lesson[]>> {
+  return apiFetch<Lesson[]>(
+    `/api/courses/${courseId}/sections/${sectionId}/lessons`
   );
 }

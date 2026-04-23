@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { Scrim, ScrimSegment, CodeEvent, FileMap, Checkpoint, CheckpointStatus } from "@/lib/types";
-import { fetchScrim, fetchSegments, fetchScrimCheckpoints, getVideoUrl, getSegmentVideoUrl } from "@/lib/api";
+import type { Lesson, LessonSegment, CodeEvent, FileMap, Checkpoint, CheckpointStatus } from "@/lib/types";
+import { fetchLesson, fetchSegments, fetchLessonCheckpoints, getVideoUrl, getSegmentVideoUrl } from "@/lib/api";
 import { positionToOffset, applyCodeEvent, replayEvents, findEventIndex, segmentEffectiveDuration, globalToSegmentTime, computeSegmentOffsets } from "@/lib/segments";
 
 export interface UsePlaybackReturn {
-  /** The loaded scrim data */
-  scrim: Scrim | null;
-  /** Whether the scrim is loading */
+  /** The loaded lesson data */
+  lesson: Lesson | null;
+  /** Whether the lesson is loading */
   isLoading: boolean;
   /** Error message if loading failed */
   error: string | null;
@@ -46,13 +46,13 @@ export interface UsePlaybackReturn {
   exitInteractive: () => void;
   /** Update files from interactive editor changes */
   updateFiles: (files: FileMap) => void;
-  /** Loaded segments (empty for legacy single-blob scrims) */
-  segments: ScrimSegment[];
+  /** Loaded segments (empty for legacy single-blob lessons) */
+  segments: LessonSegment[];
   /** Currently active checkpoint (null if none) */
   activeCheckpoint: Checkpoint | null;
   /** Status of the active checkpoint */
   checkpointStatus: CheckpointStatus;
-  /** All checkpoints for this scrim */
+  /** All checkpoints for this lesson */
   checkpoints: Checkpoint[];
   /** Submit the current code for checkpoint validation */
   submitCheckpoint: (previewContent: string) => void;
@@ -62,8 +62,8 @@ export interface UsePlaybackReturn {
   skipCheckpoint: () => void;
 }
 
-export function usePlayback(scrimId: string): UsePlaybackReturn {
-  const [scrim, setScrim] = useState<Scrim | null>(null);
+export function usePlayback(lessonId: string): UsePlaybackReturn {
+  const [lesson, setLesson] = useState<Lesson | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -79,7 +79,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
   const [activeCheckpoint, setActiveCheckpoint] = useState<Checkpoint | null>(null);
   const [checkpointStatus, setCheckpointStatus] = useState<CheckpointStatus>("idle");
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
-  const [loadedSegments, setLoadedSegments] = useState<ScrimSegment[]>([]);
+  const [loadedSegments, setLoadedSegments] = useState<LessonSegment[]>([]);
 
   const videoRef = useRef<HTMLVideoElement>(null!) as React.RefObject<HTMLVideoElement>;
   const rafRef = useRef<number>(0);
@@ -93,7 +93,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
   const activeFileRef = useRef("index.html");
 
   // Segment-aware refs
-  const segmentsRef = useRef<ScrimSegment[]>([]);
+  const segmentsRef = useRef<LessonSegment[]>([]);
   const isSegmentedRef = useRef(false);
   const currentSegmentIndexRef = useRef(0);
   const segmentStartOffsetsRef = useRef<number[]>([]); // global time offset where each segment starts
@@ -187,7 +187,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
     }
   }
 
-  // Fetch scrim data + segments on mount
+  // Fetch lesson data + segments on mount
   useEffect(() => {
     let cancelled = false;
 
@@ -195,22 +195,22 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
       setIsLoading(true);
       setError(null);
 
-      const result = await fetchScrim(scrimId);
+      const result = await fetchLesson(lessonId);
       if (cancelled) return;
 
       if (!result.success || !result.data) {
-        setError(result.error?.message ?? "Failed to load scrim");
+        setError(result.error?.message ?? "Failed to load lesson");
         setIsLoading(false);
         return;
       }
 
       const s = result.data;
-      setScrim(s);
+      setLesson(s);
 
       // Try to load segments and checkpoints in parallel
       const [segResult, cpResult] = await Promise.all([
-        fetchSegments(scrimId),
-        fetchScrimCheckpoints(scrimId),
+        fetchSegments(lessonId),
+        fetchLessonCheckpoints(lessonId),
       ]);
       if (cancelled) return;
 
@@ -307,7 +307,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
         lastAppliedIndexRef.current = 0;
 
         if (s.video_filename) {
-          setVideoUrl(getVideoUrl(scrimId));
+          setVideoUrl(getVideoUrl(lessonId));
         }
       }
 
@@ -318,7 +318,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
     return () => {
       cancelled = true;
     };
-  }, [scrimId]);
+  }, [lessonId]);
 
   // Compute total duration
   const computedDurationMs = (() => {
@@ -328,7 +328,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
         0
       );
     }
-    return scrim?.duration_ms ?? 0;
+    return lesson?.duration_ms ?? 0;
   })();
 
   // The animation frame loop
@@ -650,7 +650,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
       }
       shouldBePlayingRef.current = false;
       setIsPlaying(false);
-      setCurrentTimeMs(scrim?.duration_ms ?? 0);
+      setCurrentTimeMs(lesson?.duration_ms ?? 0);
     };
 
     video.addEventListener("pause", onPause);
@@ -662,7 +662,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
       video.removeEventListener("play", onPlay);
       video.removeEventListener("ended", onEnded);
     };
-  }, [scrim]);
+  }, [lesson]);
 
   // Handle video source changes (segment transitions & cross-segment seeks)
   // When videoUrl changes via React state, the <video> element gets a new src.
@@ -780,7 +780,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
   const durationMs = computedDurationMs;
 
   return {
-    scrim,
+    lesson,
     isLoading,
     error,
     isPlaying,

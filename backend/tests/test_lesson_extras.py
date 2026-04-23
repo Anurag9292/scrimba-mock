@@ -2,66 +2,66 @@ import pytest
 from tests.conftest import auth_headers
 
 
-class TestPublishScrim:
+class TestPublishLesson:
     async def test_publish(self, client, creator_user):
         _, token = creator_user
-        resp = await client.post("/api/scrims/", json={"title": "Draft", "status": "draft"}, headers=auth_headers(token))
-        scrim = resp.json()
-        assert scrim["status"] == "draft"
+        resp = await client.post("/api/lessons/", json={"title": "Draft", "status": "draft"}, headers=auth_headers(token))
+        lesson = resp.json()
+        assert lesson["status"] == "draft"
 
-        resp = await client.put(f"/api/scrims/{scrim['id']}/publish", headers=auth_headers(token))
+        resp = await client.put(f"/api/lessons/{lesson['id']}/publish", headers=auth_headers(token))
         assert resp.status_code == 200
         assert resp.json()["status"] == "published"
 
     async def test_publish_already_published(self, client, creator_user):
         _, token = creator_user
-        resp = await client.post("/api/scrims/", json={"title": "Pub", "status": "published"}, headers=auth_headers(token))
-        scrim = resp.json()
+        resp = await client.post("/api/lessons/", json={"title": "Pub", "status": "published"}, headers=auth_headers(token))
+        lesson = resp.json()
 
-        resp = await client.put(f"/api/scrims/{scrim['id']}/publish", headers=auth_headers(token))
+        resp = await client.put(f"/api/lessons/{lesson['id']}/publish", headers=auth_headers(token))
         assert resp.status_code == 400
         assert "already published" in resp.json()["detail"]
 
     async def test_publish_not_found(self, client, creator_user):
         _, token = creator_user
         resp = await client.put(
-            "/api/scrims/00000000-0000-0000-0000-000000000000/publish",
+            "/api/lessons/00000000-0000-0000-0000-000000000000/publish",
             headers=auth_headers(token),
         )
         assert resp.status_code == 404
 
 
-class TestScrimCascadeDelete:
-    async def test_delete_scrim_with_segments(self, client, creator_user):
-        """Deleting a scrim should cascade delete its segments."""
+class TestLessonCascadeDelete:
+    async def test_delete_lesson_with_segments(self, client, creator_user):
+        """Deleting a lesson should cascade delete its segments."""
         _, token = creator_user
-        # Create scrim
-        resp = await client.post("/api/scrims/", json={"title": "Cascade Test", "status": "draft"}, headers=auth_headers(token))
-        scrim = resp.json()
+        # Create lesson
+        resp = await client.post("/api/lessons/", json={"title": "Cascade Test", "status": "draft"}, headers=auth_headers(token))
+        lesson = resp.json()
 
         # Add segments
         await client.post(
-            f"/api/scrims/{scrim['id']}/segments/",
+            f"/api/lessons/{lesson['id']}/segments/",
             json={"duration_ms": 1000, "code_events": [], "initial_files": {}},
             headers=auth_headers(token),
         )
         await client.post(
-            f"/api/scrims/{scrim['id']}/segments/",
+            f"/api/lessons/{lesson['id']}/segments/",
             json={"duration_ms": 2000, "code_events": [], "initial_files": {}},
             headers=auth_headers(token),
         )
 
         # Verify segments exist
-        resp = await client.get(f"/api/scrims/{scrim['id']}/segments/", headers=auth_headers(token))
+        resp = await client.get(f"/api/lessons/{lesson['id']}/segments/", headers=auth_headers(token))
         assert len(resp.json()) == 2
 
-        # Delete scrim
-        resp = await client.delete(f"/api/scrims/{scrim['id']}", headers=auth_headers(token))
+        # Delete lesson
+        resp = await client.delete(f"/api/lessons/{lesson['id']}", headers=auth_headers(token))
         assert resp.status_code == 204
 
 
-class TestScrimWithSectionId:
-    async def test_create_scrim_with_section(self, client, creator_user):
+class TestLessonWithSectionId:
+    async def test_create_lesson_with_section(self, client, creator_user):
         _, token = creator_user
         # Create hierarchy
         resp = await client.post("/api/paths/", json={"title": "P"}, headers=auth_headers(token))
@@ -71,27 +71,27 @@ class TestScrimWithSectionId:
         resp = await client.post(f"/api/courses/{course['id']}/sections/", json={"title": "S"}, headers=auth_headers(token))
         section = resp.json()
 
-        # Create scrim with section_id
-        resp = await client.post("/api/scrims/", json={
-            "title": "Linked Scrim",
+        # Create lesson with section_id
+        resp = await client.post("/api/lessons/", json={
+            "title": "Linked Lesson",
             "section_id": section["id"],
             "status": "draft",
         }, headers=auth_headers(token))
         assert resp.status_code == 201
         assert resp.json()["section_id"] == section["id"]
 
-    async def test_scrim_status_filter(self, client, creator_user):
+    async def test_lesson_status_filter(self, client, creator_user):
         _, token = creator_user
-        await client.post("/api/scrims/", json={"title": "Draft 1", "status": "draft"}, headers=auth_headers(token))
-        await client.post("/api/scrims/", json={"title": "Pub 1", "status": "published"}, headers=auth_headers(token))
+        await client.post("/api/lessons/", json={"title": "Draft 1", "status": "draft"}, headers=auth_headers(token))
+        await client.post("/api/lessons/", json={"title": "Pub 1", "status": "published"}, headers=auth_headers(token))
 
         # Filter by draft
-        resp = await client.get("/api/scrims/?status=draft", headers=auth_headers(token))
+        resp = await client.get("/api/lessons/?status=draft", headers=auth_headers(token))
         assert resp.status_code == 200
         assert all(s["status"] == "draft" for s in resp.json())
 
         # Filter by published
-        resp = await client.get("/api/scrims/?status=published", headers=auth_headers(token))
+        resp = await client.get("/api/lessons/?status=published", headers=auth_headers(token))
         assert resp.status_code == 200
         assert all(s["status"] == "published" for s in resp.json())
 

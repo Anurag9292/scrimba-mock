@@ -4,7 +4,7 @@ from sqlmodel import SQLModel
 from app.config import settings
 
 # Import all models so SQLModel.metadata.create_all() discovers them
-import app.models.scrim  # noqa: F401
+import app.models.lesson  # noqa: F401
 import app.models.segment  # noqa: F401
 import app.models.checkpoint  # noqa: F401
 import app.models.user  # noqa: F401
@@ -49,7 +49,7 @@ def _run_alembic_migrations(connection) -> None:
 
         inspector = sa_inspect(connection)
         tables = inspector.get_table_names()
-        columns = [c["name"] for c in inspector.get_columns("scrims")] if "scrims" in tables else []
+        columns = [c["name"] for c in inspector.get_columns("lessons")] if "lessons" in tables else []
         has_checkpoints = "checkpoints" in tables
         has_users = "users" in tables
         has_course_paths = "course_paths" in tables

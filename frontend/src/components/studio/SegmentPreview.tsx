@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { ScrimSegment, FileMap, CodeEvent } from "@/lib/types";
+import type { LessonSegment, FileMap, CodeEvent } from "@/lib/types";
 import { getSegmentVideoUrl } from "@/lib/api";
 import { replayEvents, findEventIndex } from "@/lib/segments";
 import EditorPanel from "@/components/editor/EditorPanel";
 import LivePreview from "@/components/editor/LivePreview";
 
 interface SegmentPreviewProps {
-  segment: ScrimSegment;
+  segment: LessonSegment;
   onClose: () => void;
 }
 

@@ -6,34 +6,34 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.db.database import get_session
-from app.models.scrim import Scrim
-from app.models.segment import ScrimSegment
+from app.models.lesson import Lesson
+from app.models.segment import LessonSegment
 from app.models.checkpoint import Checkpoint, CheckpointCreate, CheckpointUpdate, CheckpointRead
 from app.api.auth_deps import get_current_user, get_optional_user, require_role
 from app.models.user import User
 
 router = APIRouter(
-    prefix="/api/scrims/{scrim_id}/segments/{segment_id}/checkpoints",
+    prefix="/api/lessons/{lesson_id}/segments/{segment_id}/checkpoints",
     tags=["checkpoints"],
 )
 
-# Separate router for bulk fetch of all checkpoints for a scrim
-scrim_checkpoints_router = APIRouter(
-    prefix="/api/scrims/{scrim_id}/checkpoints",
+# Separate router for bulk fetch of all checkpoints for a lesson
+lesson_checkpoints_router = APIRouter(
+    prefix="/api/lessons/{lesson_id}/checkpoints",
     tags=["checkpoints"],
 )
 
 
 async def _get_segment_or_404(
-    scrim_id: uuid.UUID, segment_id: uuid.UUID, session: AsyncSession
-) -> ScrimSegment:
-    """Validate that the scrim and segment exist and are related."""
-    scrim = await session.get(Scrim, scrim_id)
-    if scrim is None:
-        raise HTTPException(status_code=404, detail="Scrim not found")
+    lesson_id: uuid.UUID, segment_id: uuid.UUID, session: AsyncSession
+) -> LessonSegment:
+    """Validate that the lesson and segment exist and are related."""
+    lesson = await session.get(Lesson, lesson_id)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
 
-    segment = await session.get(ScrimSegment, segment_id)
-    if segment is None or segment.scrim_id != scrim_id:
+    segment = await session.get(LessonSegment, segment_id)
+    if segment is None or segment.lesson_id != lesson_id:
         raise HTTPException(status_code=404, detail="Segment not found")
 
     return segment
@@ -41,13 +41,13 @@ async def _get_segment_or_404(
 
 @router.post("/", response_model=CheckpointRead, status_code=201)
 async def create_checkpoint(
-    scrim_id: uuid.UUID,
+    lesson_id: uuid.UUID,
     segment_id: uuid.UUID,
     data: CheckpointCreate,
     session: AsyncSession = Depends(get_session),
     user: User = Depends(require_role("creator", "admin")),
 ) -> Checkpoint:
-    segment = await _get_segment_or_404(scrim_id, segment_id, session)
+    segment = await _get_segment_or_404(lesson_id, segment_id, session)
 
     # Auto-assign order if not provided: append at the end
     if data.order is not None:
@@ -83,12 +83,12 @@ async def create_checkpoint(
 
 @router.get("/", response_model=list[CheckpointRead])
 async def list_checkpoints(
-    scrim_id: uuid.UUID,
+    lesson_id: uuid.UUID,
     segment_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     user: User | None = Depends(get_optional_user),
 ) -> list[Checkpoint]:
-    await _get_segment_or_404(scrim_id, segment_id, session)
+    await _get_segment_or_404(lesson_id, segment_id, session)
 
     result = await session.execute(
         select(Checkpoint)
@@ -101,13 +101,13 @@ async def list_checkpoints(
 
 @router.get("/{checkpoint_id}", response_model=CheckpointRead)
 async def get_checkpoint(
-    scrim_id: uuid.UUID,
+    lesson_id: uuid.UUID,
     segment_id: uuid.UUID,
     checkpoint_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     user: User | None = Depends(get_optional_user),
 ) -> Checkpoint:
-    await _get_segment_or_404(scrim_id, segment_id, session)
+    await _get_segment_or_404(lesson_id, segment_id, session)
 
     checkpoint = await session.get(Checkpoint, checkpoint_id)
     if checkpoint is None or checkpoint.segment_id != segment_id:
@@ -117,14 +117,14 @@ async def get_checkpoint(
 
 @router.put("/{checkpoint_id}", response_model=CheckpointRead)
 async def update_checkpoint(
-    scrim_id: uuid.UUID,
+    lesson_id: uuid.UUID,
     segment_id: uuid.UUID,
     checkpoint_id: uuid.UUID,
     data: CheckpointUpdate,
     session: AsyncSession = Depends(get_session),
     user: User = Depends(require_role("creator", "admin")),
 ) -> Checkpoint:
-    segment = await _get_segment_or_404(scrim_id, segment_id, session)
+    segment = await _get_segment_or_404(lesson_id, segment_id, session)
 
     checkpoint = await session.get(Checkpoint, checkpoint_id)
     if checkpoint is None or checkpoint.segment_id != segment_id:
@@ -147,13 +147,13 @@ async def update_checkpoint(
 
 @router.delete("/{checkpoint_id}", status_code=204)
 async def delete_checkpoint(
-    scrim_id: uuid.UUID,
+    lesson_id: uuid.UUID,
     segment_id: uuid.UUID,
     checkpoint_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     user: User = Depends(require_role("creator", "admin")),
 ) -> None:
-    segment = await _get_segment_or_404(scrim_id, segment_id, session)
+    segment = await _get_segment_or_404(lesson_id, segment_id, session)
 
     checkpoint = await session.get(Checkpoint, checkpoint_id)
     if checkpoint is None or checkpoint.segment_id != segment_id:
@@ -180,7 +180,7 @@ async def delete_checkpoint(
 
 @router.put("/{checkpoint_id}/reorder", response_model=CheckpointRead)
 async def reorder_checkpoint(
-    scrim_id: uuid.UUID,
+    lesson_id: uuid.UUID,
     segment_id: uuid.UUID,
     checkpoint_id: uuid.UUID,
     new_order: int = Query(...),
@@ -188,7 +188,7 @@ async def reorder_checkpoint(
     user: User = Depends(require_role("creator", "admin")),
 ) -> Checkpoint:
     """Move a checkpoint to a new position within its segment."""
-    segment = await _get_segment_or_404(scrim_id, segment_id, session)
+    segment = await _get_segment_or_404(lesson_id, segment_id, session)
 
     checkpoint = await session.get(Checkpoint, checkpoint_id)
     if checkpoint is None or checkpoint.segment_id != segment_id:
@@ -236,23 +236,23 @@ async def reorder_checkpoint(
     return checkpoint
 
 
-# --- Bulk fetch: all checkpoints for a scrim (used by the player) ---
+# --- Bulk fetch: all checkpoints for a lesson (used by the player) ---
 
-@scrim_checkpoints_router.get("/", response_model=list[CheckpointRead])
-async def list_scrim_checkpoints(
-    scrim_id: uuid.UUID,
+@lesson_checkpoints_router.get("/", response_model=list[CheckpointRead])
+async def list_lesson_checkpoints(
+    lesson_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     user: User | None = Depends(get_optional_user),
 ) -> list[Checkpoint]:
-    """Fetch all checkpoints across all segments of a scrim, ordered by segment order then checkpoint order."""
-    scrim = await session.get(Scrim, scrim_id)
-    if scrim is None:
-        raise HTTPException(status_code=404, detail="Scrim not found")
+    """Fetch all checkpoints across all segments of a lesson, ordered by segment order then checkpoint order."""
+    lesson = await session.get(Lesson, lesson_id)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
 
-    # Get all segment IDs for this scrim
+    # Get all segment IDs for this lesson
     seg_result = await session.execute(
-        select(ScrimSegment.id)
-        .where(ScrimSegment.scrim_id == scrim_id)
+        select(LessonSegment.id)
+        .where(LessonSegment.lesson_id == lesson_id)
     )
     segment_ids = [row[0] for row in seg_result.all()]
 

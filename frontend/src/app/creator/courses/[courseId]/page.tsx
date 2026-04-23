@@ -8,18 +8,18 @@ import {
   createSection,
   updateSection,
   deleteSection,
-  fetchSectionScrims,
-  deleteScrim,
+  fetchSectionLessons,
+  deleteLesson,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
-import type { Section, Scrim } from "@/lib/types";
+import type { Section, Lesson } from "@/lib/types";
 
 export default function CourseSectionsPage() {
   const params = useParams();
   const courseId = params.courseId as string;
   const { toast } = useToast();
   const [sections, setSections] = useState<Section[]>([]);
-  const [sectionScrims, setSectionScrims] = useState<Record<string, Scrim[]>>({});
+  const [sectionLessons, setSectionLessons] = useState<Record<string, Lesson[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
@@ -30,17 +30,17 @@ export default function CourseSectionsPage() {
     if (sectionsResp.success && sectionsResp.data) {
       setSections(sectionsResp.data);
 
-      // Load scrims for all sections
-      const scrimMap: Record<string, Scrim[]> = {};
+      // Load lessons for all sections
+      const lessonMap: Record<string, Lesson[]> = {};
       await Promise.all(
         sectionsResp.data.map(async (section) => {
-          const scrimsResp = await fetchSectionScrims(courseId, section.id);
-          if (scrimsResp.success && scrimsResp.data) {
-            scrimMap[section.id] = scrimsResp.data;
+          const lessonsResp = await fetchSectionLessons(courseId, section.id);
+          if (lessonsResp.success && lessonsResp.data) {
+            lessonMap[section.id] = lessonsResp.data;
           }
         })
       );
-      setSectionScrims(scrimMap);
+      setSectionLessons(lessonMap);
     }
     setIsLoading(false);
   }, [courseId]);
@@ -50,7 +50,7 @@ export default function CourseSectionsPage() {
   }, [loadData]);
 
   const handleDeleteSection = async (section: Section) => {
-    if (!confirm(`Delete "${section.title}"? All scrims within it will be unlinked.`)) return;
+    if (!confirm(`Delete "${section.title}"? All lessons within it will be unlinked.`)) return;
     const resp = await deleteSection(courseId, section.id);
     if (resp.success) {
       toast("Section deleted", "success");
@@ -60,14 +60,14 @@ export default function CourseSectionsPage() {
     }
   };
 
-  const handleDeleteScrim = async (scrim: Scrim) => {
-    if (!confirm(`Delete "${scrim.title}"? This cannot be undone.`)) return;
-    const resp = await deleteScrim(scrim.id);
+  const handleDeleteLesson = async (lesson: Lesson) => {
+    if (!confirm(`Delete "${lesson.title}"? This cannot be undone.`)) return;
+    const resp = await deleteLesson(lesson.id);
     if (resp.success) {
-      toast("Scrim deleted", "success");
+      toast("Lesson deleted", "success");
       loadData();
     } else {
-      toast(resp.error?.message || "Failed to delete scrim", "error");
+      toast(resp.error?.message || "Failed to delete lesson", "error");
     }
   };
 
@@ -105,9 +105,9 @@ export default function CourseSectionsPage() {
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Sections & Scrims</h1>
+          <h1 className="text-2xl font-bold text-white">Sections & Lessons</h1>
           <p className="mt-1 text-sm text-gray-400">
-            Organize scrims into sections within this course
+            Organize lessons into sections within this course
           </p>
         </div>
         <button
@@ -126,7 +126,7 @@ export default function CourseSectionsPage() {
             No sections yet
           </h3>
           <p className="mt-2 text-sm text-gray-400">
-            Create sections to organize your scrims within this course.
+            Create sections to organize your lessons within this course.
           </p>
           <button
             onClick={() => setShowCreateModal(true)}
@@ -138,7 +138,7 @@ export default function CourseSectionsPage() {
       ) : (
         <div className="space-y-3">
           {sections.map((section, index) => {
-            const scrims = sectionScrims[section.id] || [];
+            const lessons = sectionLessons[section.id] || [];
             const isExpanded = expandedSections.has(section.id);
 
             return (
@@ -157,7 +157,7 @@ export default function CourseSectionsPage() {
                         {section.title}
                       </h3>
                       <span className="text-xs text-gray-500">
-                        {scrims.length} scrim{scrims.length !== 1 ? "s" : ""}
+                        {lessons.length} lesson{lessons.length !== 1 ? "s" : ""}
                       </span>
                     </div>
                   </div>
@@ -187,12 +187,12 @@ export default function CourseSectionsPage() {
                   </div>
                 </div>
 
-                {/* Scrims list (expanded) */}
+                {/* Lessons list (expanded) */}
                 {isExpanded && (
                   <div className="border-t border-gray-800/60">
-                    {scrims.length === 0 ? (
+                    {lessons.length === 0 ? (
                       <div className="px-4 py-6 text-center text-sm text-gray-500">
-                        No scrims in this section.{" "}
+                        No lessons in this section.{" "}
                         <Link
                           href={`/studio?sectionId=${section.id}`}
                           className="text-brand-400 hover:text-brand-300"
@@ -202,9 +202,9 @@ export default function CourseSectionsPage() {
                       </div>
                     ) : (
                       <div className="divide-y divide-gray-800/40">
-                        {scrims.map((scrim) => (
+                        {lessons.map((lesson) => (
                           <div
-                            key={scrim.id}
+                            key={lesson.id}
                             className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-gray-800/20"
                           >
                             <div className="flex items-center gap-3">
@@ -213,34 +213,34 @@ export default function CourseSectionsPage() {
                               </div>
                               <div>
                                 <span className="text-sm font-medium text-gray-200">
-                                  {scrim.title}
+                                  {lesson.title}
                                 </span>
                                 <div className="flex items-center gap-2 text-xs text-gray-500">
-                                  <span>{scrim.language}</span>
+                                  <span>{lesson.language}</span>
                                   <span>
-                                    {Math.round(scrim.duration_ms / 1000)}s
+                                    {Math.round(lesson.duration_ms / 1000)}s
                                   </span>
                                   <span
                                     className={
-                                      scrim.status === "published"
+                                      lesson.status === "published"
                                         ? "text-emerald-400"
                                         : "text-amber-400"
                                     }
                                   >
-                                    {scrim.status}
+                                    {lesson.status}
                                   </span>
                                 </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
                               <Link
-                                href={`/play/${scrim.id}`}
+                                href={`/play/${lesson.id}`}
                                 className="rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
                               >
                                 Preview
                               </Link>
                               <Link
-                                href={`/studio?scrimId=${scrim.id}`}
+                                href={`/studio?lessonId=${lesson.id}`}
                                 className="rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
                               >
                                 Edit
@@ -248,10 +248,10 @@ export default function CourseSectionsPage() {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDeleteScrim(scrim);
+                                  handleDeleteLesson(lesson);
                                 }}
                                 className="rounded p-1.5 text-gray-500 hover:bg-red-500/10 hover:text-red-400"
-                                title="Delete scrim"
+                                title="Delete lesson"
                               >
                                 <TrashIcon />
                               </button>
@@ -261,14 +261,14 @@ export default function CourseSectionsPage() {
                       </div>
                     )}
 
-                    {/* Add scrim link */}
+                    {/* Add lesson link */}
                     <div className="border-t border-gray-800/40 px-4 py-3">
                       <Link
                         href={`/studio?sectionId=${section.id}`}
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-400 hover:text-brand-300"
                       >
                         <PlusIcon />
-                        Add scrim to this section
+                        Add lesson to this section
                       </Link>
                     </div>
                   </div>
