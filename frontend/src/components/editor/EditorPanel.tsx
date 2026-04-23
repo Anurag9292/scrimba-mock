@@ -101,6 +101,8 @@ interface EditorPanelProps {
   onFileDelete?: (fileName: string) => void;
   /** Callback when a file is renamed */
   onFileRename?: (oldName: string, newName: string) => void;
+  /** Controlled active file for playback mode */
+  controlledActiveFile?: string;
 }
 
 export default function EditorPanel({
@@ -112,6 +114,7 @@ export default function EditorPanel({
   onFileCreate,
   onFileDelete,
   onFileRename,
+  controlledActiveFile,
 }: EditorPanelProps) {
   const [files, setFiles] = useState<Record<string, string>>(
     initialFiles ?? DEFAULT_FILES
@@ -148,6 +151,20 @@ export default function EditorPanel({
   useEffect(() => {
     onActiveFileChange?.(activeFile);
   }, [activeFile, onActiveFileChange]);
+
+  // In readOnly/playback mode, sync files from parent when they change
+  useEffect(() => {
+    if (readOnly && initialFiles) {
+      setFiles(initialFiles);
+    }
+  }, [readOnly, initialFiles]);
+
+  // In readOnly/playback mode, sync active file from parent
+  useEffect(() => {
+    if (readOnly && controlledActiveFile && controlledActiveFile !== activeFile) {
+      setActiveFile(controlledActiveFile);
+    }
+  }, [readOnly, controlledActiveFile]); // intentionally exclude activeFile to avoid loops
 
   const handleCreateFile = useCallback(() => {
     const trimmed = newFileName.trim();
@@ -275,6 +292,7 @@ export default function EditorPanel({
       {/* Editor area */}
       <div className="flex-1 min-h-0">
         <CodeEditor
+          path={activeFile}
           value={files[activeFile] ?? ""}
           language={getLanguage(activeFile)}
           onChange={handleChange}
