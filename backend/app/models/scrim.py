@@ -18,6 +18,7 @@ class Scrim(SQLModel, table=True):
     initial_code: str = Field(default="")
     language: str = Field(default="html")
     files: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    status: str = Field(default="published")  # "draft" | "published"
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime(timezone=True), nullable=False),
@@ -36,6 +37,7 @@ class ScrimCreate(BaseModel):
     language: str = "html"
     code_events: list = []
     files: dict | None = None
+    status: str = "published"  # "draft" | "published"
 
 
 class ScrimUpdate(BaseModel):
@@ -46,6 +48,7 @@ class ScrimUpdate(BaseModel):
     language: str | None = None
     code_events: list | None = None
     files: dict | None = None
+    status: str | None = None
 
 
 class ScrimRead(BaseModel):
@@ -58,6 +61,7 @@ class ScrimRead(BaseModel):
     initial_code: str
     language: str
     files: dict | None
+    status: str
     created_at: datetime
     updated_at: datetime
 

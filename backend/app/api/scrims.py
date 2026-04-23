@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -24,6 +24,7 @@ async def create_scrim(
         language=data.language,
         code_events=data.code_events,
         files=data.files,
+        status=data.status,
     )
     session.add(scrim)
     await session.commit()
@@ -33,9 +34,13 @@ async def create_scrim(
 
 @router.get("/", response_model=list[ScrimRead])
 async def list_scrims(
+    status: str | None = Query(default=None, description="Filter by status: draft, published, or omit for all"),
     session: AsyncSession = Depends(get_session),
 ) -> list[Scrim]:
-    result = await session.execute(select(Scrim).order_by(Scrim.created_at.desc()))
+    query = select(Scrim).order_by(Scrim.created_at.desc())
+    if status is not None:
+        query = query.where(Scrim.status == status)
+    result = await session.execute(query)
     scrims = result.scalars().all()
     return list(scrims)
 
@@ -64,6 +69,27 @@ async def update_scrim(
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(scrim, key, value)
+    scrim.updated_at = datetime.now(timezone.utc)
+
+    session.add(scrim)
+    await session.commit()
+    await session.refresh(scrim)
+    return scrim
+
+
+@router.put("/{scrim_id}/publish", response_model=ScrimRead)
+async def publish_scrim(
+    scrim_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+) -> Scrim:
+    scrim = await session.get(Scrim, scrim_id)
+    if scrim is None:
+        raise HTTPException(status_code=404, detail="Scrim not found")
+
+    if scrim.status == "published":
+        raise HTTPException(status_code=400, detail="Scrim is already published")
+
+    scrim.status = "published"
     scrim.updated_at = datetime.now(timezone.utc)
 
     session.add(scrim)

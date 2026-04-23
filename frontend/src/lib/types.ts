@@ -62,6 +62,9 @@ export interface SelectionRange {
 /** Recording status for the UI */
 export type RecordingStatus = "idle" | "recording" | "paused" | "stopped";
 
+/** Scrim status */
+export type ScrimStatus = "draft" | "published";
+
 /** A complete scrim (recorded interactive coding session) */
 export interface Scrim {
   id: string;
@@ -73,6 +76,22 @@ export interface Scrim {
   initial_code: string;
   language: string;
   files?: FileMap;
+  status: ScrimStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A single segment within a multi-segment scrim recording */
+export interface ScrimSegment {
+  id: string;
+  scrim_id: string;
+  order: number;
+  video_filename?: string;
+  code_events: CodeEvent[];
+  initial_files: FileMap;
+  duration_ms: number;
+  trim_start_ms: number;
+  trim_end_ms?: number;
   created_at: string;
   updated_at: string;
 }
