@@ -67,6 +67,33 @@ export default function RecordPage() {
     [recorder]
   );
 
+  const handleFileCreate = useCallback(
+    (fileName: string) => {
+      if (recorder.status === "recording") {
+        recorder.recordFileCreate(fileName);
+      }
+    },
+    [recorder]
+  );
+
+  const handleFileDelete = useCallback(
+    (fileName: string) => {
+      if (recorder.status === "recording") {
+        recorder.recordFileDelete(fileName);
+      }
+    },
+    [recorder]
+  );
+
+  const handleFileRename = useCallback(
+    (oldName: string, newName: string) => {
+      if (recorder.status === "recording") {
+        recorder.recordFileRename(oldName, newName);
+      }
+    },
+    [recorder]
+  );
+
   const handleRecord = useCallback(async () => {
     if (recorder.status === "idle" || recorder.status === "stopped") {
       // Initialize camera if not done yet
@@ -206,6 +233,9 @@ export default function RecordPage() {
           onEditorMount={handleEditorMount}
           onFilesChange={handleFilesChange}
           onActiveFileChange={handleActiveFileChange}
+          onFileCreate={handleFileCreate}
+          onFileDelete={handleFileDelete}
+          onFileRename={handleFileRename}
         />
 
         {/* Camera preview overlay */}

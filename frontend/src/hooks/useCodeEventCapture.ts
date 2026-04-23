@@ -13,6 +13,12 @@ interface CodeEventCapture {
   getEvents: () => CodeEvent[];
   /** Record a file switch event manually */
   recordFileSwitch: (fileName: string) => void;
+  /** Record a file creation event */
+  recordFileCreate: (fileName: string) => void;
+  /** Record a file deletion event */
+  recordFileDelete: (fileName: string) => void;
+  /** Record a file rename event */
+  recordFileRename: (oldName: string, newName: string) => void;
   /** Clear all captured events */
   clear: () => void;
 }
@@ -151,6 +157,46 @@ export function useCodeEventCapture(): CodeEventCapture {
     [getTimestamp]
   );
 
+  const recordFileCreate = useCallback(
+    (fileName: string) => {
+      if (!startTimeRef.current) return;
+      const event: CodeEvent = {
+        type: "file_create",
+        timestamp: getTimestamp(),
+        fileName,
+      };
+      eventsRef.current.push(event);
+    },
+    [getTimestamp]
+  );
+
+  const recordFileDelete = useCallback(
+    (fileName: string) => {
+      if (!startTimeRef.current) return;
+      const event: CodeEvent = {
+        type: "file_delete",
+        timestamp: getTimestamp(),
+        fileName,
+      };
+      eventsRef.current.push(event);
+    },
+    [getTimestamp]
+  );
+
+  const recordFileRename = useCallback(
+    (oldName: string, newName: string) => {
+      if (!startTimeRef.current) return;
+      const event: CodeEvent = {
+        type: "file_rename",
+        timestamp: getTimestamp(),
+        fileName: oldName,
+        newFileName: newName,
+      };
+      eventsRef.current.push(event);
+    },
+    [getTimestamp]
+  );
+
   const clear = useCallback(() => {
     eventsRef.current = [];
   }, []);
@@ -160,6 +206,9 @@ export function useCodeEventCapture(): CodeEventCapture {
     stopCapture,
     getEvents,
     recordFileSwitch,
+    recordFileCreate,
+    recordFileDelete,
+    recordFileRename,
     clear,
   };
 }

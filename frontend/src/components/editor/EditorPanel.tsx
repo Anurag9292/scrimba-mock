@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { OnMount } from "@monaco-editor/react";
 import CodeEditor from "./CodeEditor";
 import FileTab from "./FileTab";
@@ -23,6 +23,8 @@ function getLanguage(filename: string): string {
       return "json";
     case "md":
       return "markdown";
+    case "py":
+      return "python";
     default:
       return "plaintext";
   }
@@ -93,6 +95,12 @@ interface EditorPanelProps {
   onEditorMount?: OnMount;
   /** Callback when the active file tab changes */
   onActiveFileChange?: (fileName: string) => void;
+  /** Callback when a file is created */
+  onFileCreate?: (fileName: string) => void;
+  /** Callback when a file is deleted */
+  onFileDelete?: (fileName: string) => void;
+  /** Callback when a file is renamed */
+  onFileRename?: (oldName: string, newName: string) => void;
 }
 
 export default function EditorPanel({
@@ -101,6 +109,9 @@ export default function EditorPanel({
   readOnly = false,
   onEditorMount,
   onActiveFileChange,
+  onFileCreate,
+  onFileDelete,
+  onFileRename,
 }: EditorPanelProps) {
   const [files, setFiles] = useState<Record<string, string>>(
     initialFiles ?? DEFAULT_FILES
@@ -108,6 +119,15 @@ export default function EditorPanel({
   const [activeFile, setActiveFile] = useState<string>(
     Object.keys(initialFiles ?? DEFAULT_FILES)[0]
   );
+  const [isCreating, setIsCreating] = useState(false);
+  const [newFileName, setNewFileName] = useState("");
+  const newFileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isCreating) {
+      newFileInputRef.current?.focus();
+    }
+  }, [isCreating]);
 
   const handleChange = useCallback(
     (value: string) => {
@@ -129,6 +149,73 @@ export default function EditorPanel({
     onActiveFileChange?.(activeFile);
   }, [activeFile, onActiveFileChange]);
 
+  const handleCreateFile = useCallback(() => {
+    const trimmed = newFileName.trim();
+    if (!trimmed) {
+      setIsCreating(false);
+      setNewFileName("");
+      return;
+    }
+    // Prevent duplicates
+    if (files[trimmed]) {
+      setIsCreating(false);
+      setNewFileName("");
+      return;
+    }
+    setFiles((prev) => ({ ...prev, [trimmed]: "" }));
+    setActiveFile(trimmed);
+    setIsCreating(false);
+    setNewFileName("");
+    onFileCreate?.(trimmed);
+  }, [newFileName, files, onFileCreate]);
+
+  const handleDeleteFile = useCallback(
+    (fileName: string) => {
+      const filenames = Object.keys(files);
+      if (filenames.length <= 1) return; // Can't delete last file
+
+      setFiles((prev) => {
+        const updated = { ...prev };
+        delete updated[fileName];
+        return updated;
+      });
+
+      // Switch to another tab if we deleted the active one
+      if (activeFile === fileName) {
+        const idx = filenames.indexOf(fileName);
+        const nextFile = filenames[idx === 0 ? 1 : idx - 1];
+        setActiveFile(nextFile);
+      }
+      onFileDelete?.(fileName);
+    },
+    [files, activeFile, onFileDelete]
+  );
+
+  const handleRenameFile = useCallback(
+    (oldName: string, newName: string) => {
+      // Prevent duplicates
+      if (files[newName]) return;
+
+      setFiles((prev) => {
+        const updated: Record<string, string> = {};
+        for (const [key, value] of Object.entries(prev)) {
+          if (key === oldName) {
+            updated[newName] = value;
+          } else {
+            updated[key] = value;
+          }
+        }
+        return updated;
+      });
+
+      if (activeFile === oldName) {
+        setActiveFile(newName);
+      }
+      onFileRename?.(oldName, newName);
+    },
+    [files, activeFile, onFileRename]
+  );
+
   const filenames = Object.keys(files);
 
   return (
@@ -140,11 +227,49 @@ export default function EditorPanel({
             key={name}
             filename={name}
             isActive={name === activeFile}
-            onClick={() => {
-              setActiveFile(name);
-            }}
+            onClick={() => setActiveFile(name)}
+            closable={filenames.length > 1}
+            onClose={() => handleDeleteFile(name)}
+            onRename={(newName) => handleRenameFile(name, newName)}
+            readOnly={readOnly}
           />
         ))}
+
+        {/* New file input */}
+        {isCreating && (
+          <div className="flex items-center border-r border-gray-800/60 bg-gray-900/40 px-2">
+            <input
+              ref={newFileInputRef}
+              type="text"
+              value={newFileName}
+              onChange={(e) => setNewFileName(e.target.value)}
+              onBlur={handleCreateFile}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreateFile();
+                if (e.key === "Escape") {
+                  setIsCreating(false);
+                  setNewFileName("");
+                }
+              }}
+              placeholder="filename.ext"
+              className="w-28 rounded border border-brand-500/50 bg-gray-800 px-2 py-0.5 text-xs text-white placeholder-gray-600 outline-none"
+            />
+          </div>
+        )}
+
+        {/* Add file button */}
+        {!readOnly && !isCreating && (
+          <button
+            type="button"
+            onClick={() => setIsCreating(true)}
+            className="flex h-full items-center px-3 text-gray-600 transition-colors hover:bg-gray-800/50 hover:text-gray-300"
+            title="New file"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Editor area */}
