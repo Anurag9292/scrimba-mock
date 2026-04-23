@@ -7,6 +7,7 @@ from sqlmodel import SQLModel
 
 from app.config import settings
 from app.models.scrim import Scrim  # noqa: F401 - ensure models are registered
+from app.models.segment import ScrimSegment  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
@@ -48,6 +49,12 @@ async def run_async_migrations() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
+    # Support being called programmatically with a pre-existing connection
+    connectable = config.attributes.get("connection", None)
+    if connectable is not None:
+        do_run_migrations(connectable)
+        return
+
     asyncio.run(run_async_migrations())
 
 
