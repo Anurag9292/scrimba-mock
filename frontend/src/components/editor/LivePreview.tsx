@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { forwardRef, useMemo } from "react";
 
 interface LivePreviewProps {
   html: string;
@@ -8,9 +8,10 @@ interface LivePreviewProps {
   javascript: string;
 }
 
-export default function LivePreview({ html, css, javascript }: LivePreviewProps) {
-  const srcdoc = useMemo(() => {
-    return `<!DOCTYPE html>
+const LivePreview = forwardRef<HTMLIFrameElement, LivePreviewProps>(
+  function LivePreview({ html, css, javascript }, ref) {
+    const srcdoc = useMemo(() => {
+      return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -39,16 +40,20 @@ export default function LivePreview({ html, css, javascript }: LivePreviewProps)
   </script>
 </body>
 </html>`;
-  }, [html, css, javascript]);
+    }, [html, css, javascript]);
 
-  return (
-    <div className="h-full w-full overflow-hidden bg-white">
-      <iframe
-        srcDoc={srcdoc}
-        title="Live Preview"
-        sandbox="allow-scripts allow-modals"
-        className="h-full w-full border-0"
-      />
-    </div>
-  );
-}
+    return (
+      <div className="h-full w-full overflow-hidden bg-white">
+        <iframe
+          ref={ref}
+          srcDoc={srcdoc}
+          title="Live Preview"
+          sandbox="allow-scripts allow-modals allow-same-origin"
+          className="h-full w-full border-0"
+        />
+      </div>
+    );
+  }
+);
+
+export default LivePreview;

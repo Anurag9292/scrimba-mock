@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { Scrim, ScrimSegment, CodeEvent, FileMap } from "@/lib/types";
-import { fetchScrim, fetchSegments, getVideoUrl, getSegmentVideoUrl } from "@/lib/api";
+import type { Scrim, ScrimSegment, CodeEvent, FileMap, Checkpoint, CheckpointStatus } from "@/lib/types";
+import { fetchScrim, fetchSegments, fetchScrimCheckpoints, getVideoUrl, getSegmentVideoUrl } from "@/lib/api";
 import { positionToOffset, applyCodeEvent, replayEvents, findEventIndex, segmentEffectiveDuration, globalToSegmentTime, computeSegmentOffsets } from "@/lib/segments";
 
 export interface UsePlaybackReturn {
@@ -46,6 +46,20 @@ export interface UsePlaybackReturn {
   exitInteractive: () => void;
   /** Update files from interactive editor changes */
   updateFiles: (files: FileMap) => void;
+  /** Loaded segments (empty for legacy single-blob scrims) */
+  segments: ScrimSegment[];
+  /** Currently active checkpoint (null if none) */
+  activeCheckpoint: Checkpoint | null;
+  /** Status of the active checkpoint */
+  checkpointStatus: CheckpointStatus;
+  /** All checkpoints for this scrim */
+  checkpoints: Checkpoint[];
+  /** Submit the current code for checkpoint validation */
+  submitCheckpoint: (previewContent: string) => void;
+  /** Dismiss checkpoint after passing and resume playback */
+  dismissCheckpoint: () => void;
+  /** Skip a checkpoint without completing it */
+  skipCheckpoint: () => void;
 }
 
 export function usePlayback(scrimId: string): UsePlaybackReturn {
@@ -60,6 +74,12 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
   const [isInteractive, setIsInteractive] = useState(false);
   const [seekVersion, setSeekVersion] = useState(0);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+
+  // Checkpoint state
+  const [activeCheckpoint, setActiveCheckpoint] = useState<Checkpoint | null>(null);
+  const [checkpointStatus, setCheckpointStatus] = useState<CheckpointStatus>("idle");
+  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [loadedSegments, setLoadedSegments] = useState<ScrimSegment[]>([]);
 
   const videoRef = useRef<HTMLVideoElement>(null!) as React.RefObject<HTMLVideoElement>;
   const rafRef = useRef<number>(0);
@@ -87,6 +107,11 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
   const shouldBePlayingRef = useRef(false);
   const pendingSeekTimeRef = useRef<number | null>(null);
   const playbackRateRef = useRef(1);
+
+  // Checkpoint refs
+  const checkpointsRef = useRef<Map<string, Checkpoint[]>>(new Map()); // segment_id -> checkpoints[]
+  const completedCheckpointsRef = useRef<Set<string>>(new Set()); // checkpoint IDs that have been passed/skipped
+  const lastCheckTimeMsRef = useRef<number>(0); // last tick time used for checkpoint detection
 
   /** Set up internal state for a specific segment index */
   function loadSegmentState(segmentIndex: number) {
@@ -176,9 +201,28 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
       const s = result.data;
       setScrim(s);
 
-      // Try to load segments
-      const segResult = await fetchSegments(scrimId);
+      // Try to load segments and checkpoints in parallel
+      const [segResult, cpResult] = await Promise.all([
+        fetchSegments(scrimId),
+        fetchScrimCheckpoints(scrimId),
+      ]);
       if (cancelled) return;
+
+      // Process checkpoints — group by segment_id
+      if (cpResult.success && cpResult.data && cpResult.data.length > 0) {
+        const cpMap = new Map<string, Checkpoint[]>();
+        for (const cp of cpResult.data) {
+          const existing = cpMap.get(cp.segment_id) ?? [];
+          existing.push(cp);
+          cpMap.set(cp.segment_id, existing);
+        }
+        // Sort each segment's checkpoints by timestamp_ms
+        cpMap.forEach((cps) => {
+          cps.sort((a: Checkpoint, b: Checkpoint) => a.timestamp_ms - b.timestamp_ms);
+        });
+        checkpointsRef.current = cpMap;
+        setCheckpoints(cpResult.data);
+      }
 
       const segments =
         segResult.success && segResult.data && segResult.data.length > 0
@@ -189,6 +233,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
         // --- Segment-based playback ---
         isSegmentedRef.current = true;
         segmentsRef.current = segments;
+        setLoadedSegments(segments);
         segmentStartOffsetsRef.current = computeSegmentOffsets(segments);
 
         // Initialize with first segment
@@ -325,6 +370,31 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
         }
         setCurrentFiles(files);
       }
+
+      // Check for checkpoints at this local time
+      const segCheckpoints = checkpointsRef.current.get(seg.id);
+      if (segCheckpoints && segCheckpoints.length > 0) {
+        const prevLocalTime = lastCheckTimeMsRef.current;
+        for (const cp of segCheckpoints) {
+          // Has this checkpoint already been completed?
+          if (completedCheckpointsRef.current.has(cp.id)) continue;
+          // Did we just cross this checkpoint's timestamp?
+          if (cp.timestamp_ms > prevLocalTime && cp.timestamp_ms <= localTimeMs) {
+            // Trigger checkpoint: pause playback and enter checkpoint mode
+            if (video && !video.paused) {
+              video.pause();
+            }
+            shouldBePlayingRef.current = false;
+            setIsPlaying(false);
+            setActiveCheckpoint(cp);
+            setCheckpointStatus("active");
+            setIsInteractive(true);
+            lastCheckTimeMsRef.current = localTimeMs;
+            return; // Stop the tick loop — will resume when checkpoint is dismissed
+          }
+        }
+      }
+      lastCheckTimeMsRef.current = localTimeMs;
 
       // Check if we've reached the end of this segment
       // Also check video.ended to handle cases where the video file is
@@ -610,6 +680,66 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
     return () => video.removeEventListener("canplay", handleReady);
   }, [videoUrl]);
 
+  // --- Checkpoint actions ---
+  const submitCheckpoint = useCallback((previewContent: string) => {
+    const cp = activeCheckpoint;
+    if (!cp) return;
+
+    setCheckpointStatus("validating");
+
+    // Client-side output match validation
+    const expected = cp.validation_config.expected_output ?? "";
+    const normalizedExpected = expected.trim().toLowerCase();
+    const normalizedActual = previewContent.trim().toLowerCase();
+
+    if (normalizedActual.includes(normalizedExpected) || normalizedExpected === normalizedActual) {
+      setCheckpointStatus("passed");
+      completedCheckpointsRef.current.add(cp.id);
+    } else {
+      setCheckpointStatus("failed");
+    }
+  }, [activeCheckpoint]);
+
+  const dismissCheckpoint = useCallback(() => {
+    // Sync files back from interactive editing
+    currentFilesRef.current = currentFiles;
+    setActiveCheckpoint(null);
+    setCheckpointStatus("idle");
+    setIsInteractive(false);
+
+    // Resume playback
+    const video = videoRef.current;
+    if (video) {
+      video.play().catch(() => {});
+    }
+    playStartRef.current = performance.now();
+    playStartTimeRef.current = currentTimeMsRef.current;
+    shouldBePlayingRef.current = true;
+    setIsPlaying(true);
+  }, [currentFiles]);
+
+  const skipCheckpoint = useCallback(() => {
+    const cp = activeCheckpoint;
+    if (cp) {
+      completedCheckpointsRef.current.add(cp.id);
+    }
+    // Sync files back from interactive editing
+    currentFilesRef.current = currentFiles;
+    setActiveCheckpoint(null);
+    setCheckpointStatus("idle");
+    setIsInteractive(false);
+
+    // Resume playback
+    const video = videoRef.current;
+    if (video) {
+      video.play().catch(() => {});
+    }
+    playStartRef.current = performance.now();
+    playStartTimeRef.current = currentTimeMsRef.current;
+    shouldBePlayingRef.current = true;
+    setIsPlaying(true);
+  }, [activeCheckpoint, currentFiles]);
+
   const enterInteractive = useCallback(() => {
     const video = videoRef.current;
     if (video && !video.paused) {
@@ -652,5 +782,12 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
     enterInteractive,
     exitInteractive,
     updateFiles,
+    segments: loadedSegments,
+    activeCheckpoint,
+    checkpointStatus,
+    checkpoints,
+    submitCheckpoint,
+    dismissCheckpoint,
+    skipCheckpoint,
   };
 }

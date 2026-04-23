@@ -19,7 +19,7 @@ describe("LivePreview", () => {
   it('iframe has correct sandbox attribute', () => {
     render(<LivePreview {...defaultProps} />);
     const iframe = screen.getByTitle("Live Preview");
-    expect(iframe).toHaveAttribute("sandbox", "allow-scripts allow-modals");
+    expect(iframe).toHaveAttribute("sandbox", "allow-scripts allow-modals allow-same-origin");
   });
 
   it("generates correct srcdoc combining HTML, CSS, and JS", () => {

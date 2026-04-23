@@ -1,4 +1,4 @@
-import type { Scrim, ScrimSegment, ApiResponse } from "./types";
+import type { Scrim, ScrimSegment, Checkpoint, ApiResponse } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -294,4 +294,99 @@ export async function uploadSegmentVideo(
 /** Get the URL for a segment's video */
 export function getSegmentVideoUrl(segmentId: string): string {
   return `${API_URL}/api/upload/video/segment/${segmentId}`;
+}
+
+// --- Checkpoint API ---
+
+/** Data required to create a new checkpoint */
+export interface CheckpointCreate {
+  order?: number;
+  timestamp_ms: number;
+  title: string;
+  instructions?: string;
+  validation_type?: string;
+  validation_config?: Record<string, unknown>;
+}
+
+/** Data for updating a checkpoint */
+export interface CheckpointUpdate {
+  order?: number;
+  timestamp_ms?: number;
+  title?: string;
+  instructions?: string;
+  validation_type?: string;
+  validation_config?: Record<string, unknown>;
+}
+
+/** Fetch all checkpoints for a specific segment */
+export async function fetchCheckpoints(
+  scrimId: string,
+  segmentId: string
+): Promise<ApiResponse<Checkpoint[]>> {
+  return apiFetch<Checkpoint[]>(
+    `/api/scrims/${scrimId}/segments/${segmentId}/checkpoints/`
+  );
+}
+
+/** Fetch all checkpoints across all segments of a scrim (bulk fetch for the player) */
+export async function fetchScrimCheckpoints(
+  scrimId: string
+): Promise<ApiResponse<Checkpoint[]>> {
+  return apiFetch<Checkpoint[]>(`/api/scrims/${scrimId}/checkpoints/`);
+}
+
+/** Create a new checkpoint for a segment */
+export async function createCheckpoint(
+  scrimId: string,
+  segmentId: string,
+  data: CheckpointCreate
+): Promise<ApiResponse<Checkpoint>> {
+  return apiFetch<Checkpoint>(
+    `/api/scrims/${scrimId}/segments/${segmentId}/checkpoints/`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+/** Update an existing checkpoint */
+export async function updateCheckpoint(
+  scrimId: string,
+  segmentId: string,
+  checkpointId: string,
+  data: CheckpointUpdate
+): Promise<ApiResponse<Checkpoint>> {
+  return apiFetch<Checkpoint>(
+    `/api/scrims/${scrimId}/segments/${segmentId}/checkpoints/${checkpointId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+/** Delete a checkpoint */
+export async function deleteCheckpoint(
+  scrimId: string,
+  segmentId: string,
+  checkpointId: string
+): Promise<ApiResponse<void>> {
+  return apiFetch<void>(
+    `/api/scrims/${scrimId}/segments/${segmentId}/checkpoints/${checkpointId}`,
+    { method: "DELETE" }
+  );
+}
+
+/** Reorder a checkpoint to a new position */
+export async function reorderCheckpoint(
+  scrimId: string,
+  segmentId: string,
+  checkpointId: string,
+  newOrder: number
+): Promise<ApiResponse<Checkpoint>> {
+  return apiFetch<Checkpoint>(
+    `/api/scrims/${scrimId}/segments/${segmentId}/checkpoints/${checkpointId}/reorder?new_order=${newOrder}`,
+    { method: "PUT" }
+  );
 }
