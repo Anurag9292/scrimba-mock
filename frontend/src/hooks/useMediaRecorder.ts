@@ -37,6 +37,9 @@ export function useMediaRecorder(): MediaRecorderState {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const resolveStopRef = useRef<((blob: Blob | null) => void) | null>(null);
+  // Use a ref to avoid stale closures — state updates are async,
+  // but the ref is always current when start() reads it.
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   const cleanup = useCallback(() => {
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
@@ -45,15 +48,16 @@ export function useMediaRecorder(): MediaRecorderState {
     recorderRef.current = null;
     chunksRef.current = [];
 
-    if (mediaStream) {
-      mediaStream.getTracks().forEach((track) => track.stop());
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
     }
+    mediaStreamRef.current = null;
     setMediaStream(null);
     setVideoBlob(null);
     setIsRecording(false);
     setIsPaused(false);
     setError(null);
-  }, [mediaStream]);
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -76,6 +80,7 @@ export function useMediaRecorder(): MediaRecorderState {
         video: { width: { ideal: 320 }, height: { ideal: 240 }, facingMode: "user" },
         audio: true,
       });
+      mediaStreamRef.current = stream;
       setMediaStream(stream);
       return true;
     } catch (err) {
@@ -86,7 +91,8 @@ export function useMediaRecorder(): MediaRecorderState {
   }, []);
 
   const start = useCallback(() => {
-    if (!mediaStream) {
+    const stream = mediaStreamRef.current;
+    if (!stream) {
       setError("No media stream. Call initialize() first.");
       return;
     }
@@ -100,7 +106,7 @@ export function useMediaRecorder(): MediaRecorderState {
         ? "video/webm;codecs=vp8,opus"
         : "video/webm";
 
-    const recorder = new MediaRecorder(mediaStream, { mimeType });
+    const recorder = new MediaRecorder(stream, { mimeType });
 
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
@@ -132,7 +138,7 @@ export function useMediaRecorder(): MediaRecorderState {
     recorder.start(1000); // Collect data every second
     setIsRecording(true);
     setIsPaused(false);
-  }, [mediaStream]);
+  }, []);
 
   const stop = useCallback((): Promise<Blob | null> => {
     return new Promise((resolve) => {
