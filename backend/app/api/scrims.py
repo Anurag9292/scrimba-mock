@@ -124,6 +124,9 @@ async def delete_scrim(
     )
     for segment in result.scalars().all():
         await session.delete(segment)
+    # Flush segment deletes before removing the scrim (no Relationship() defined,
+    # so SQLAlchemy doesn't know the FK ordering)
+    await session.flush()
 
     await session.delete(scrim)
     await session.commit()
