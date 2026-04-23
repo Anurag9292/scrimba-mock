@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import EditorPanel from "./EditorPanel";
+import EditorPanel, { DEFAULT_FILES } from "./EditorPanel";
 import LivePreview from "./LivePreview";
 
 interface EditorWithPreviewProps {
@@ -15,7 +15,7 @@ export default function EditorWithPreview({
   initialFiles,
   readOnly = false,
 }: EditorWithPreviewProps) {
-  const [files, setFiles] = useState<Record<string, string>>({});
+  const [files, setFiles] = useState<Record<string, string>>(initialFiles ?? DEFAULT_FILES);
 
   const handleFilesChange = useCallback((updated: Record<string, string>) => {
     setFiles(updated);
