@@ -345,6 +345,11 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
         video.currentTime = timeMs / 1000;
       }
 
+      // Update fallback clock anchors so the fallback clock
+      // reflects the new seek position instead of the original play start
+      playStartTimeRef.current = timeMs;
+      playStartRef.current = performance.now();
+
       // Always recompute files for the new time
       const events = eventsRef.current;
       const targetIndex = findEventIndex(events, timeMs);
