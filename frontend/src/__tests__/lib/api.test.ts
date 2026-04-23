@@ -31,7 +31,7 @@ describe("fetchScrims", () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims`);
+    expect(url).toBe(`${API_URL}/api/scrims/`);
     expect(options.headers["Content-Type"]).toBe("application/json");
   });
 
@@ -91,7 +91,7 @@ describe("createScrim", () => {
     await createScrim(scrimData);
 
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${API_URL}/api/scrims`);
+    expect(url).toBe(`${API_URL}/api/scrims/`);
     expect(options.method).toBe("POST");
     expect(JSON.parse(options.body)).toEqual(scrimData);
     expect(options.headers["Content-Type"]).toBe("application/json");

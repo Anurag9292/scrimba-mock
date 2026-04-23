@@ -1,16 +1,108 @@
-import Link from "next/link";
+"use client";
 
-interface PlayerPageProps {
-  params: { id: string };
+import { useCallback, useRef } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import EditorPanel from "@/components/editor/EditorPanel";
+import LivePreview from "@/components/editor/LivePreview";
+import { usePlayback } from "@/hooks/usePlayback";
+
+/** Format milliseconds to m:ss display */
+function formatTime(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export default function PlayerPage({ params }: PlayerPageProps) {
-  const { id } = params;
+const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+export default function PlayerPage() {
+  const params = useParams<{ id: string }>();
+  const id = params.id;
+  const playback = usePlayback(id);
+  const progressRef = useRef<HTMLDivElement>(null);
+
+  const handlePlayPause = useCallback(() => {
+    if (playback.isPlaying) {
+      playback.pause();
+    } else {
+      playback.play();
+    }
+  }, [playback]);
+
+  const handleProgressClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const bar = progressRef.current;
+      if (!bar || !playback.durationMs) return;
+      const rect = bar.getBoundingClientRect();
+      const fraction = Math.max(
+        0,
+        Math.min(1, (e.clientX - rect.left) / rect.width)
+      );
+      playback.seek(fraction * playback.durationMs);
+    },
+    [playback]
+  );
+
+  const handleSpeedCycle = useCallback(() => {
+    const currentIndex = SPEED_OPTIONS.indexOf(playback.playbackRate);
+    const nextIndex = (currentIndex + 1) % SPEED_OPTIONS.length;
+    playback.setPlaybackRate(SPEED_OPTIONS[nextIndex]);
+  }, [playback]);
+
+  const progressFraction =
+    playback.durationMs > 0
+      ? Math.min(1, playback.currentTimeMs / playback.durationMs)
+      : 0;
+
+  // Extract HTML/CSS/JS from current files for live preview
+  const html = playback.currentFiles["index.html"] ?? "";
+  const css =
+    playback.currentFiles["styles.css"] ??
+    playback.currentFiles["style.css"] ??
+    "";
+  const javascript =
+    playback.currentFiles["script.js"] ??
+    playback.currentFiles["main.js"] ??
+    playback.currentFiles["index.js"] ??
+    "";
+
+  // Loading state
+  if (playback.isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-600 border-t-gray-300" />
+          <span className="text-sm text-gray-500">Loading scrim...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (playback.error || !playback.scrim) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <p className="text-sm text-red-400">
+            {playback.error ?? "Scrim not found"}
+          </p>
+          <Link
+            href="/"
+            className="mt-4 inline-block text-sm text-gray-400 hover:text-white"
+          >
+            ← Go back
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen">
+    <div className="flex h-screen flex-col">
       {/* Top bar */}
-      <header className="flex h-14 items-center justify-between border-b border-gray-800 bg-gray-900/50 px-4">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-gray-800 bg-gray-900/50 px-4">
         <div className="flex items-center gap-4">
           <Link
             href="/"
@@ -31,166 +123,220 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             Back
           </Link>
           <div className="h-5 w-px bg-gray-800" />
-          <h1 className="text-sm font-semibold text-white">
-            Player
-          </h1>
-          <span className="rounded-md bg-gray-800 px-2 py-0.5 font-mono text-xs text-gray-500">
-            {id}
+          <h1 className="text-sm font-semibold text-white">Player</h1>
+          <span className="max-w-[300px] truncate text-sm text-gray-400">
+            {playback.scrim.title}
           </span>
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="btn-secondary py-1.5 text-xs"
-          >
-            <svg
-              className="h-3.5 w-3.5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path d="M13.75 7h-3v5.296l1.943-2.048a.75.75 0 011.114 1.004l-3.25 3.5a.75.75 0 01-1.114 0l-3.25-3.5a.75.75 0 111.114-1.004l1.943 2.048V7h1.5V1.75a.75.75 0 00-1.5 0V7h-3A2.25 2.25 0 004 9.25v7.5A2.25 2.25 0 006.25 19h7.5A2.25 2.25 0 0016 16.75v-7.5A2.25 2.25 0 0013.75 7z" />
-            </svg>
-            Fork
-          </button>
+          {/* Playback status badge */}
+          <div className="flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900 px-3 py-1.5 text-xs text-gray-400">
+            <span
+              className={`h-2 w-2 rounded-full ${
+                playback.isPlaying
+                  ? "animate-pulse bg-green-500"
+                  : "bg-gray-600"
+              }`}
+            />
+            {playback.isPlaying ? "Playing" : "Paused"}
+          </div>
         </div>
       </header>
 
-      {/* Split layout: editor + video */}
-      <div className="flex h-[calc(100vh-3.5rem)]">
-        {/* Editor panel */}
-        <div className="flex flex-1 flex-col border-r border-gray-800">
-          {/* Tab bar */}
-          <div className="flex h-10 items-center border-b border-gray-800 bg-gray-900/20">
-            <div className="flex h-full items-center border-r border-gray-800 bg-gray-900/40 px-4 text-sm text-white">
-              index.tsx
+      {/* Main content */}
+      <div className="flex flex-1 min-h-0">
+        {/* Left: Editor + Preview */}
+        <div className="flex flex-1 flex-col min-w-0">
+          <div className="flex flex-1 min-h-0">
+            {/* Editor panel */}
+            <div className="flex h-full w-1/2 flex-col border-r border-gray-800">
+              <EditorPanel
+                key={`${id}-${Object.keys(playback.currentFiles).join(",")}`}
+                initialFiles={playback.currentFiles}
+                readOnly
+              />
             </div>
-          </div>
 
-          {/* Editor placeholder */}
-          <div className="flex flex-1 items-center justify-center bg-gray-950">
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900">
-                <svg
-                  className="h-8 w-8 text-gray-600"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"
-                  />
-                </svg>
+            {/* Live preview */}
+            <div className="flex h-full w-1/2 flex-col">
+              <div className="flex h-10 shrink-0 items-center border-b border-gray-800 bg-[#252526] px-4">
+                <div className="flex items-center gap-2">
+                  <svg
+                    className="h-4 w-4 text-gray-500"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+                    <path
+                      fillRule="evenodd"
+                      d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span className="text-xs font-medium text-gray-400">
+                    Preview
+                  </span>
+                </div>
               </div>
-              <p className="text-sm text-gray-500">
-                Interactive editor loads here
-              </p>
-              <p className="mt-1 text-xs text-gray-600">
-                Pause playback to edit the code yourself
-              </p>
+              <div className="flex-1 min-h-0">
+                <LivePreview html={html} css={css} javascript={javascript} />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Video / audio panel */}
-        <div className="flex w-80 shrink-0 flex-col bg-gray-900/30">
+        {/* Right: Video + Controls + Info */}
+        <div className="flex w-80 shrink-0 flex-col border-l border-gray-800 bg-gray-900/30">
           {/* Video area */}
-          <div className="flex aspect-video items-center justify-center border-b border-gray-800 bg-black">
-            <div className="text-center">
-              <svg
-                className="mx-auto h-10 w-10 text-gray-700"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"
-                />
-              </svg>
-              <p className="mt-2 text-xs text-gray-600">Video preview</p>
-            </div>
+          <div className="border-b border-gray-800 bg-black">
+            {playback.videoUrl ? (
+              <video
+                ref={playback.videoRef}
+                src={playback.videoUrl}
+                className="aspect-video w-full"
+                playsInline
+                preload="metadata"
+              />
+            ) : (
+              <div className="flex aspect-video items-center justify-center">
+                <div className="text-center">
+                  <svg
+                    className="mx-auto h-10 w-10 text-gray-700"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"
+                    />
+                  </svg>
+                  <p className="mt-2 text-xs text-gray-600">
+                    No video recorded
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Playback controls */}
           <div className="border-b border-gray-800 p-4">
             {/* Progress bar */}
-            <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-gray-800">
-              <div className="h-full w-1/3 rounded-full bg-brand-500" />
+            <div
+              ref={progressRef}
+              className="mb-3 h-1.5 w-full cursor-pointer overflow-hidden rounded-full bg-gray-800 transition-all hover:h-2"
+              onClick={handleProgressClick}
+              role="slider"
+              aria-label="Playback progress"
+              aria-valuemin={0}
+              aria-valuemax={playback.durationMs}
+              aria-valuenow={playback.currentTimeMs}
+              tabIndex={0}
+            >
+              <div
+                className="h-full rounded-full bg-brand-500 transition-[width] duration-75"
+                style={{ width: `${progressFraction * 100}%` }}
+              />
             </div>
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
+                {/* Play/Pause button */}
                 <button
                   type="button"
+                  onClick={handlePlayPause}
                   className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
-                  aria-label="Play"
+                  aria-label={playback.isPlaying ? "Pause" : "Play"}
                 >
-                  <svg
-                    className="h-5 w-5"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                  </svg>
+                  {playback.isPlaying ? (
+                    <svg
+                      className="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                    </svg>
+                  )}
                 </button>
+
+                {/* Time display */}
                 <span className="font-mono text-xs text-gray-500">
-                  0:00 / 0:00
+                  {formatTime(playback.currentTimeMs)} /{" "}
+                  {formatTime(playback.durationMs)}
                 </span>
               </div>
+
+              {/* Speed button */}
               <button
                 type="button"
-                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
-                aria-label="Settings"
+                onClick={handleSpeedCycle}
+                className="rounded-lg px-2 py-1 font-mono text-xs text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                aria-label="Playback speed"
               >
-                <svg
-                  className="h-4 w-4"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.331 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+                {playback.playbackRate}x
               </button>
             </div>
           </div>
 
           {/* Scrim info */}
-          <div className="flex-1 p-4">
+          <div className="flex-1 overflow-y-auto p-4">
             <h2 className="text-sm font-semibold text-white">
-              Scrim: {id}
+              {playback.scrim.title}
             </h2>
-            <p className="mt-2 text-xs leading-relaxed text-gray-500">
-              This is the interactive player view. When the scrim is loaded,
-              you can watch the recorded coding session and pause at any point
-              to edit the code in the editor panel.
-            </p>
+            {playback.scrim.description && (
+              <p className="mt-2 text-xs leading-relaxed text-gray-500">
+                {playback.scrim.description}
+              </p>
+            )}
+
+            <div className="mt-4 space-y-2 text-xs text-gray-600">
+              <div className="flex justify-between">
+                <span>Duration</span>
+                <span className="text-gray-400">
+                  {formatTime(playback.durationMs)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Language</span>
+                <span className="text-gray-400">
+                  {playback.scrim.language}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Events</span>
+                <span className="text-gray-400">
+                  {playback.scrim.code_events.length}
+                </span>
+              </div>
+            </div>
 
             <div className="mt-6 space-y-3">
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
-                Interactive code editing
+                Synchronized code + video playback
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
-                Pause and resume playback
+                Click progress bar to seek
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
-                Fork to create your own version
+                Change playback speed with the speed button
               </div>
             </div>
           </div>
