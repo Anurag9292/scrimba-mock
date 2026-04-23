@@ -8,7 +8,7 @@ from sqlmodel import select
 from app.db.database import get_session
 from app.models.scrim import Scrim, ScrimCreate, ScrimUpdate, ScrimRead
 from app.models.segment import ScrimSegment
-from app.api.auth_deps import get_current_user, require_role
+from app.api.auth_deps import get_current_user, get_optional_user, require_role
 from app.models.user import User
 
 router = APIRouter(prefix="/api/scrims", tags=["scrims"])
@@ -42,10 +42,13 @@ async def create_scrim(
 async def list_scrims(
     status: str | None = Query(default=None, description="Filter by status: draft, published, or omit for all"),
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
 ) -> list[Scrim]:
     query = select(Scrim).order_by(Scrim.created_at.desc())
-    if status is not None:
+    if user is None:
+        # Anonymous users only see published scrims
+        query = query.where(Scrim.status == "published")
+    elif status is not None:
         query = query.where(Scrim.status == status)
     result = await session.execute(query)
     scrims = result.scalars().all()
@@ -56,10 +59,12 @@ async def list_scrims(
 async def get_scrim(
     scrim_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
 ) -> Scrim:
     scrim = await session.get(Scrim, scrim_id)
     if scrim is None:
+        raise HTTPException(status_code=404, detail="Scrim not found")
+    if user is None and scrim.status != "published":
         raise HTTPException(status_code=404, detail="Scrim not found")
     return scrim
 

@@ -14,6 +14,12 @@ export default function AuthNav() {
     return (
       <div className="flex items-center gap-1">
         <Link
+          href="/paths"
+          className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800/60 hover:text-white"
+        >
+          Learning Paths
+        </Link>
+        <Link
           href="/login"
           className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800/60 hover:text-white"
         >
@@ -28,6 +34,12 @@ export default function AuthNav() {
 
   return (
     <div className="flex items-center gap-1">
+      <Link
+        href="/paths"
+        className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800/60 hover:text-white"
+      >
+        Learning Paths
+      </Link>
       {hasRole("creator", "admin") && (
         <>
           <Link

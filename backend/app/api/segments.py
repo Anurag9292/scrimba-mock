@@ -8,7 +8,7 @@ from sqlmodel import select
 from app.db.database import get_session
 from app.models.scrim import Scrim
 from app.models.segment import ScrimSegment, SegmentCreate, SegmentUpdate, SegmentRead
-from app.api.auth_deps import get_current_user, require_role
+from app.api.auth_deps import get_current_user, get_optional_user, require_role
 from app.models.user import User
 
 router = APIRouter(prefix="/api/scrims/{scrim_id}/segments", tags=["segments"])
@@ -64,7 +64,7 @@ async def create_segment(
 async def list_segments(
     scrim_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
 ) -> list[ScrimSegment]:
     await _get_scrim_or_404(scrim_id, session)
 
@@ -82,7 +82,7 @@ async def get_segment(
     scrim_id: uuid.UUID,
     segment_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
 ) -> ScrimSegment:
     await _get_scrim_or_404(scrim_id, session)
 

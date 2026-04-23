@@ -134,9 +134,9 @@ class TestRoleProtection:
         resp = await client.post("/api/scrims/", json={"title": "Test"}, headers=auth_headers(token))
         assert resp.status_code == 201
 
-    async def test_unauthenticated_cannot_list_scrims(self, client, test_db):
+    async def test_unauthenticated_can_list_published_scrims(self, client, test_db):
         resp = await client.get("/api/scrims/")
-        assert resp.status_code == 401
+        assert resp.status_code == 200
 
 
 class TestAdmin:
