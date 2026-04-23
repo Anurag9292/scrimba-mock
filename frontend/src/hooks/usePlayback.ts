@@ -120,6 +120,8 @@ export interface UsePlaybackReturn {
   activeFileName: string;
   /** The video source URL */
   videoUrl: string | null;
+  /** Whether interactive edit mode is active */
+  isInteractive: boolean;
   /** Ref to attach to the <video> element */
   videoRef: React.RefObject<HTMLVideoElement>;
   /** Start or resume playback */
@@ -130,6 +132,12 @@ export interface UsePlaybackReturn {
   seek: (timeMs: number) => void;
   /** Set playback speed */
   setPlaybackRate: (rate: number) => void;
+  /** Enter interactive edit mode (pauses playback) */
+  enterInteractive: () => void;
+  /** Exit interactive mode and resume from current point */
+  exitInteractive: () => void;
+  /** Update files from interactive editor changes */
+  updateFiles: (files: FileMap) => void;
 }
 
 export function usePlayback(scrimId: string): UsePlaybackReturn {
@@ -141,6 +149,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
   const [playbackRate, setPlaybackRateState] = useState(1);
   const [currentFiles, setCurrentFiles] = useState<FileMap>({});
   const [activeFileName, setActiveFileName] = useState("index.html");
+  const [isInteractive, setIsInteractive] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null!) as React.RefObject<HTMLVideoElement>;
   const rafRef = useRef<number>(0);
@@ -332,6 +341,28 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
     };
   }, [scrim]);
 
+  const enterInteractive = useCallback(() => {
+    // Pause video and enter interactive editing mode
+    const video = videoRef.current;
+    if (video && !video.paused) {
+      video.pause();
+    }
+    setIsPlaying(false);
+    setIsInteractive(true);
+  }, []);
+
+  const exitInteractive = useCallback(() => {
+    // Snap the current (possibly user-edited) files into the replay engine
+    // so playback continues from the edited state
+    currentFilesRef.current = currentFiles;
+    setIsInteractive(false);
+  }, [currentFiles]);
+
+  const updateFiles = useCallback((files: FileMap) => {
+    setCurrentFiles(files);
+    currentFilesRef.current = files;
+  }, []);
+
   const videoUrl = scrim?.video_filename ? getVideoUrl(scrimId) : null;
   const durationMs = scrim?.duration_ms ?? 0;
 
@@ -345,11 +376,15 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
     playbackRate,
     currentFiles,
     activeFileName,
+    isInteractive,
     videoUrl,
     videoRef,
     play,
     pause,
     seek,
     setPlaybackRate,
+    enterInteractive,
+    exitInteractive,
+    updateFiles,
   };
 }
