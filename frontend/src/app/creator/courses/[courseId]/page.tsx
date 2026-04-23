@@ -9,6 +9,7 @@ import {
   updateSection,
   deleteSection,
   fetchSectionScrims,
+  deleteScrim,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import type { Section, Scrim } from "@/lib/types";
@@ -56,6 +57,17 @@ export default function CourseSectionsPage() {
       loadData();
     } else {
       toast(resp.error?.message || "Failed to delete", "error");
+    }
+  };
+
+  const handleDeleteScrim = async (scrim: Scrim) => {
+    if (!confirm(`Delete "${scrim.title}"? This cannot be undone.`)) return;
+    const resp = await deleteScrim(scrim.id);
+    if (resp.success) {
+      toast("Scrim deleted", "success");
+      loadData();
+    } else {
+      toast(resp.error?.message || "Failed to delete scrim", "error");
     }
   };
 
@@ -233,6 +245,16 @@ export default function CourseSectionsPage() {
                               >
                                 Edit
                               </Link>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteScrim(scrim);
+                                }}
+                                className="rounded p-1.5 text-gray-500 hover:bg-red-500/10 hover:text-red-400"
+                                title="Delete scrim"
+                              >
+                                <TrashIcon />
+                              </button>
                             </div>
                           </div>
                         ))}
