@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db.database import init_db
 from app.api.scrims import router as scrims_router
+from app.api.segments import router as segments_router
 from app.api.upload import router as upload_router
 
 
@@ -34,6 +35,7 @@ app.add_middleware(
 )
 
 app.include_router(scrims_router)
+app.include_router(segments_router)
 app.include_router(upload_router)
 
 

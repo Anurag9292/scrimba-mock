@@ -49,7 +49,7 @@ export default function ScrimList() {
   const loadScrims = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    const result = await fetchScrims();
+    const result = await fetchScrims("published");
     if (result.success && result.data) {
       setScrims(result.data);
     } else {
