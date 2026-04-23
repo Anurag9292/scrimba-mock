@@ -1,0 +1,2 @@
+# scrimba-mock
+mock scrimba
