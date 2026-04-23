@@ -18,6 +18,11 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+// Mock ScrimList to avoid API calls in unit tests
+vi.mock("@/components/scrim/ScrimList", () => ({
+  default: () => <div data-testid="scrim-list">Scrim list placeholder</div>,
+}));
+
 import HomePage from "@/app/page";
 
 describe("HomePage", () => {
@@ -28,9 +33,9 @@ describe("HomePage", () => {
 
   it("has navigation links", () => {
     render(<HomePage />);
-    // Navbar should have Record and Player links
+    // Navbar should have Record and Scrims links
     expect(screen.getByText("Record")).toBeInTheDocument();
-    expect(screen.getByText("Player")).toBeInTheDocument();
+    expect(screen.getByText("Scrims")).toBeInTheDocument();
   });
 
   it("has link to /record page", () => {
@@ -53,10 +58,10 @@ describe("HomePage", () => {
     expect(startRecordingLink).toHaveAttribute("href", "/record");
   });
 
-  it("has a Watch Demo button linking to /play/demo", () => {
+  it("has a Browse Scrims button linking to #scrims", () => {
     render(<HomePage />);
-    const watchDemoLink = screen.getByText("Watch Demo").closest("a");
-    expect(watchDemoLink).toHaveAttribute("href", "/play/demo");
+    const browseScrimsLink = screen.getByText("Browse Scrims").closest("a");
+    expect(browseScrimsLink).toHaveAttribute("href", "#scrims");
   });
 
   it("renders feature cards", () => {

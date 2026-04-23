@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ScrimList from "@/components/scrim/ScrimList";
 
 function Navbar() {
   return (
@@ -21,10 +22,10 @@ function Navbar() {
             Record
           </Link>
           <Link
-            href="/play/demo"
+            href="#scrims"
             className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800/60 hover:text-white"
           >
-            Player
+            Scrims
           </Link>
           <div className="ml-3 h-5 w-px bg-gray-800" />
           <Link href="/record" className="btn-primary ml-3 text-sm">
@@ -67,12 +68,30 @@ function HeroSection() {
             <RecordIcon />
             Start Recording
           </Link>
-          <Link href="/play/demo" className="btn-secondary px-6 py-3 text-base">
+          <Link href="#scrims" className="btn-secondary px-6 py-3 text-base">
             <PlayIcon />
-            Watch Demo
+            Browse Scrims
           </Link>
         </div>
       </div>
+    </section>
+  );
+}
+
+function ScrimListSection() {
+  return (
+    <section className="mx-auto max-w-5xl px-6 pb-12">
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-white">Your Scrims</h2>
+        <Link
+          href="/record"
+          className="btn-primary inline-flex items-center gap-2 px-4 py-2 text-sm"
+        >
+          <RecordIcon />
+          New Scrim
+        </Link>
+      </div>
+      <ScrimList />
     </section>
   );
 }
@@ -102,7 +121,7 @@ function FeatureCards() {
         </Link>
 
         {/* Play Card */}
-        <Link href="/play/demo" className="card-hover group block p-8">
+        <Link href="#scrims" className="card-hover group block p-8">
           <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-500/10 text-brand-400 ring-1 ring-brand-500/20 transition-colors group-hover:bg-brand-500/15">
             <PlayIcon />
           </div>
@@ -115,7 +134,7 @@ function FeatureCards() {
             resume playback seamlessly. Learning by doing, reimagined.
           </p>
           <div className="mt-5 flex items-center gap-1.5 text-sm font-medium text-brand-400 transition-colors group-hover:text-brand-300">
-            Try the player
+            Browse scrims
             <ArrowRightIcon />
           </div>
         </Link>
@@ -193,6 +212,9 @@ export default function HomePage() {
       <Navbar />
       <main>
         <HeroSection />
+        <div id="scrims">
+          <ScrimListSection />
+        </div>
         <FeatureCards />
       </main>
       <footer className="border-t border-gray-800/60 py-8 text-center text-sm text-gray-600">
