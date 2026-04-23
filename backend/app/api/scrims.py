@@ -41,6 +41,7 @@ async def create_scrim(
 @router.get("/", response_model=list[ScrimRead])
 async def list_scrims(
     status: str | None = Query(default=None, description="Filter by status: draft, published, or omit for all"),
+    standalone: bool | None = Query(default=None, description="If true, only return scrims not linked to any section"),
     session: AsyncSession = Depends(get_session),
     user: User | None = Depends(get_optional_user),
 ) -> list[Scrim]:
@@ -50,6 +51,9 @@ async def list_scrims(
         query = query.where(Scrim.status == "published")
     elif status is not None:
         query = query.where(Scrim.status == status)
+    # Filter out scrims that belong to a course section (they are accessed via the course hierarchy)
+    if standalone:
+        query = query.where(Scrim.section_id.is_(None))
     result = await session.execute(query)
     scrims = result.scalars().all()
     return list(scrims)

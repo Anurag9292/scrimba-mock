@@ -117,11 +117,15 @@ async function apiFetch<T>(
   }
 }
 
-/** Fetch all scrims, optionally filtered by status */
+/** Fetch all scrims, optionally filtered by status and/or standalone flag */
 export async function fetchScrims(
-  status?: "draft" | "published"
+  status?: "draft" | "published",
+  options?: { standalone?: boolean }
 ): Promise<ApiResponse<Scrim[]>> {
-  const query = status ? `?status=${status}` : "";
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (options?.standalone) params.set("standalone", "true");
+  const query = params.toString() ? `?${params.toString()}` : "";
   return apiFetch<Scrim[]>(`/api/scrims/${query}`);
 }
 

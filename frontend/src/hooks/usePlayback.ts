@@ -121,6 +121,12 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
     const seg = segments[segmentIndex];
     currentSegmentIndexRef.current = segmentIndex;
 
+    // Reset checkpoint time tracking for the new segment so that checkpoint
+    // detection starts fresh from the segment's trim_start_ms.
+    // Without this, lastCheckTimeMsRef would hold the previous segment's
+    // local time, causing all checkpoints in the new segment to be missed.
+    lastCheckTimeMsRef.current = seg.trim_start_ms;
+
     // Set initial files and events for this segment
     initialFilesRef.current = seg.initial_files;
     const sorted = [...seg.code_events].sort(
@@ -246,6 +252,9 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
         eventsRef.current = sorted;
         currentSegmentIndexRef.current = 0;
 
+        // Initialize checkpoint time tracking from the first segment's trim start
+        lastCheckTimeMsRef.current = firstSeg.trim_start_ms;
+
         // Pre-apply events up to trim_start_ms for correct initial display
         if (firstSeg.trim_start_ms > 0) {
           const targetIndex = findEventIndex(sorted, firstSeg.trim_start_ms);
@@ -272,6 +281,11 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
 
         if (firstSeg.video_filename) {
           setVideoUrl(getSegmentVideoUrl(firstSeg.id));
+          // If the first segment is trimmed, seek to trim_start_ms when video loads
+          if (firstSeg.trim_start_ms > 0) {
+            transitioningRef.current = true;
+            pendingSeekTimeRef.current = firstSeg.trim_start_ms / 1000;
+          }
         }
       } else {
         // --- Legacy single-blob playback ---
@@ -540,6 +554,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
 
         if (segmentIndex !== currentSegmentIndexRef.current) {
           // Cross-segment seek: need to switch video source
+          // loadSegmentState resets lastCheckTimeMsRef for us
           transitioningRef.current = true;
           pendingSeekTimeRef.current = localTimeMs / 1000;
           loadSegmentState(segmentIndex);
@@ -549,6 +564,9 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
           if (video) {
             video.currentTime = localTimeMs / 1000;
           }
+          // Reset checkpoint tracking to the seek target so checkpoints
+          // between the old time and the seek target are handled correctly
+          lastCheckTimeMsRef.current = localTimeMs;
         }
 
         // Apply events up to the local time
