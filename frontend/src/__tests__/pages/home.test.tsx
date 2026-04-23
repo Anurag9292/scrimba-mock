@@ -33,8 +33,9 @@ describe("HomePage", () => {
 
   it("has navigation links", () => {
     render(<HomePage />);
-    // Navbar should have Record and Scrims links
-    expect(screen.getByText("Record")).toBeInTheDocument();
+    // Navbar should have Quick Record, Studio, and Scrims links
+    expect(screen.getByText("Quick Record")).toBeInTheDocument();
+    expect(screen.getByText("Studio")).toBeInTheDocument();
     expect(screen.getByText("Scrims")).toBeInTheDocument();
   });
 

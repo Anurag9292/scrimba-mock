@@ -7,6 +7,7 @@ import CameraPreview from "@/components/recording/CameraPreview";
 import { useSegmentRecorder } from "@/hooks/useSegmentRecorder";
 import type { RecordingStatus, FileMap, ScrimSegment } from "@/lib/types";
 import { fetchSegments } from "@/lib/api";
+import { computeFinalFiles } from "@/lib/segments";
 
 /** Format milliseconds to mm:ss display */
 function formatTime(ms: number): string {
@@ -53,93 +54,15 @@ interface SegmentRecorderProps {
   onBack: () => void;
   /** Called after a segment is saved successfully */
   onSegmentSaved: (scrimId: string) => void;
-}
-
-/**
- * Replay code events to compute the final file state of a segment.
- * Used to determine the initial files for the next segment.
- */
-function computeFinalFiles(segment: ScrimSegment): FileMap {
-  let files = { ...segment.initial_files };
-  for (const event of segment.code_events) {
-    if (event.type === "file_create" && !files[event.fileName]) {
-      files = { ...files, [event.fileName]: "" };
-    } else if (event.type === "file_delete") {
-      const updated = { ...files };
-      delete updated[event.fileName];
-      files = updated;
-    } else if (event.type === "file_rename" && event.newFileName) {
-      const updated: FileMap = {};
-      for (const [key, value] of Object.entries(files)) {
-        if (key === event.fileName) {
-          updated[event.newFileName] = value;
-        } else {
-          updated[key] = value;
-        }
-      }
-      files = updated;
-    } else if (
-      event.type === "insert" &&
-      event.startPosition &&
-      event.text !== undefined
-    ) {
-      const content = files[event.fileName] ?? "";
-      const offset = positionToOffset(content, event.startPosition);
-      files = {
-        ...files,
-        [event.fileName]:
-          content.slice(0, offset) + event.text + content.slice(offset),
-      };
-    } else if (
-      event.type === "delete" &&
-      event.startPosition &&
-      event.endPosition
-    ) {
-      const content = files[event.fileName] ?? "";
-      const startOffset = positionToOffset(content, event.startPosition);
-      const endOffset = positionToOffset(content, event.endPosition);
-      files = {
-        ...files,
-        [event.fileName]:
-          content.slice(0, startOffset) + content.slice(endOffset),
-      };
-    } else if (
-      event.type === "replace" &&
-      event.startPosition &&
-      event.endPosition
-    ) {
-      const content = files[event.fileName] ?? "";
-      const startOffset = positionToOffset(content, event.startPosition);
-      const endOffset = positionToOffset(content, event.endPosition);
-      files = {
-        ...files,
-        [event.fileName]:
-          content.slice(0, startOffset) +
-          (event.text ?? "") +
-          content.slice(endOffset),
-      };
-    }
-  }
-  return files;
-}
-
-function positionToOffset(
-  content: string,
-  pos: { lineNumber: number; column: number }
-): number {
-  const lines = content.split("\n");
-  let offset = 0;
-  for (let i = 0; i < pos.lineNumber - 1 && i < lines.length; i++) {
-    offset += lines[i].length + 1;
-  }
-  offset += pos.column - 1;
-  return Math.min(offset, content.length);
+  /** If provided, use these files instead of loading from last segment */
+  initialFilesOverride?: FileMap;
 }
 
 export default function SegmentRecorder({
   scrimId,
   onBack,
   onSegmentSaved,
+  initialFilesOverride,
 }: SegmentRecorderProps) {
   const recorder = useSegmentRecorder();
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -158,6 +81,13 @@ export default function SegmentRecorder({
 
   // Load the final file state from the last segment (if resuming a draft)
   useEffect(() => {
+    // If override is provided, use it directly
+    if (initialFilesOverride) {
+      setInitialFiles(initialFilesOverride);
+      setIsLoadingFiles(false);
+      return;
+    }
+
     if (!scrimId) {
       setIsLoadingFiles(false);
       return;
@@ -183,7 +113,7 @@ export default function SegmentRecorder({
     return () => {
       cancelled = true;
     };
-  }, [scrimId]);
+  }, [scrimId, initialFilesOverride]);
 
   // Cleanup on unmount
   useEffect(() => {

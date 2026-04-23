@@ -11,9 +11,13 @@ import {
   deleteSegment,
   publishScrim,
   updateScrim,
+  reorderSegment,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import SegmentRecorder from "@/components/studio/SegmentRecorder";
+import SegmentTimeline from "@/components/studio/SegmentTimeline";
+import TrimEditor from "@/components/studio/TrimEditor";
+import { segmentEffectiveDuration, computeFinalFiles } from "@/lib/segments";
 
 /** Format milliseconds to mm:ss display */
 function formatTime(ms: number): string {
@@ -21,15 +25,6 @@ function formatTime(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
-/** Format milliseconds to a human-readable duration */
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  if (totalSeconds < 60) return `${totalSeconds}s`;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}m ${seconds}s`;
 }
 
 /** Format an ISO date string to a relative or short date */
@@ -55,7 +50,8 @@ function formatDate(dateStr: string): string {
 type StudioView =
   | { type: "drafts" }
   | { type: "segments"; scrimId: string; scrimTitle: string }
-  | { type: "recording"; scrimId: string | null; scrimTitle: string };
+  | { type: "recording"; scrimId: string | null; scrimTitle: string }
+  | { type: "rerecord"; scrimId: string; scrimTitle: string; segmentIndex: number; segmentId: string };
 
 export default function StudioPage() {
   const router = useRouter();
@@ -66,6 +62,7 @@ export default function StudioPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingTitle, setEditingTitle] = useState<string | null>(null);
   const [titleInput, setTitleInput] = useState("");
+  const [trimmingSegment, setTrimmingSegment] = useState<ScrimSegment | null>(null);
 
   // Load drafts
   const loadDrafts = useCallback(async () => {
@@ -194,10 +191,101 @@ export default function StudioPage() {
         scrimId: view.scrimId,
         scrimTitle: view.scrimTitle,
       });
+    } else if (view.type === "rerecord") {
+      setView({
+        type: "segments",
+        scrimId: view.scrimId,
+        scrimTitle: view.scrimTitle,
+      });
     } else {
       setView({ type: "drafts" });
     }
   }, [view]);
+
+  // --- Reorder handler ---
+  const handleReorder = useCallback(
+    async (segmentId: string, newOrder: number) => {
+      if (view.type !== "segments") return;
+      const result = await reorderSegment(view.scrimId, segmentId, newOrder);
+      if (result.success) {
+        await loadSegments(view.scrimId);
+      } else {
+        toast(result.error?.message ?? "Failed to reorder segment", "error");
+      }
+    },
+    [view, loadSegments, toast]
+  );
+
+  // --- Trim handler ---
+  const handleTrim = useCallback((segment: ScrimSegment) => {
+    setTrimmingSegment(segment);
+  }, []);
+
+  // --- Trim save handler ---
+  const handleTrimSave = useCallback((updatedSegment: ScrimSegment) => {
+    setSegments((prev) =>
+      prev.map((s) => (s.id === updatedSegment.id ? updatedSegment : s))
+    );
+    setTrimmingSegment(null);
+  }, []);
+
+  // --- Re-record handler ---
+  const handleReRecord = useCallback(
+    (segment: ScrimSegment) => {
+      if (view.type !== "segments") return;
+      const segmentIndex = segments.findIndex((s) => s.id === segment.id);
+      if (segmentIndex === -1) return;
+      setView({
+        type: "rerecord",
+        scrimId: view.scrimId,
+        scrimTitle: view.scrimTitle,
+        segmentIndex,
+        segmentId: segment.id,
+      });
+    },
+    [view, segments]
+  );
+
+  // --- Re-record view ---
+  if (view.type === "rerecord") {
+    // Compute initial files for the segment being re-recorded
+    const rerecordInitialFiles =
+      view.segmentIndex === 0
+        ? segments[0]?.initial_files ?? {}
+        : computeFinalFiles(segments[view.segmentIndex - 1]);
+
+    return (
+      <SegmentRecorder
+        scrimId={view.scrimId}
+        onBack={handleBack}
+        initialFilesOverride={rerecordInitialFiles}
+        onSegmentSaved={async (scrimId) => {
+          // Delete the old segment being replaced
+          await deleteSegment(scrimId, view.segmentId);
+
+          // Fetch the updated segments list
+          const result = await fetchSegments(scrimId);
+          if (result.success && result.data) {
+            // The newly created segment will be at the end (highest order)
+            const newSegments = result.data;
+            const newSegment = newSegments[newSegments.length - 1];
+
+            if (newSegment) {
+              // Reorder the new segment to the correct position
+              await reorderSegment(scrimId, newSegment.id, view.segmentIndex);
+            }
+          }
+
+          // Switch back to segments view
+          setView({
+            type: "segments",
+            scrimId,
+            scrimTitle: view.scrimTitle,
+          });
+        }}
+      />
+    );
+  }
 
   // --- Recording view ---
   if (view.type === "recording") {
@@ -214,10 +302,10 @@ export default function StudioPage() {
 
   // --- Segments view ---
   if (view.type === "segments") {
-    const totalDuration = segments.reduce((sum, s) => {
-      const effectiveEnd = s.trim_end_ms ?? s.duration_ms;
-      return sum + (effectiveEnd - s.trim_start_ms);
-    }, 0);
+    const totalDuration = segments.reduce(
+      (sum, s) => sum + segmentEffectiveDuration(s),
+      0
+    );
 
     return (
       <div className="flex h-screen flex-col">
@@ -363,70 +451,25 @@ export default function StudioPage() {
               </button>
             </div>
           ) : (
-            <div className="mx-auto max-w-3xl space-y-3">
-              <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-gray-500">
-                Segments
-              </h2>
-              {segments.map((segment, index) => (
-                <div
-                  key={segment.id}
-                  className="group flex items-center gap-4 rounded-xl border border-gray-800/60 bg-gray-900/30 p-4 transition-all hover:border-gray-700/60 hover:bg-gray-900/50"
-                >
-                  {/* Segment number */}
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-800 text-sm font-mono font-medium text-gray-400">
-                    {index + 1}
-                  </div>
+            <div className="mx-auto max-w-3xl space-y-4">
+              <SegmentTimeline
+                segments={segments}
+                onReorder={handleReorder}
+                onTrim={handleTrim}
+                onReRecord={handleReRecord}
+                onDelete={(segmentId) =>
+                  handleDeleteSegment(view.scrimId, segmentId)
+                }
+              />
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-white">
-                      Segment {index + 1}
-                    </div>
-                    <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                      <span>{formatDuration(segment.duration_ms)}</span>
-                      <span className="h-1 w-1 rounded-full bg-gray-700" />
-                      <span>
-                        {segment.code_events.length} events
-                      </span>
-                      <span className="h-1 w-1 rounded-full bg-gray-700" />
-                      <span>
-                        {Object.keys(segment.initial_files).length} files
-                      </span>
-                      {segment.video_filename && (
-                        <>
-                          <span className="h-1 w-1 rounded-full bg-gray-700" />
-                          <span className="text-green-400">Has video</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleDeleteSegment(view.scrimId, segment.id)
-                      }
-                      className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-400"
-                      title="Delete segment"
-                    >
-                      <svg
-                        className="h-4 w-4"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        aria-hidden="true"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.519.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              ))}
+              {trimmingSegment && (
+                <TrimEditor
+                  segment={trimmingSegment}
+                  scrimId={view.scrimId}
+                  onSave={handleTrimSave}
+                  onClose={() => setTrimmingSegment(null)}
+                />
+              )}
             </div>
           )}
         </div>
