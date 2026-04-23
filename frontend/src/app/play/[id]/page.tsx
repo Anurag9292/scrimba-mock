@@ -325,7 +325,7 @@ export default function PlayerPage() {
               tabIndex={0}
             >
               <div
-                className="h-full rounded-full bg-brand-500 transition-[width] duration-75"
+                className="h-full rounded-full bg-brand-500"
                 style={{ width: `${progressFraction * 100}%` }}
               />
             </div>

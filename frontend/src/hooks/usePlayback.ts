@@ -242,6 +242,12 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
   const playStartRef = useRef<number>(0);
   const playStartTimeRef = useRef<number>(0);
 
+  // Segment transition management
+  const transitioningRef = useRef(false);
+  const shouldBePlayingRef = useRef(false);
+  const pendingSeekTimeRef = useRef<number | null>(null);
+  const playbackRateRef = useRef(1);
+
   /** Precompute global start offsets for each segment */
   function computeSegmentOffsets(segments: ScrimSegment[]): number[] {
     const offsets: number[] = [];
@@ -418,13 +424,14 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
       }
 
       // Get local time within current segment
+      // During transitions, always use fallback clock (video element still has old src)
       let localTimeMs: number;
-      if (video && video.readyState >= 1) {
+      if (video && video.readyState >= 1 && !transitioningRef.current) {
         localTimeMs = video.currentTime * 1000;
       } else {
         const globalTime =
           playStartTimeRef.current +
-          (performance.now() - playStartRef.current);
+          (performance.now() - playStartRef.current) * playbackRateRef.current;
         const { localTimeMs: lt } = globalToSegmentTime(segments, globalTime);
         localTimeMs = lt;
       }
@@ -455,34 +462,42 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
       }
 
       // Check if we've reached the end of this segment
+      // Also check video.ended to handle cases where the video file is
+      // slightly shorter than seg.duration_ms (common with MediaRecorder)
       const segEnd = seg.trim_end_ms ?? seg.duration_ms;
-      if (localTimeMs >= segEnd) {
+      const videoEnded = video ? video.ended : false;
+      if (localTimeMs >= segEnd || (videoEnded && !transitioningRef.current)) {
         // Move to next segment
         const nextIdx = segIdx + 1;
         if (nextIdx < segments.length) {
+          transitioningRef.current = true;
+
+          // Pause old video to prevent continued playback
+          if (video && !video.paused) {
+            video.pause();
+          }
+
           loadSegmentState(nextIdx);
 
           // Apply initial state
           setCurrentFiles(segments[nextIdx].initial_files);
 
-          // Start the next segment's video
-          const nextVideo = videoRef.current;
-          if (nextVideo) {
-            const nextSeg = segments[nextIdx];
-            if (nextSeg.video_filename) {
-              // The video URL state change will trigger a re-render and load
-              // We need to wait for the video to load before playing
-              const startTime = nextSeg.trim_start_ms / 1000;
-              nextVideo.currentTime = startTime;
-              nextVideo.play().catch(() => {});
-            }
-          }
+          // Set pending seek for when the new video loads
+          const nextSeg = segments[nextIdx];
+          pendingSeekTimeRef.current = nextSeg.trim_start_ms / 1000;
 
-          // Update fallback clock
+          // Update fallback clock for smooth time progression during load
           playStartRef.current = performance.now();
           playStartTimeRef.current = offsets[nextIdx];
+
+          // If next segment has no video file, clear transition immediately
+          if (!nextSeg.video_filename) {
+            transitioningRef.current = false;
+            pendingSeekTimeRef.current = null;
+          }
         } else {
           // End of all segments
+          shouldBePlayingRef.current = false;
           setIsPlaying(false);
           const totalDuration = segments.reduce(
             (sum, s) => sum + segmentEffectiveDuration(s),
@@ -502,7 +517,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
       } else {
         timeMs =
           playStartTimeRef.current +
-          (performance.now() - playStartRef.current);
+          (performance.now() - playStartRef.current) * playbackRateRef.current;
       }
       currentTimeMsRef.current = timeMs;
       setCurrentTimeMs(timeMs);
@@ -562,6 +577,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
   }, [isPlaying, tick]);
 
   const play = useCallback(() => {
+    shouldBePlayingRef.current = true;
     const video = videoRef.current;
     if (video) {
       video.play().catch(() => {});
@@ -572,6 +588,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
   }, []);
 
   const pause = useCallback(() => {
+    shouldBePlayingRef.current = false;
     const video = videoRef.current;
     if (video) {
       video.pause();
@@ -584,25 +601,26 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
       if (isSegmentedRef.current) {
         // --- Segmented seek ---
         const segments = segmentsRef.current;
-        const offsets = segmentStartOffsetsRef.current;
         const { segmentIndex, localTimeMs } = globalToSegmentTime(
           segments,
           timeMs
         );
 
-        // Switch to the target segment if different
         if (segmentIndex !== currentSegmentIndexRef.current) {
+          // Cross-segment seek: need to switch video source
+          transitioningRef.current = true;
+          pendingSeekTimeRef.current = localTimeMs / 1000;
           loadSegmentState(segmentIndex);
+        } else {
+          // Same-segment seek: can set video time directly
+          const video = videoRef.current;
+          if (video) {
+            video.currentTime = localTimeMs / 1000;
+          }
         }
 
         // Apply events up to the local time
         applyEventsToLocalTime(localTimeMs);
-
-        // Sync video
-        const video = videoRef.current;
-        if (video) {
-          video.currentTime = localTimeMs / 1000;
-        }
 
         // Update fallback clock
         playStartTimeRef.current = timeMs;
@@ -645,6 +663,11 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
   );
 
   const setPlaybackRate = useCallback((rate: number) => {
+    playbackRateRef.current = rate;
+    // Re-anchor fallback clock to account for rate change
+    const currentTime = currentTimeMsRef.current;
+    playStartTimeRef.current = currentTime;
+    playStartRef.current = performance.now();
     const video = videoRef.current;
     if (video) {
       video.playbackRate = rate;
@@ -658,16 +681,24 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
     if (!video) return;
 
     const onPause = () => {
-      // Don't set isPlaying false if this is a segment transition
-      if (isSegmentedRef.current) return;
+      // Ignore pauses during segment transitions (src change fires pause)
+      if (transitioningRef.current) return;
+      // In segmented mode, ignore pause when video naturally ended
+      // (the tick loop handles the segment transition)
+      if (isSegmentedRef.current && video.ended) return;
+      shouldBePlayingRef.current = false;
       setIsPlaying(false);
     };
-    const onPlay = () => setIsPlaying(true);
+    const onPlay = () => {
+      shouldBePlayingRef.current = true;
+      setIsPlaying(true);
+    };
     const onEnded = () => {
       if (isSegmentedRef.current) {
         // Segment ended — the tick loop handles transition
         return;
       }
+      shouldBePlayingRef.current = false;
       setIsPlaying(false);
       setCurrentTimeMs(scrim?.duration_ms ?? 0);
     };
@@ -682,6 +713,40 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
       video.removeEventListener("ended", onEnded);
     };
   }, [scrim]);
+
+  // Handle video source changes (segment transitions & cross-segment seeks)
+  // When videoUrl changes via React state, the <video> element gets a new src.
+  // We need to wait for it to load before seeking and playing.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !videoUrl) return;
+
+    // Only act if we're in a transition (segment switch)
+    if (!transitioningRef.current) return;
+
+    function handleReady() {
+      if (!video) return;
+      const seekTime = pendingSeekTimeRef.current;
+      if (seekTime !== null) {
+        video.currentTime = seekTime;
+        pendingSeekTimeRef.current = null;
+      }
+      video.playbackRate = playbackRateRef.current;
+      if (shouldBePlayingRef.current) {
+        video.play().catch(() => {});
+      }
+      transitioningRef.current = false;
+    }
+
+    // If the video is already ready (e.g., cached), handle immediately
+    if (video.readyState >= 3) {
+      handleReady();
+      return;
+    }
+
+    video.addEventListener("canplay", handleReady, { once: true });
+    return () => video.removeEventListener("canplay", handleReady);
+  }, [videoUrl]);
 
   const enterInteractive = useCallback(() => {
     const video = videoRef.current;
