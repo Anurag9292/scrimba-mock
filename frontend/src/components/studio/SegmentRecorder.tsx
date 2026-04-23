@@ -191,9 +191,9 @@ export default function SegmentRecorder({
       recorder.startRecording(editorRef.current, filesRef.current);
     } else if (recorder.status === "recording") {
       // Stop recording
-      const segmentId = await recorder.stopRecording(filesRef.current);
-      if (segmentId && recorder.scrimId) {
-        onSegmentSaved(recorder.scrimId);
+      const result = await recorder.stopRecording(filesRef.current);
+      if (result) {
+        onSegmentSaved(result.scrimId);
       }
     }
   }, [recorder, isInitialized, onSegmentSaved]);

@@ -7,6 +7,7 @@ from sqlmodel import select
 
 from app.db.database import get_session
 from app.models.scrim import Scrim, ScrimCreate, ScrimUpdate, ScrimRead
+from app.models.segment import ScrimSegment
 from app.api.auth_deps import get_current_user, require_role
 from app.models.user import User
 
@@ -116,5 +117,13 @@ async def delete_scrim(
     scrim = await session.get(Scrim, scrim_id)
     if scrim is None:
         raise HTTPException(status_code=404, detail="Scrim not found")
+
+    # Delete segments first (their checkpoints cascade via ON DELETE CASCADE)
+    result = await session.execute(
+        select(ScrimSegment).where(ScrimSegment.scrim_id == scrim_id)
+    )
+    for segment in result.scalars().all():
+        await session.delete(segment)
+
     await session.delete(scrim)
     await session.commit()
