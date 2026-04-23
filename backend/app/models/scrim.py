@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from pydantic import BaseModel
-from sqlalchemy import Column, JSON
+from sqlalchemy import Column, DateTime, JSON
 from sqlmodel import SQLModel, Field
 
 
@@ -20,9 +20,11 @@ class Scrim(SQLModel, table=True):
     files: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True), nullable=False),
     )
 
 
