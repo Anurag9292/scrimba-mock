@@ -8,6 +8,7 @@ from sqlmodel import SQLModel
 from app.config import settings
 from app.models.scrim import Scrim  # noqa: F401 - ensure models are registered
 from app.models.segment import ScrimSegment  # noqa: F401
+from app.models.checkpoint import Checkpoint  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

@@ -18,6 +18,7 @@ import SegmentRecorder from "@/components/studio/SegmentRecorder";
 import SegmentTimeline from "@/components/studio/SegmentTimeline";
 import TrimEditor from "@/components/studio/TrimEditor";
 import SegmentPreview from "@/components/studio/SegmentPreview";
+import CheckpointEditor from "@/components/studio/CheckpointEditor";
 import { segmentEffectiveDuration, computeFinalFiles } from "@/lib/segments";
 
 /** Format milliseconds to mm:ss display */
@@ -65,6 +66,7 @@ export default function StudioPage() {
   const [titleInput, setTitleInput] = useState("");
   const [trimmingSegment, setTrimmingSegment] = useState<ScrimSegment | null>(null);
   const [previewSegment, setPreviewSegment] = useState<ScrimSegment | null>(null);
+  const [checkpointSegment, setCheckpointSegment] = useState<ScrimSegment | null>(null);
 
   // Load drafts
   const loadDrafts = useCallback(async () => {
@@ -221,11 +223,20 @@ export default function StudioPage() {
   // --- Preview handler ---
   const handlePreview = useCallback((segment: ScrimSegment) => {
     setPreviewSegment(segment);
+    setCheckpointSegment(null);
+  }, []);
+
+  // --- Checkpoint handler ---
+  const handleCheckpoints = useCallback((segment: ScrimSegment) => {
+    setCheckpointSegment(segment);
+    setTrimmingSegment(null);
+    setPreviewSegment(null);
   }, []);
 
   // --- Trim handler ---
   const handleTrim = useCallback((segment: ScrimSegment) => {
     setTrimmingSegment(segment);
+    setCheckpointSegment(null);
   }, []);
 
   // --- Trim save handler ---
@@ -468,6 +479,7 @@ export default function StudioPage() {
                   handleDeleteSegment(view.scrimId, segmentId)
                 }
                 onPreview={handlePreview}
+                onCheckpoints={handleCheckpoints}
               />
 
               {trimmingSegment && (
@@ -479,10 +491,18 @@ export default function StudioPage() {
                 />
               )}
 
-              {previewSegment && !trimmingSegment && (
+              {previewSegment && !trimmingSegment && !checkpointSegment && (
                 <SegmentPreview
                   segment={previewSegment}
                   onClose={() => setPreviewSegment(null)}
+                />
+              )}
+
+              {checkpointSegment && !trimmingSegment && (
+                <CheckpointEditor
+                  segment={checkpointSegment}
+                  scrimId={view.scrimId}
+                  onClose={() => setCheckpointSegment(null)}
                 />
               )}
             </div>

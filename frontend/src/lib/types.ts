@@ -96,6 +96,33 @@ export interface ScrimSegment {
   updated_at: string;
 }
 
+/** Supported checkpoint validation types */
+export type ValidationType = "output_match";
+
+/** Configuration for checkpoint validation */
+export interface ValidationConfig {
+  /** Expected output content to match against (for output_match) */
+  expected_output?: string;
+}
+
+/** A checkpoint/challenge within a segment */
+export interface Checkpoint {
+  id: string;
+  segment_id: string;
+  order: number;
+  /** Segment-local timestamp in ms (relative to trimmed segment start) */
+  timestamp_ms: number;
+  title: string;
+  instructions: string;
+  validation_type: ValidationType;
+  validation_config: ValidationConfig;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Status of a checkpoint during playback */
+export type CheckpointStatus = "idle" | "active" | "validating" | "passed" | "failed";
+
 /** Playback state for the player */
 export interface PlaybackState {
   /** Whether the scrim is currently playing */

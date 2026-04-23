@@ -5,7 +5,9 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import EditorPanel from "@/components/editor/EditorPanel";
 import LivePreview from "@/components/editor/LivePreview";
+import CheckpointPanel from "@/components/checkpoint/CheckpointPanel";
 import { usePlayback } from "@/hooks/usePlayback";
+import { segmentEffectiveDuration } from "@/lib/segments";
 
 /** Format milliseconds to m:ss display */
 function formatTime(ms: number): string {
@@ -22,6 +24,9 @@ export default function PlayerPage() {
   const id = params.id;
   const playback = usePlayback(id);
   const progressRef = useRef<HTMLDivElement>(null);
+  const previewIframeRef = useRef<HTMLIFrameElement>(null);
+
+  const isCheckpointActive = playback.activeCheckpoint !== null;
 
   const handlePlayPause = useCallback(() => {
     if (playback.isPlaying) {
@@ -172,22 +177,26 @@ export default function PlayerPage() {
           <div className="flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900 px-3 py-1.5 text-xs text-gray-400">
             <span
               className={`h-2 w-2 rounded-full ${
-                playback.isInteractive
-                  ? "bg-amber-500"
-                  : playback.isPlaying
-                    ? "animate-pulse bg-green-500"
-                    : "bg-gray-600"
+                isCheckpointActive
+                  ? "bg-blue-500"
+                  : playback.isInteractive
+                    ? "bg-amber-500"
+                    : playback.isPlaying
+                      ? "animate-pulse bg-green-500"
+                      : "bg-gray-600"
               }`}
             />
-            {playback.isInteractive
-              ? "Editing"
-              : playback.isPlaying
-                ? "Playing"
-                : "Paused"}
+            {isCheckpointActive
+              ? "Challenge"
+              : playback.isInteractive
+                ? "Editing"
+                : playback.isPlaying
+                  ? "Playing"
+                  : "Paused"}
           </div>
 
           {/* Interactive mode toggle */}
-          {playback.isInteractive ? (
+          {isCheckpointActive ? null : playback.isInteractive ? (
             <button
               type="button"
               onClick={playback.exitInteractive}
@@ -220,8 +229,19 @@ export default function PlayerPage() {
           <div className="flex flex-1 min-h-0">
             {/* Editor panel */}
             <div className="flex h-full w-1/2 flex-col border-r border-gray-800">
-              {/* Interactive mode banner */}
-              {playback.isInteractive && (
+              {/* Checkpoint panel */}
+              {isCheckpointActive && playback.activeCheckpoint && (
+                <CheckpointPanel
+                  checkpoint={playback.activeCheckpoint}
+                  status={playback.checkpointStatus}
+                  onSubmit={playback.submitCheckpoint}
+                  onDismiss={playback.dismissCheckpoint}
+                  onSkip={playback.skipCheckpoint}
+                  previewIframeRef={previewIframeRef}
+                />
+              )}
+              {/* Interactive mode banner (only for manual interactive, not checkpoint) */}
+              {playback.isInteractive && !isCheckpointActive && (
                 <div className="flex items-center justify-between border-b border-amber-500/20 bg-amber-500/5 px-4 py-2">
                   <span className="text-xs text-amber-300">
                     Interactive mode — edit the code freely
@@ -267,7 +287,7 @@ export default function PlayerPage() {
                 </div>
               </div>
               <div className="flex-1 min-h-0">
-                <LivePreview html={html} css={css} javascript={javascript} />
+                <LivePreview ref={previewIframeRef} html={html} css={css} javascript={javascript} />
               </div>
             </div>
           </div>
@@ -315,7 +335,7 @@ export default function PlayerPage() {
             {/* Progress bar */}
             <div
               ref={progressRef}
-              className="mb-3 h-1.5 w-full cursor-pointer overflow-hidden rounded-full bg-gray-800 transition-all hover:h-2"
+              className="relative mb-3 h-1.5 w-full cursor-pointer overflow-visible rounded-full bg-gray-800 transition-all hover:h-2"
               onClick={handleProgressClick}
               role="slider"
               aria-label="Playback progress"
@@ -328,6 +348,31 @@ export default function PlayerPage() {
                 className="h-full rounded-full bg-brand-500"
                 style={{ width: `${progressFraction * 100}%` }}
               />
+              {/* Checkpoint markers on progress bar */}
+              {playback.durationMs > 0 && playback.checkpoints.map((cp) => {
+                // Compute global position: find the segment this checkpoint belongs to,
+                // then offset by the segment's start position in the global timeline
+                let globalOffset = 0;
+                for (const seg of playback.segments) {
+                  if (seg.id === cp.segment_id) {
+                    // checkpoint timestamp_ms is segment-local (relative to trim start)
+                    globalOffset += cp.timestamp_ms - seg.trim_start_ms;
+                    break;
+                  }
+                  globalOffset += segmentEffectiveDuration(seg);
+                }
+                const fraction = globalOffset / playback.durationMs;
+                return (
+                  <div
+                    key={cp.id}
+                    className="absolute top-1/2 -translate-y-1/2 h-3 w-1.5 rounded-sm bg-blue-400/80 pointer-events-none"
+                    style={{
+                      left: `${fraction * 100}%`,
+                    }}
+                    title={cp.title}
+                  />
+                );
+              })}
             </div>
 
             <div className="flex items-center justify-between">

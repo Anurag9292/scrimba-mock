@@ -6,6 +6,7 @@ from app.config import settings
 # Import all models so SQLModel.metadata.create_all() discovers them
 import app.models.scrim  # noqa: F401
 import app.models.segment  # noqa: F401
+import app.models.checkpoint  # noqa: F401
 
 engine = create_async_engine(settings.DATABASE_URL, echo=False)
 
@@ -38,17 +39,19 @@ def _run_alembic_migrations(connection) -> None:
     current_rev = migration_ctx.get_current_revision()
 
     if current_rev is None:
-        # Check whether the target table already has the column (pre-existing DB)
+        # Check whether the target tables already exist (pre-existing DB from create_all)
         # If so, just stamp; otherwise run migrations to apply the changes.
         from sqlalchemy import inspect as sa_inspect
 
         inspector = sa_inspect(connection)
-        columns = [c["name"] for c in inspector.get_columns("scrims")]
-        if "status" in columns:
-            # Column already exists (e.g. fresh create_all), just stamp head
+        tables = inspector.get_table_names()
+        columns = [c["name"] for c in inspector.get_columns("scrims")] if "scrims" in tables else []
+        has_checkpoints = "checkpoints" in tables
+        if "status" in columns and has_checkpoints:
+            # All tables/columns already exist (e.g. fresh create_all), just stamp head
             command.stamp(alembic_cfg, "head")
         else:
-            # Column missing — run migrations to add it, then stamp
+            # Missing schema — run migrations to apply, then stamp
             command.upgrade(alembic_cfg, "head")
     else:
         command.upgrade(alembic_cfg, "head")
