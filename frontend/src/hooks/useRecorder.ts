@@ -36,6 +36,12 @@ interface UseRecorderReturn extends RecorderState {
   resumeRecording: () => void;
   /** Record a file switch event */
   recordFileSwitch: (fileName: string) => void;
+  /** Record a file create event */
+  recordFileCreate: (fileName: string) => void;
+  /** Record a file delete event */
+  recordFileDelete: (fileName: string) => void;
+  /** Record a file rename event */
+  recordFileRename: (oldName: string, newName: string) => void;
   /** Clean up all resources */
   cleanup: () => void;
 }
@@ -151,6 +157,27 @@ export function useRecorder(): UseRecorderReturn {
     [capture]
   );
 
+  const recordFileCreate = useCallback(
+    (fileName: string) => {
+      capture.recordFileCreate(fileName);
+    },
+    [capture]
+  );
+
+  const recordFileDelete = useCallback(
+    (fileName: string) => {
+      capture.recordFileDelete(fileName);
+    },
+    [capture]
+  );
+
+  const recordFileRename = useCallback(
+    (oldName: string, newName: string) => {
+      capture.recordFileRename(oldName, newName);
+    },
+    [capture]
+  );
+
   const cleanup = useCallback(() => {
     media.cleanup();
     capture.stopCapture();
@@ -173,6 +200,9 @@ export function useRecorder(): UseRecorderReturn {
     pauseRecording,
     resumeRecording,
     recordFileSwitch,
+    recordFileCreate,
+    recordFileDelete,
+    recordFileRename,
     cleanup,
   };
 }

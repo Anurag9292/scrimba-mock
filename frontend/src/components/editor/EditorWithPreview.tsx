@@ -16,6 +16,12 @@ interface EditorWithPreviewProps {
   onFilesChange?: (files: Record<string, string>) => void;
   /** Callback when the active file tab changes */
   onActiveFileChange?: (fileName: string) => void;
+  /** Callback when a file is created */
+  onFileCreate?: (fileName: string) => void;
+  /** Callback when a file is deleted */
+  onFileDelete?: (fileName: string) => void;
+  /** Callback when a file is renamed */
+  onFileRename?: (oldName: string, newName: string) => void;
 }
 
 export default function EditorWithPreview({
@@ -24,6 +30,9 @@ export default function EditorWithPreview({
   onEditorMount,
   onFilesChange: externalOnFilesChange,
   onActiveFileChange,
+  onFileCreate,
+  onFileDelete,
+  onFileRename,
 }: EditorWithPreviewProps) {
   const [files, setFiles] = useState<Record<string, string>>(initialFiles ?? DEFAULT_FILES);
 
@@ -47,6 +56,9 @@ export default function EditorWithPreview({
           readOnly={readOnly}
           onEditorMount={onEditorMount}
           onActiveFileChange={onActiveFileChange}
+          onFileCreate={onFileCreate}
+          onFileDelete={onFileDelete}
+          onFileRename={onFileRename}
         />
       </div>
 

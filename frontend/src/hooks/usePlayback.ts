@@ -17,6 +17,30 @@ function positionToOffset(content: string, pos: CursorPosition): number {
 
 /** Apply a single code event to the file map, returning a new file map */
 function applyCodeEvent(files: FileMap, event: CodeEvent): FileMap {
+  // Handle file management events
+  if (event.type === "file_create") {
+    if (!files[event.fileName]) {
+      return { ...files, [event.fileName]: "" };
+    }
+    return files;
+  }
+  if (event.type === "file_delete") {
+    const updated = { ...files };
+    delete updated[event.fileName];
+    return updated;
+  }
+  if (event.type === "file_rename" && event.newFileName) {
+    const updated: FileMap = {};
+    for (const [key, value] of Object.entries(files)) {
+      if (key === event.fileName) {
+        updated[event.newFileName] = value;
+      } else {
+        updated[key] = value;
+      }
+    }
+    return updated;
+  }
+
   // Only text-modifying events change files
   if (
     event.type !== "insert" &&
@@ -77,6 +101,12 @@ function replayEvents(
     const event = events[i];
     if (event.type === "file_switch") {
       activeFileName = event.fileName;
+    } else if (event.type === "file_create") {
+      activeFileName = event.fileName;
+    } else if (event.type === "file_rename" && event.newFileName) {
+      if (activeFileName === event.fileName) {
+        activeFileName = event.newFileName;
+      }
     }
     current = applyCodeEvent(current, event);
   }
