@@ -10,6 +10,11 @@ from app.api.scrims import router as scrims_router
 from app.api.segments import router as segments_router
 from app.api.upload import router as upload_router
 from app.api.checkpoints import router as checkpoints_router, scrim_checkpoints_router
+from app.api.auth import router as auth_router
+from app.api.admin import router as admin_router
+from app.api.course_paths import router as course_paths_router
+from app.api.courses import router as courses_router
+from app.api.sections import router as sections_router
 
 
 @asynccontextmanager
@@ -40,6 +45,11 @@ app.include_router(segments_router)
 app.include_router(checkpoints_router)
 app.include_router(scrim_checkpoints_router)
 app.include_router(upload_router)
+app.include_router(auth_router)
+app.include_router(admin_router)
+app.include_router(course_paths_router)
+app.include_router(courses_router)
+app.include_router(sections_router)
 
 
 @app.get("/health")

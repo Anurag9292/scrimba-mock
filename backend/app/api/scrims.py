@@ -7,6 +7,8 @@ from sqlmodel import select
 
 from app.db.database import get_session
 from app.models.scrim import Scrim, ScrimCreate, ScrimUpdate, ScrimRead
+from app.api.auth_deps import get_current_user, require_role
+from app.models.user import User
 
 router = APIRouter(prefix="/api/scrims", tags=["scrims"])
 
@@ -15,6 +17,7 @@ router = APIRouter(prefix="/api/scrims", tags=["scrims"])
 async def create_scrim(
     data: ScrimCreate,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> Scrim:
     scrim = Scrim(
         title=data.title,
@@ -25,6 +28,8 @@ async def create_scrim(
         code_events=data.code_events,
         files=data.files,
         status=data.status,
+        section_id=uuid.UUID(data.section_id) if data.section_id else None,
+        created_by=user.id,
     )
     session.add(scrim)
     await session.commit()
@@ -36,6 +41,7 @@ async def create_scrim(
 async def list_scrims(
     status: str | None = Query(default=None, description="Filter by status: draft, published, or omit for all"),
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> list[Scrim]:
     query = select(Scrim).order_by(Scrim.created_at.desc())
     if status is not None:
@@ -49,6 +55,7 @@ async def list_scrims(
 async def get_scrim(
     scrim_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> Scrim:
     scrim = await session.get(Scrim, scrim_id)
     if scrim is None:
@@ -61,6 +68,7 @@ async def update_scrim(
     scrim_id: uuid.UUID,
     data: ScrimUpdate,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> Scrim:
     scrim = await session.get(Scrim, scrim_id)
     if scrim is None:
@@ -81,6 +89,7 @@ async def update_scrim(
 async def publish_scrim(
     scrim_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> Scrim:
     scrim = await session.get(Scrim, scrim_id)
     if scrim is None:
@@ -102,6 +111,7 @@ async def publish_scrim(
 async def delete_scrim(
     scrim_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> None:
     scrim = await session.get(Scrim, scrim_id)
     if scrim is None:

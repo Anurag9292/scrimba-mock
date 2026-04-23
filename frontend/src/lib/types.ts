@@ -77,6 +77,8 @@ export interface Scrim {
   language: string;
   files?: FileMap;
   status: ScrimStatus;
+  section_id?: string | null;
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -173,6 +175,68 @@ export interface ApiResponse<T> {
     code: string;
     message: string;
   };
+}
+
+/** User roles */
+export type UserRole = "admin" | "creator" | "user";
+
+/** User object from the API */
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  role: UserRole;
+  is_active: boolean;
+  auth_provider: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Auth token response */
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
+/** Course path (learning path) */
+export interface CoursePath {
+  id: string;
+  title: string;
+  description: string | null;
+  slug: string;
+  image_url: string | null;
+  order: number;
+  status: "draft" | "published";
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Course within a path */
+export interface Course {
+  id: string;
+  path_id: string;
+  title: string;
+  description: string | null;
+  slug: string;
+  order: number;
+  status: "draft" | "published";
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Section within a course */
+export interface Section {
+  id: string;
+  course_id: string;
+  title: string;
+  description: string | null;
+  order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 /** Paginated list response */

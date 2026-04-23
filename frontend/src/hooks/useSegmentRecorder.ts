@@ -64,7 +64,7 @@ interface UseSegmentRecorderReturn extends SegmentRecorderState {
  * If no scrimId is set, the first call to stopRecording will create a new draft scrim.
  * Subsequent segments are appended to the same scrim.
  */
-export function useSegmentRecorder(): UseSegmentRecorderReturn {
+export function useSegmentRecorder(options?: { sectionId?: string | null }): UseSegmentRecorderReturn {
   const [status, setStatus] = useState<RecordingStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [scrimId, setScrimIdState] = useState<string | null>(null);
@@ -73,6 +73,7 @@ export function useSegmentRecorder(): UseSegmentRecorderReturn {
 
   const initialFilesRef = useRef<FileMap>({});
   const scrimIdRef = useRef<string | null>(null);
+  const sectionIdRef = useRef<string | null | undefined>(options?.sectionId);
 
   const clock = useRecordingClock();
   const media = useMediaRecorder();
@@ -129,6 +130,7 @@ export function useSegmentRecorder(): UseSegmentRecorderReturn {
             language: "html",
             files: initialFilesRef.current,
             status: "draft",
+            ...(sectionIdRef.current ? { section_id: sectionIdRef.current } : {}),
           });
 
           if (!scrimResult.success || !scrimResult.data) {

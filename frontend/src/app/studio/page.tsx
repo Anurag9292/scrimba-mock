@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Scrim, ScrimSegment } from "@/lib/types";
 import {
   fetchScrims,
@@ -57,6 +57,8 @@ type StudioView =
 
 export default function StudioPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sectionId = searchParams.get("sectionId");
   const { toast } = useToast();
   const [view, setView] = useState<StudioView>({ type: "drafts" });
   const [drafts, setDrafts] = useState<Scrim[]>([]);
@@ -277,6 +279,7 @@ export default function StudioPage() {
         scrimId={view.scrimId}
         onBack={handleBack}
         initialFilesOverride={rerecordInitialFiles}
+        sectionId={sectionId}
         onSegmentSaved={async (scrimId) => {
           // Delete the old segment being replaced
           await deleteSegment(scrimId, view.segmentId);
@@ -311,6 +314,7 @@ export default function StudioPage() {
       <SegmentRecorder
         scrimId={view.scrimId}
         onBack={handleBack}
+        sectionId={sectionId}
         onSegmentSaved={(scrimId) =>
           handleSegmentSaved(scrimId, view.scrimTitle)
         }

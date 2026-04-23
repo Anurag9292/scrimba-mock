@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ScrimList from "@/components/scrim/ScrimList";
+import AuthNav from "@/components/auth/AuthNav";
 
 function Navbar() {
   return (
@@ -14,30 +15,7 @@ function Navbar() {
           </span>
         </Link>
 
-        <div className="flex items-center gap-1">
-          <Link
-            href="/studio"
-            className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800/60 hover:text-white"
-          >
-            Studio
-          </Link>
-          <Link
-            href="/record"
-            className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800/60 hover:text-white"
-          >
-            Quick Record
-          </Link>
-          <Link
-            href="#scrims"
-            className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800/60 hover:text-white"
-          >
-            Scrims
-          </Link>
-          <div className="ml-3 h-5 w-px bg-gray-800" />
-          <Link href="/studio" className="btn-primary ml-3 text-sm">
-            New Scrim
-          </Link>
-        </div>
+        <AuthNav />
       </div>
     </nav>
   );

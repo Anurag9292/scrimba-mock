@@ -10,6 +10,8 @@ from app.db.database import get_session
 from app.models.scrim import Scrim
 from app.models.segment import ScrimSegment
 from app.storage.file_storage import FileStorage
+from app.api.auth_deps import get_current_user, require_role
+from app.models.user import User
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
 
@@ -21,6 +23,7 @@ async def upload_video(
     scrim_id: uuid.UUID,
     file: UploadFile,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> dict:
     scrim = await session.get(Scrim, scrim_id)
     if scrim is None:
@@ -99,6 +102,7 @@ async def get_video(
     scrim_id: uuid.UUID,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> Response:
     scrim = await session.get(Scrim, scrim_id)
     if scrim is None:
@@ -122,6 +126,7 @@ async def upload_segment_video(
     segment_id: uuid.UUID,
     file: UploadFile,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> dict:
     segment = await session.get(ScrimSegment, segment_id)
     if segment is None:
@@ -147,6 +152,7 @@ async def get_segment_video(
     segment_id: uuid.UUID,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> Response:
     segment = await session.get(ScrimSegment, segment_id)
     if segment is None:

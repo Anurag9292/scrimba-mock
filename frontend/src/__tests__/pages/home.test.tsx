@@ -23,6 +23,11 @@ vi.mock("@/components/scrim/ScrimList", () => ({
   default: () => <div data-testid="scrim-list">Scrim list placeholder</div>,
 }));
 
+// Mock AuthNav to avoid requiring AuthProvider in unit tests
+vi.mock("@/components/auth/AuthNav", () => ({
+  default: () => <div data-testid="auth-nav">Auth nav placeholder</div>,
+}));
+
 import HomePage from "@/app/page";
 
 describe("HomePage", () => {
@@ -33,10 +38,9 @@ describe("HomePage", () => {
 
   it("has navigation links", () => {
     render(<HomePage />);
-    // Navbar should have Quick Record, Studio, and Scrims links
-    expect(screen.getByText("Quick Record")).toBeInTheDocument();
-    expect(screen.getByText("Studio")).toBeInTheDocument();
-    expect(screen.getByText("Scrims")).toBeInTheDocument();
+    // Navbar should have the ScrimbaClone brand link and AuthNav
+    expect(screen.getByText("ScrimbaClone")).toBeInTheDocument();
+    expect(screen.getByTestId("auth-nav")).toBeInTheDocument();
   });
 
   it("has link to /record page", () => {
