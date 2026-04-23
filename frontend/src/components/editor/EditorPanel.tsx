@@ -76,7 +76,7 @@ if (heading) {
   });
 }`;
 
-const DEFAULT_FILES: Record<string, string> = {
+export const DEFAULT_FILES: Record<string, string> = {
   "index.html": DEFAULT_HTML,
   "styles.css": DEFAULT_CSS,
   "script.js": DEFAULT_JS,
