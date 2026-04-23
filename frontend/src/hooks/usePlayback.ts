@@ -153,6 +153,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
 
   const videoRef = useRef<HTMLVideoElement>(null!) as React.RefObject<HTMLVideoElement>;
   const rafRef = useRef<number>(0);
+  const currentTimeMsRef = useRef<number>(0);
 
   // Refs for the replay engine (avoid stale closures)
   const initialFilesRef = useRef<FileMap>({});
@@ -207,12 +208,23 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
     };
   }, [scrimId]);
 
+  // Fallback clock for when there's no video element
+  const playStartRef = useRef<number>(0);
+  const playStartTimeRef = useRef<number>(0);
+
   // The animation frame loop: reads video time and applies events
   const tick = useCallback(() => {
     const video = videoRef.current;
-    if (!video) return;
 
-    const timeMs = video.currentTime * 1000;
+    // Get current time from video or fallback clock
+    let timeMs: number;
+    if (video && video.readyState >= 1) {
+      timeMs = video.currentTime * 1000;
+    } else {
+      // Fallback: use wall-clock time since play started
+      timeMs = playStartTimeRef.current + (performance.now() - playStartRef.current);
+    }
+    currentTimeMsRef.current = timeMs;
     setCurrentTimeMs(timeMs);
 
     const events = eventsRef.current;
@@ -250,7 +262,11 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
       setCurrentFiles(files);
     }
 
-    if (!video.paused && !video.ended) {
+    // Keep looping if still playing
+    const stillPlaying = video
+      ? !video.paused && !video.ended
+      : true; // fallback clock always continues until pause() is called
+    if (stillPlaying) {
       rafRef.current = requestAnimationFrame(tick);
     }
   }, []);
@@ -269,27 +285,34 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
 
   const play = useCallback(() => {
     const video = videoRef.current;
-    if (!video) return;
-    video.play().catch(() => {
-      // Autoplay may be blocked
-    });
+    if (video) {
+      video.play().catch(() => {
+        // Autoplay may be blocked
+      });
+    }
+    // Initialize fallback clock
+    playStartRef.current = performance.now();
+    playStartTimeRef.current = currentTimeMsRef.current;
     setIsPlaying(true);
   }, []);
 
   const pause = useCallback(() => {
     const video = videoRef.current;
-    if (!video) return;
-    video.pause();
+    if (video) {
+      video.pause();
+    }
     setIsPlaying(false);
   }, []);
 
   const seek = useCallback(
     (timeMs: number) => {
+      // Sync video if available
       const video = videoRef.current;
-      if (!video) return;
-      video.currentTime = timeMs / 1000;
+      if (video) {
+        video.currentTime = timeMs / 1000;
+      }
 
-      // Immediately recompute files for the new time
+      // Always recompute files for the new time
       const events = eventsRef.current;
       const targetIndex = findEventIndex(events, timeMs);
       const { files, activeFileName: newActive } = replayEvents(
@@ -305,6 +328,7 @@ export function usePlayback(scrimId: string): UsePlaybackReturn {
         setActiveFileName(newActive);
       }
       setCurrentFiles(files);
+      currentTimeMsRef.current = timeMs;
       setCurrentTimeMs(timeMs);
     },
     []
