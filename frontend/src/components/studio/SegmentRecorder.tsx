@@ -56,6 +56,8 @@ interface SegmentRecorderProps {
   onSegmentSaved: (scrimId: string) => void;
   /** If provided, use these files instead of loading from last segment */
   initialFilesOverride?: FileMap;
+  /** Optional section ID to associate with a newly created scrim */
+  sectionId?: string | null;
 }
 
 export default function SegmentRecorder({
@@ -63,8 +65,9 @@ export default function SegmentRecorder({
   onBack,
   onSegmentSaved,
   initialFilesOverride,
+  sectionId,
 }: SegmentRecorderProps) {
-  const recorder = useSegmentRecorder();
+  const recorder = useSegmentRecorder({ sectionId });
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const filesRef = useRef<Record<string, string>>({});
   const [isInitialized, setIsInitialized] = useState(false);

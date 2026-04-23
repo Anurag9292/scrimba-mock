@@ -8,6 +8,8 @@ from sqlmodel import select
 from app.db.database import get_session
 from app.models.scrim import Scrim
 from app.models.segment import ScrimSegment, SegmentCreate, SegmentUpdate, SegmentRead
+from app.api.auth_deps import get_current_user, require_role
+from app.models.user import User
 
 router = APIRouter(prefix="/api/scrims/{scrim_id}/segments", tags=["segments"])
 
@@ -24,6 +26,7 @@ async def create_segment(
     scrim_id: uuid.UUID,
     data: SegmentCreate,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> ScrimSegment:
     scrim = await _get_scrim_or_404(scrim_id, session)
 
@@ -61,6 +64,7 @@ async def create_segment(
 async def list_segments(
     scrim_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> list[ScrimSegment]:
     await _get_scrim_or_404(scrim_id, session)
 
@@ -78,6 +82,7 @@ async def get_segment(
     scrim_id: uuid.UUID,
     segment_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> ScrimSegment:
     await _get_scrim_or_404(scrim_id, session)
 
@@ -93,6 +98,7 @@ async def update_segment(
     segment_id: uuid.UUID,
     data: SegmentUpdate,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> ScrimSegment:
     scrim = await _get_scrim_or_404(scrim_id, session)
 
@@ -120,6 +126,7 @@ async def delete_segment(
     scrim_id: uuid.UUID,
     segment_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> None:
     scrim = await _get_scrim_or_404(scrim_id, session)
 
@@ -152,6 +159,7 @@ async def reorder_segment(
     segment_id: uuid.UUID,
     new_order: int,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> ScrimSegment:
     """Move a segment to a new position. Other segments shift to accommodate."""
     scrim = await _get_scrim_or_404(scrim_id, session)

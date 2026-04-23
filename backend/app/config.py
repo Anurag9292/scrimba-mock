@@ -8,6 +8,15 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500 MB
     APP_NAME: str = "ScrimbaClone API"
 
+    # JWT
+    JWT_SECRET: str = "change-me-in-production-use-a-strong-random-key"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRY_HOURS: int = 24
+
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

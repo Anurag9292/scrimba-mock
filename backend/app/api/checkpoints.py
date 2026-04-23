@@ -9,6 +9,8 @@ from app.db.database import get_session
 from app.models.scrim import Scrim
 from app.models.segment import ScrimSegment
 from app.models.checkpoint import Checkpoint, CheckpointCreate, CheckpointUpdate, CheckpointRead
+from app.api.auth_deps import get_current_user, require_role
+from app.models.user import User
 
 router = APIRouter(
     prefix="/api/scrims/{scrim_id}/segments/{segment_id}/checkpoints",
@@ -43,6 +45,7 @@ async def create_checkpoint(
     segment_id: uuid.UUID,
     data: CheckpointCreate,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> Checkpoint:
     segment = await _get_segment_or_404(scrim_id, segment_id, session)
 
@@ -83,6 +86,7 @@ async def list_checkpoints(
     scrim_id: uuid.UUID,
     segment_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> list[Checkpoint]:
     await _get_segment_or_404(scrim_id, segment_id, session)
 
@@ -101,6 +105,7 @@ async def get_checkpoint(
     segment_id: uuid.UUID,
     checkpoint_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> Checkpoint:
     await _get_segment_or_404(scrim_id, segment_id, session)
 
@@ -117,6 +122,7 @@ async def update_checkpoint(
     checkpoint_id: uuid.UUID,
     data: CheckpointUpdate,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> Checkpoint:
     segment = await _get_segment_or_404(scrim_id, segment_id, session)
 
@@ -145,6 +151,7 @@ async def delete_checkpoint(
     segment_id: uuid.UUID,
     checkpoint_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> None:
     segment = await _get_segment_or_404(scrim_id, segment_id, session)
 
@@ -178,6 +185,7 @@ async def reorder_checkpoint(
     checkpoint_id: uuid.UUID,
     new_order: int = Query(...),
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_role("creator", "admin")),
 ) -> Checkpoint:
     """Move a checkpoint to a new position within its segment."""
     segment = await _get_segment_or_404(scrim_id, segment_id, session)
@@ -234,6 +242,7 @@ async def reorder_checkpoint(
 async def list_scrim_checkpoints(
     scrim_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> list[Checkpoint]:
     """Fetch all checkpoints across all segments of a scrim, ordered by segment order then checkpoint order."""
     scrim = await session.get(Scrim, scrim_id)

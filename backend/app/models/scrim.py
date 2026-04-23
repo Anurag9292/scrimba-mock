@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from pydantic import BaseModel
-from sqlalchemy import Column, DateTime, JSON
+from sqlalchemy import Column, DateTime, ForeignKey, JSON
 from sqlmodel import SQLModel, Field
 
 
@@ -19,6 +19,22 @@ class Scrim(SQLModel, table=True):
     language: str = Field(default="html")
     files: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     status: str = Field(default="published")  # "draft" | "published"
+    section_id: uuid.UUID | None = Field(
+        default=None,
+        sa_column=Column(
+            "section_id",
+            ForeignKey("sections.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
+    created_by: uuid.UUID | None = Field(
+        default=None,
+        sa_column=Column(
+            "created_by",
+            ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime(timezone=True), nullable=False),
@@ -37,6 +53,7 @@ class ScrimCreate(BaseModel):
     language: str = "html"
     code_events: list = []
     files: dict | None = None
+    section_id: str | None = None  # UUID as string
     status: str = "published"  # "draft" | "published"
 
 
@@ -48,6 +65,7 @@ class ScrimUpdate(BaseModel):
     language: str | None = None
     code_events: list | None = None
     files: dict | None = None
+    section_id: str | None = None
     status: str | None = None
 
 
@@ -62,6 +80,8 @@ class ScrimRead(BaseModel):
     language: str
     files: dict | None
     status: str
+    section_id: uuid.UUID | None
+    created_by: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
 

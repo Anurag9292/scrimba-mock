@@ -3,6 +3,8 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
+from tests.conftest import auth_headers
+
 
 SCRIMS_URL = "/api/scrims/"
 
@@ -25,9 +27,10 @@ def _make_scrim_payload(**overrides) -> dict:
 # ── POST /api/scrims/ ────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_create_scrim_returns_201(client: AsyncClient):
+async def test_create_scrim_returns_201(client: AsyncClient, creator_user):
+    _, token = creator_user
     payload = _make_scrim_payload()
-    response = await client.post(SCRIMS_URL, json=payload)
+    response = await client.post(SCRIMS_URL, json=payload, headers=auth_headers(token))
 
     assert response.status_code == 201
     data = response.json()
@@ -46,9 +49,10 @@ async def test_create_scrim_returns_201(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_create_scrim_with_defaults(client: AsyncClient):
+async def test_create_scrim_with_defaults(client: AsyncClient, creator_user):
     """Only title is truly required; other fields should use defaults."""
-    response = await client.post(SCRIMS_URL, json={"title": "Minimal"})
+    _, token = creator_user
+    response = await client.post(SCRIMS_URL, json={"title": "Minimal"}, headers=auth_headers(token))
 
     assert response.status_code == 201
     data = response.json()
@@ -64,19 +68,21 @@ async def test_create_scrim_with_defaults(client: AsyncClient):
 # ── GET /api/scrims/ ─────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_list_scrims_empty(client: AsyncClient):
-    response = await client.get(SCRIMS_URL)
+async def test_list_scrims_empty(client: AsyncClient, creator_user):
+    _, token = creator_user
+    response = await client.get(SCRIMS_URL, headers=auth_headers(token))
     assert response.status_code == 200
     assert response.json() == []
 
 
 @pytest.mark.asyncio
-async def test_list_scrims_with_data(client: AsyncClient):
+async def test_list_scrims_with_data(client: AsyncClient, creator_user):
+    _, token = creator_user
     # Create two scrims
-    await client.post(SCRIMS_URL, json=_make_scrim_payload(title="First"))
-    await client.post(SCRIMS_URL, json=_make_scrim_payload(title="Second"))
+    await client.post(SCRIMS_URL, json=_make_scrim_payload(title="First"), headers=auth_headers(token))
+    await client.post(SCRIMS_URL, json=_make_scrim_payload(title="Second"), headers=auth_headers(token))
 
-    response = await client.get(SCRIMS_URL)
+    response = await client.get(SCRIMS_URL, headers=auth_headers(token))
     assert response.status_code == 200
     scrims = response.json()
     assert len(scrims) == 2
@@ -89,20 +95,22 @@ async def test_list_scrims_with_data(client: AsyncClient):
 # ── GET /api/scrims/{id} ─────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_get_scrim_by_id(client: AsyncClient):
-    create_resp = await client.post(SCRIMS_URL, json=_make_scrim_payload())
+async def test_get_scrim_by_id(client: AsyncClient, creator_user):
+    _, token = creator_user
+    create_resp = await client.post(SCRIMS_URL, json=_make_scrim_payload(), headers=auth_headers(token))
     scrim_id = create_resp.json()["id"]
 
-    response = await client.get(f"{SCRIMS_URL}{scrim_id}")
+    response = await client.get(f"{SCRIMS_URL}{scrim_id}", headers=auth_headers(token))
     assert response.status_code == 200
     assert response.json()["id"] == scrim_id
     assert response.json()["title"] == "My First Scrim"
 
 
 @pytest.mark.asyncio
-async def test_get_scrim_not_found(client: AsyncClient):
+async def test_get_scrim_not_found(client: AsyncClient, creator_user):
+    _, token = creator_user
     fake_id = str(uuid.uuid4())
-    response = await client.get(f"{SCRIMS_URL}{fake_id}")
+    response = await client.get(f"{SCRIMS_URL}{fake_id}", headers=auth_headers(token))
     assert response.status_code == 404
     assert response.json()["detail"] == "Scrim not found"
 
@@ -110,12 +118,13 @@ async def test_get_scrim_not_found(client: AsyncClient):
 # ── PUT /api/scrims/{id} ─────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_update_scrim_title_and_description(client: AsyncClient):
-    create_resp = await client.post(SCRIMS_URL, json=_make_scrim_payload())
+async def test_update_scrim_title_and_description(client: AsyncClient, creator_user):
+    _, token = creator_user
+    create_resp = await client.post(SCRIMS_URL, json=_make_scrim_payload(), headers=auth_headers(token))
     scrim_id = create_resp.json()["id"]
 
     update_payload = {"title": "Updated Title", "description": "New description"}
-    response = await client.put(f"{SCRIMS_URL}{scrim_id}", json=update_payload)
+    response = await client.put(f"{SCRIMS_URL}{scrim_id}", json=update_payload, headers=auth_headers(token))
 
     assert response.status_code == 200
     data = response.json()
@@ -127,13 +136,14 @@ async def test_update_scrim_title_and_description(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_update_scrim_partial(client: AsyncClient):
+async def test_update_scrim_partial(client: AsyncClient, creator_user):
     """Updating only one field should leave others intact."""
-    create_resp = await client.post(SCRIMS_URL, json=_make_scrim_payload())
+    _, token = creator_user
+    create_resp = await client.post(SCRIMS_URL, json=_make_scrim_payload(), headers=auth_headers(token))
     scrim_id = create_resp.json()["id"]
     original = create_resp.json()
 
-    response = await client.put(f"{SCRIMS_URL}{scrim_id}", json={"language": "javascript"})
+    response = await client.put(f"{SCRIMS_URL}{scrim_id}", json={"language": "javascript"}, headers=auth_headers(token))
 
     assert response.status_code == 200
     data = response.json()
@@ -143,29 +153,32 @@ async def test_update_scrim_partial(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_update_scrim_not_found(client: AsyncClient):
+async def test_update_scrim_not_found(client: AsyncClient, creator_user):
+    _, token = creator_user
     fake_id = str(uuid.uuid4())
-    response = await client.put(f"{SCRIMS_URL}{fake_id}", json={"title": "Ghost"})
+    response = await client.put(f"{SCRIMS_URL}{fake_id}", json={"title": "Ghost"}, headers=auth_headers(token))
     assert response.status_code == 404
 
 
 # ── DELETE /api/scrims/{id} ───────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_delete_scrim(client: AsyncClient):
-    create_resp = await client.post(SCRIMS_URL, json=_make_scrim_payload())
+async def test_delete_scrim(client: AsyncClient, creator_user):
+    _, token = creator_user
+    create_resp = await client.post(SCRIMS_URL, json=_make_scrim_payload(), headers=auth_headers(token))
     scrim_id = create_resp.json()["id"]
 
-    delete_resp = await client.delete(f"{SCRIMS_URL}{scrim_id}")
+    delete_resp = await client.delete(f"{SCRIMS_URL}{scrim_id}", headers=auth_headers(token))
     assert delete_resp.status_code == 204
 
     # Confirm it's gone
-    get_resp = await client.get(f"{SCRIMS_URL}{scrim_id}")
+    get_resp = await client.get(f"{SCRIMS_URL}{scrim_id}", headers=auth_headers(token))
     assert get_resp.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_delete_scrim_not_found(client: AsyncClient):
+async def test_delete_scrim_not_found(client: AsyncClient, creator_user):
+    _, token = creator_user
     fake_id = str(uuid.uuid4())
-    response = await client.delete(f"{SCRIMS_URL}{fake_id}")
+    response = await client.delete(f"{SCRIMS_URL}{fake_id}", headers=auth_headers(token))
     assert response.status_code == 404

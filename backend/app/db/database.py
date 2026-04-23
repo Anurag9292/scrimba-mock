@@ -7,6 +7,10 @@ from app.config import settings
 import app.models.scrim  # noqa: F401
 import app.models.segment  # noqa: F401
 import app.models.checkpoint  # noqa: F401
+import app.models.user  # noqa: F401
+import app.models.course_path  # noqa: F401
+import app.models.course  # noqa: F401
+import app.models.section  # noqa: F401
 
 engine = create_async_engine(settings.DATABASE_URL, echo=False)
 
@@ -47,7 +51,9 @@ def _run_alembic_migrations(connection) -> None:
         tables = inspector.get_table_names()
         columns = [c["name"] for c in inspector.get_columns("scrims")] if "scrims" in tables else []
         has_checkpoints = "checkpoints" in tables
-        if "status" in columns and has_checkpoints:
+        has_users = "users" in tables
+        has_course_paths = "course_paths" in tables
+        if "status" in columns and has_checkpoints and has_users and has_course_paths:
             # All tables/columns already exist (e.g. fresh create_all), just stamp head
             command.stamp(alembic_cfg, "head")
         else:

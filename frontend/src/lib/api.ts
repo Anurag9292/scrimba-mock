@@ -1,6 +1,26 @@
-import type { Scrim, ScrimSegment, Checkpoint, ApiResponse } from "./types";
+import type { Scrim, ScrimSegment, Checkpoint, ApiResponse, User, TokenResponse, CoursePath, Course, Section } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// --- Token management ---
+let _authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  _authToken = token;
+  if (token) {
+    localStorage.setItem("auth_token", token);
+  } else {
+    localStorage.removeItem("auth_token");
+  }
+}
+
+export function getAuthToken(): string | null {
+  if (_authToken) return _authToken;
+  if (typeof window !== "undefined") {
+    _authToken = localStorage.getItem("auth_token");
+  }
+  return _authToken;
+}
 
 /** Data required to create a new scrim */
 export interface ScrimCreate {
@@ -12,6 +32,7 @@ export interface ScrimCreate {
   files?: Record<string, string>;
   duration_ms?: number;
   status?: "draft" | "published";
+  section_id?: string;
 }
 
 /** Data required to create a new segment */
@@ -54,6 +75,11 @@ async function apiFetch<T>(
     "Content-Type": "application/json",
     ...options.headers,
   };
+  
+  const token = getAuthToken();
+  if (token) {
+    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+  }
 
   try {
     const response = await fetch(url, { ...options, headers });
@@ -388,5 +414,248 @@ export async function reorderCheckpoint(
   return apiFetch<Checkpoint>(
     `/api/scrims/${scrimId}/segments/${segmentId}/checkpoints/${checkpointId}/reorder?new_order=${newOrder}`,
     { method: "PUT" }
+  );
+}
+
+// --- Auth API ---
+
+export async function registerUser(data: {
+  email: string;
+  username: string;
+  password: string;
+}): Promise<ApiResponse<TokenResponse>> {
+  return apiFetch<TokenResponse>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function loginUser(data: {
+  email: string;
+  password: string;
+}): Promise<ApiResponse<TokenResponse>> {
+  return apiFetch<TokenResponse>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchMe(): Promise<ApiResponse<User>> {
+  return apiFetch<User>("/api/auth/me");
+}
+
+export async function updateMe(data: {
+  username?: string;
+  avatar_url?: string;
+}): Promise<ApiResponse<User>> {
+  return apiFetch<User>("/api/auth/me", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getGoogleOAuthUrl(
+  redirectUri: string
+): Promise<ApiResponse<{ url: string }>> {
+  return apiFetch<{ url: string }>(
+    `/api/auth/oauth/google/url?redirect_uri=${encodeURIComponent(redirectUri)}`
+  );
+}
+
+export async function googleOAuthCallback(data: {
+  code: string;
+  redirect_uri: string;
+}): Promise<ApiResponse<TokenResponse>> {
+  return apiFetch<TokenResponse>("/api/auth/oauth/google", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+// --- Admin API ---
+
+export async function fetchUsers(): Promise<ApiResponse<User[]>> {
+  return apiFetch<User[]>("/api/admin/users");
+}
+
+export async function changeUserRole(
+  userId: string,
+  role: string
+): Promise<ApiResponse<User>> {
+  return apiFetch<User>(`/api/admin/users/${userId}/role?role=${role}`, {
+    method: "PUT",
+  });
+}
+
+export async function toggleUserActive(
+  userId: string,
+  isActive: boolean
+): Promise<ApiResponse<User>> {
+  return apiFetch<User>(
+    `/api/admin/users/${userId}/active?is_active=${isActive}`,
+    { method: "PUT" }
+  );
+}
+
+// --- Course Path API ---
+
+export async function fetchCoursePaths(): Promise<ApiResponse<CoursePath[]>> {
+  return apiFetch<CoursePath[]>("/api/paths/");
+}
+
+export async function fetchCoursePath(
+  id: string
+): Promise<ApiResponse<CoursePath>> {
+  return apiFetch<CoursePath>(`/api/paths/${id}`);
+}
+
+export async function createCoursePath(data: {
+  title: string;
+  description?: string;
+  slug?: string;
+  image_url?: string;
+  status?: string;
+}): Promise<ApiResponse<CoursePath>> {
+  return apiFetch<CoursePath>("/api/paths/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateCoursePath(
+  id: string,
+  data: {
+    title?: string;
+    description?: string;
+    slug?: string;
+    image_url?: string;
+    status?: string;
+  }
+): Promise<ApiResponse<CoursePath>> {
+  return apiFetch<CoursePath>(`/api/paths/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteCoursePath(
+  id: string
+): Promise<ApiResponse<void>> {
+  return apiFetch<void>(`/api/paths/${id}`, { method: "DELETE" });
+}
+
+// --- Course API ---
+
+export async function fetchCourses(
+  pathId: string
+): Promise<ApiResponse<Course[]>> {
+  return apiFetch<Course[]>(`/api/paths/${pathId}/courses/`);
+}
+
+export async function fetchCourse(
+  pathId: string,
+  courseId: string
+): Promise<ApiResponse<Course>> {
+  return apiFetch<Course>(`/api/paths/${pathId}/courses/${courseId}`);
+}
+
+export async function createCourse(
+  pathId: string,
+  data: {
+    title: string;
+    description?: string;
+    slug?: string;
+    status?: string;
+  }
+): Promise<ApiResponse<Course>> {
+  return apiFetch<Course>(`/api/paths/${pathId}/courses/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateCourse(
+  pathId: string,
+  courseId: string,
+  data: {
+    title?: string;
+    description?: string;
+    slug?: string;
+    status?: string;
+  }
+): Promise<ApiResponse<Course>> {
+  return apiFetch<Course>(`/api/paths/${pathId}/courses/${courseId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteCourse(
+  pathId: string,
+  courseId: string
+): Promise<ApiResponse<void>> {
+  return apiFetch<void>(`/api/paths/${pathId}/courses/${courseId}`, {
+    method: "DELETE",
+  });
+}
+
+// --- Section API ---
+
+export async function fetchSections(
+  courseId: string
+): Promise<ApiResponse<Section[]>> {
+  return apiFetch<Section[]>(`/api/courses/${courseId}/sections/`);
+}
+
+export async function fetchSection(
+  courseId: string,
+  sectionId: string
+): Promise<ApiResponse<Section>> {
+  return apiFetch<Section>(`/api/courses/${courseId}/sections/${sectionId}`);
+}
+
+export async function createSection(
+  courseId: string,
+  data: {
+    title: string;
+    description?: string;
+    order?: number;
+  }
+): Promise<ApiResponse<Section>> {
+  return apiFetch<Section>(`/api/courses/${courseId}/sections/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateSection(
+  courseId: string,
+  sectionId: string,
+  data: {
+    title?: string;
+    description?: string;
+  }
+): Promise<ApiResponse<Section>> {
+  return apiFetch<Section>(`/api/courses/${courseId}/sections/${sectionId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteSection(
+  courseId: string,
+  sectionId: string
+): Promise<ApiResponse<void>> {
+  return apiFetch<void>(`/api/courses/${courseId}/sections/${sectionId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchSectionScrims(
+  courseId: string,
+  sectionId: string
+): Promise<ApiResponse<Scrim[]>> {
+  return apiFetch<Scrim[]>(
+    `/api/courses/${courseId}/sections/${sectionId}/scrims`
   );
 }
