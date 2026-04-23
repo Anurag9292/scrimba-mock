@@ -1,7 +1,7 @@
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -55,12 +55,12 @@ def _parse_range(range_header: str, file_size: int) -> tuple[int, int]:
         return 0, file_size - 1
 
 
-@router.get("/video/{scrim_id}")
+@router.get("/video/{scrim_id}", response_model=None)
 async def get_video(
     scrim_id: uuid.UUID,
     request: Request,
     session: AsyncSession = Depends(get_session),
-) -> StreamingResponse | FileResponse:
+) -> Response:
     scrim = await session.get(Scrim, scrim_id)
     if scrim is None:
         raise HTTPException(status_code=404, detail="Scrim not found")
