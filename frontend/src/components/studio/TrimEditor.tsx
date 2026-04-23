@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import type { ScrimSegment } from "@/lib/types";
+import type { LessonSegment } from "@/lib/types";
 import { getSegmentVideoUrl, updateSegment } from "@/lib/api";
 
 interface TrimEditorProps {
-  segment: ScrimSegment;
-  scrimId: string;
-  onSave: (updatedSegment: ScrimSegment) => void;
+  segment: LessonSegment;
+  lessonId: string;
+  onSave: (updatedSegment: LessonSegment) => void;
   onClose: () => void;
 }
 
@@ -26,7 +26,7 @@ function snap(value: number, step: number): number {
 
 export default function TrimEditor({
   segment,
-  scrimId,
+  lessonId,
   onSave,
   onClose,
 }: TrimEditorProps) {
@@ -208,7 +208,7 @@ export default function TrimEditor({
   // Save trim values
   const handleSave = useCallback(async () => {
     setIsSaving(true);
-    const result = await updateSegment(scrimId, segment.id, {
+    const result = await updateSegment(lessonId, segment.id, {
       trim_start_ms: trimStart,
       trim_end_ms: trimEnd >= durationMs ? null : trimEnd,
     });
@@ -217,7 +217,7 @@ export default function TrimEditor({
     if (result.success && result.data) {
       onSave(result.data);
     }
-  }, [scrimId, segment.id, trimStart, trimEnd, durationMs, onSave]);
+  }, [lessonId, segment.id, trimStart, trimEnd, durationMs, onSave]);
 
   // Compute positions as percentages
   const startPct = durationMs > 0 ? (trimStart / durationMs) * 100 : 0;

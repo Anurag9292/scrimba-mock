@@ -3,15 +3,15 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Scrim, ScrimSegment } from "@/lib/types";
+import type { Lesson, LessonSegment } from "@/lib/types";
 import {
-  fetchScrims,
-  fetchScrim,
+  fetchLessons,
+  fetchLesson,
   fetchSegments,
-  deleteScrim,
+  deleteLesson,
   deleteSegment,
-  publishScrim,
-  updateScrim,
+  publishLesson,
+  updateLesson,
   reorderSegment,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
@@ -52,65 +52,65 @@ function formatDate(dateStr: string): string {
 
 type StudioView =
   | { type: "drafts" }
-  | { type: "segments"; scrimId: string; scrimTitle: string }
-  | { type: "recording"; scrimId: string | null; scrimTitle: string }
-  | { type: "rerecord"; scrimId: string; scrimTitle: string; segmentIndex: number; segmentId: string };
+  | { type: "segments"; lessonId: string; lessonTitle: string }
+  | { type: "recording"; lessonId: string | null; lessonTitle: string }
+  | { type: "rerecord"; lessonId: string; lessonTitle: string; segmentIndex: number; segmentId: string };
 
 export default function StudioPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sectionId = searchParams.get("sectionId");
-  const scrimIdParam = searchParams.get("scrimId");
+  const lessonIdParam = searchParams.get("lessonId");
   const { toast } = useToast();
   const [view, setView] = useState<StudioView>({ type: "drafts" });
-  const [drafts, setDrafts] = useState<Scrim[]>([]);
-  const [segments, setSegments] = useState<ScrimSegment[]>([]);
+  const [drafts, setDrafts] = useState<Lesson[]>([]);
+  const [segments, setSegments] = useState<LessonSegment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingTitle, setEditingTitle] = useState<string | null>(null);
   const [titleInput, setTitleInput] = useState("");
-  const [trimmingSegment, setTrimmingSegment] = useState<ScrimSegment | null>(null);
-  const [previewSegment, setPreviewSegment] = useState<ScrimSegment | null>(null);
-  const [checkpointSegment, setCheckpointSegment] = useState<ScrimSegment | null>(null);
+  const [trimmingSegment, setTrimmingSegment] = useState<LessonSegment | null>(null);
+  const [previewSegment, setPreviewSegment] = useState<LessonSegment | null>(null);
+  const [checkpointSegment, setCheckpointSegment] = useState<LessonSegment | null>(null);
 
-  // If a scrimId is provided in the URL, load that scrim directly into segments view
+  // If a lessonId is provided in the URL, load that lesson directly into segments view
   useEffect(() => {
-    if (!scrimIdParam) return;
+    if (!lessonIdParam) return;
     let cancelled = false;
 
-    async function loadScrimDirectly() {
+    async function loadLessonDirectly() {
       setIsLoading(true);
-      const result = await fetchScrim(scrimIdParam!);
+      const result = await fetchLesson(lessonIdParam!);
       if (cancelled) return;
       if (result.success && result.data) {
         setView({
           type: "segments",
-          scrimId: result.data.id,
-          scrimTitle: result.data.title,
+          lessonId: result.data.id,
+          lessonTitle: result.data.title,
         });
       } else {
-        toast(result.error?.message ?? "Failed to load scrim", "error");
+        toast(result.error?.message ?? "Failed to load lesson", "error");
         setIsLoading(false);
       }
     }
 
-    loadScrimDirectly();
+    loadLessonDirectly();
     return () => { cancelled = true; };
-  }, [scrimIdParam, toast]);
+  }, [lessonIdParam, toast]);
 
   // Load drafts
   const loadDrafts = useCallback(async () => {
     setIsLoading(true);
-    const result = await fetchScrims("draft");
+    const result = await fetchLessons("draft");
     if (result.success && result.data) {
       setDrafts(result.data);
     }
     setIsLoading(false);
   }, []);
 
-  // Load segments for a scrim
-  const loadSegments = useCallback(async (scrimId: string) => {
+  // Load segments for a lesson
+  const loadSegments = useCallback(async (lessonId: string) => {
     setIsLoading(true);
-    const result = await fetchSegments(scrimId);
+    const result = await fetchSegments(lessonId);
     if (result.success && result.data) {
       setSegments(result.data);
     }
@@ -118,38 +118,38 @@ export default function StudioPage() {
   }, []);
 
   useEffect(() => {
-    if (view.type === "drafts" && !scrimIdParam) {
+    if (view.type === "drafts" && !lessonIdParam) {
       loadDrafts();
     } else if (view.type === "segments") {
-      loadSegments(view.scrimId);
+      loadSegments(view.lessonId);
     }
-  }, [view, loadDrafts, loadSegments, scrimIdParam]);
+  }, [view, loadDrafts, loadSegments, lessonIdParam]);
 
   const handleNewRecording = useCallback(() => {
-    setView({ type: "recording", scrimId: null, scrimTitle: "New Scrim" });
+    setView({ type: "recording", lessonId: null, lessonTitle: "New Lesson" });
   }, []);
 
   const handleResumeDraft = useCallback(
-    (scrim: Scrim) => {
+    (lesson: Lesson) => {
       setView({
         type: "segments",
-        scrimId: scrim.id,
-        scrimTitle: scrim.title,
+        lessonId: lesson.id,
+        lessonTitle: lesson.title,
       });
     },
     []
   );
 
   const handleAddSegment = useCallback(
-    (scrimId: string, scrimTitle: string) => {
-      setView({ type: "recording", scrimId, scrimTitle });
+    (lessonId: string, lessonTitle: string) => {
+      setView({ type: "recording", lessonId, lessonTitle });
     },
     []
   );
 
   const handleSegmentSaved = useCallback(
-    (scrimId: string, scrimTitle: string) => {
-      setView({ type: "segments", scrimId, scrimTitle });
+    (lessonId: string, lessonTitle: string) => {
+      setView({ type: "segments", lessonId, lessonTitle });
     },
     []
   );
@@ -157,7 +157,7 @@ export default function StudioPage() {
   const handleDeleteDraft = useCallback(
     async (id: string, title: string) => {
       if (!confirm(`Delete draft "${title}"? This cannot be undone.`)) return;
-      const result = await deleteScrim(id);
+      const result = await deleteLesson(id);
       if (result.success) {
         setDrafts((prev) => prev.filter((d) => d.id !== id));
         toast("Draft deleted", "success");
@@ -169,9 +169,9 @@ export default function StudioPage() {
   );
 
   const handleDeleteSegment = useCallback(
-    async (scrimId: string, segmentId: string) => {
+    async (lessonId: string, segmentId: string) => {
       if (!confirm("Delete this segment? This cannot be undone.")) return;
-      const result = await deleteSegment(scrimId, segmentId);
+      const result = await deleteSegment(lessonId, segmentId);
       if (result.success) {
         setSegments((prev) => prev.filter((s) => s.id !== segmentId));
         toast("Segment deleted", "success");
@@ -183,11 +183,11 @@ export default function StudioPage() {
   );
 
   const handlePublish = useCallback(
-    async (scrimId: string) => {
-      const result = await publishScrim(scrimId);
+    async (lessonId: string) => {
+      const result = await publishLesson(lessonId);
       if (result.success) {
-        toast("Scrim published!", "success");
-        router.push(`/play/${scrimId}`);
+        toast("Lesson published!", "success");
+        router.push(`/play/${lessonId}`);
       } else {
         toast(result.error?.message ?? "Failed to publish", "error");
       }
@@ -196,19 +196,19 @@ export default function StudioPage() {
   );
 
   const handleSaveTitle = useCallback(
-    async (scrimId: string) => {
+    async (lessonId: string) => {
       const trimmed = titleInput.trim();
       if (!trimmed) {
         setEditingTitle(null);
         return;
       }
-      const result = await updateScrim(scrimId, { title: trimmed });
+      const result = await updateLesson(lessonId, { title: trimmed });
       if (result.success) {
         setDrafts((prev) =>
-          prev.map((d) => (d.id === scrimId ? { ...d, title: trimmed } : d))
+          prev.map((d) => (d.id === lessonId ? { ...d, title: trimmed } : d))
         );
         if (view.type === "segments") {
-          setView({ ...view, scrimTitle: trimmed });
+          setView({ ...view, lessonTitle: trimmed });
         }
         toast("Title updated", "success");
       }
@@ -218,33 +218,33 @@ export default function StudioPage() {
   );
 
   const handleBack = useCallback(() => {
-    if (view.type === "recording" && view.scrimId) {
+    if (view.type === "recording" && view.lessonId) {
       setView({
         type: "segments",
-        scrimId: view.scrimId,
-        scrimTitle: view.scrimTitle,
+        lessonId: view.lessonId,
+        lessonTitle: view.lessonTitle,
       });
     } else if (view.type === "rerecord") {
       setView({
         type: "segments",
-        scrimId: view.scrimId,
-        scrimTitle: view.scrimTitle,
+        lessonId: view.lessonId,
+        lessonTitle: view.lessonTitle,
       });
-    } else if (scrimIdParam) {
-      // Came from creator dashboard via ?scrimId=... — go back in history
+    } else if (lessonIdParam) {
+      // Came from creator dashboard via ?lessonId=... — go back in history
       router.back();
     } else {
       setView({ type: "drafts" });
     }
-  }, [view, scrimIdParam, router]);
+  }, [view, lessonIdParam, router]);
 
   // --- Reorder handler ---
   const handleReorder = useCallback(
     async (segmentId: string, newOrder: number) => {
       if (view.type !== "segments") return;
-      const result = await reorderSegment(view.scrimId, segmentId, newOrder);
+      const result = await reorderSegment(view.lessonId, segmentId, newOrder);
       if (result.success) {
-        await loadSegments(view.scrimId);
+        await loadSegments(view.lessonId);
       } else {
         toast(result.error?.message ?? "Failed to reorder segment", "error");
       }
@@ -253,26 +253,26 @@ export default function StudioPage() {
   );
 
   // --- Preview handler ---
-  const handlePreview = useCallback((segment: ScrimSegment) => {
+  const handlePreview = useCallback((segment: LessonSegment) => {
     setPreviewSegment(segment);
     setCheckpointSegment(null);
   }, []);
 
   // --- Checkpoint handler ---
-  const handleCheckpoints = useCallback((segment: ScrimSegment) => {
+  const handleCheckpoints = useCallback((segment: LessonSegment) => {
     setCheckpointSegment(segment);
     setTrimmingSegment(null);
     setPreviewSegment(null);
   }, []);
 
   // --- Trim handler ---
-  const handleTrim = useCallback((segment: ScrimSegment) => {
+  const handleTrim = useCallback((segment: LessonSegment) => {
     setTrimmingSegment(segment);
     setCheckpointSegment(null);
   }, []);
 
   // --- Trim save handler ---
-  const handleTrimSave = useCallback((updatedSegment: ScrimSegment) => {
+  const handleTrimSave = useCallback((updatedSegment: LessonSegment) => {
     setSegments((prev) =>
       prev.map((s) => (s.id === updatedSegment.id ? updatedSegment : s))
     );
@@ -281,14 +281,14 @@ export default function StudioPage() {
 
   // --- Re-record handler ---
   const handleReRecord = useCallback(
-    (segment: ScrimSegment) => {
+    (segment: LessonSegment) => {
       if (view.type !== "segments") return;
       const segmentIndex = segments.findIndex((s) => s.id === segment.id);
       if (segmentIndex === -1) return;
       setView({
         type: "rerecord",
-        scrimId: view.scrimId,
-        scrimTitle: view.scrimTitle,
+        lessonId: view.lessonId,
+        lessonTitle: view.lessonTitle,
         segmentIndex,
         segmentId: segment.id,
       });
@@ -306,16 +306,16 @@ export default function StudioPage() {
 
     return (
       <SegmentRecorder
-        scrimId={view.scrimId}
+        lessonId={view.lessonId}
         onBack={handleBack}
         initialFilesOverride={rerecordInitialFiles}
         sectionId={sectionId}
-        onSegmentSaved={async (scrimId) => {
+        onSegmentSaved={async (lessonId) => {
           // Delete the old segment being replaced
-          await deleteSegment(scrimId, view.segmentId);
+          await deleteSegment(lessonId, view.segmentId);
 
           // Fetch the updated segments list
-          const result = await fetchSegments(scrimId);
+          const result = await fetchSegments(lessonId);
           if (result.success && result.data) {
             // The newly created segment will be at the end (highest order)
             const newSegments = result.data;
@@ -323,15 +323,15 @@ export default function StudioPage() {
 
             if (newSegment) {
               // Reorder the new segment to the correct position
-              await reorderSegment(scrimId, newSegment.id, view.segmentIndex);
+              await reorderSegment(lessonId, newSegment.id, view.segmentIndex);
             }
           }
 
           // Switch back to segments view
           setView({
             type: "segments",
-            scrimId,
-            scrimTitle: view.scrimTitle,
+            lessonId,
+            lessonTitle: view.lessonTitle,
           });
         }}
       />
@@ -342,11 +342,11 @@ export default function StudioPage() {
   if (view.type === "recording") {
     return (
       <SegmentRecorder
-        scrimId={view.scrimId}
+        lessonId={view.lessonId}
         onBack={handleBack}
         sectionId={sectionId}
-        onSegmentSaved={(scrimId) =>
-          handleSegmentSaved(scrimId, view.scrimTitle)
+        onSegmentSaved={(lessonId) =>
+          handleSegmentSaved(lessonId, view.lessonTitle)
         }
       />
     );
@@ -383,14 +383,14 @@ export default function StudioPage() {
               Back
             </button>
             <div className="h-5 w-px bg-gray-800" />
-            {editingTitle === view.scrimId ? (
+            {editingTitle === view.lessonId ? (
               <input
                 type="text"
                 value={titleInput}
                 onChange={(e) => setTitleInput(e.target.value)}
-                onBlur={() => handleSaveTitle(view.scrimId)}
+                onBlur={() => handleSaveTitle(view.lessonId)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSaveTitle(view.scrimId);
+                  if (e.key === "Enter") handleSaveTitle(view.lessonId);
                   if (e.key === "Escape") setEditingTitle(null);
                 }}
                 autoFocus
@@ -400,12 +400,12 @@ export default function StudioPage() {
               <h1
                 className="cursor-pointer text-sm font-semibold text-white hover:text-brand-300"
                 onDoubleClick={() => {
-                  setEditingTitle(view.scrimId);
-                  setTitleInput(view.scrimTitle);
+                  setEditingTitle(view.lessonId);
+                  setTitleInput(view.lessonTitle);
                 }}
                 title="Double-click to rename"
               >
-                {view.scrimTitle}
+                {view.lessonTitle}
               </h1>
             )}
             <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400 ring-1 ring-amber-500/20">
@@ -421,7 +421,7 @@ export default function StudioPage() {
             <button
               type="button"
               onClick={() =>
-                handleAddSegment(view.scrimId, view.scrimTitle)
+                handleAddSegment(view.lessonId, view.lessonTitle)
               }
               className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white"
             >
@@ -437,7 +437,7 @@ export default function StudioPage() {
             </button>
             <button
               type="button"
-              onClick={() => handlePublish(view.scrimId)}
+              onClick={() => handlePublish(view.lessonId)}
               disabled={segments.length === 0}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white transition-all hover:bg-brand-500 hover:shadow-lg hover:shadow-brand-600/25 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -482,12 +482,12 @@ export default function StudioPage() {
               </div>
               <p className="text-sm text-gray-400">No segments yet</p>
               <p className="mt-1 text-xs text-gray-600">
-                Record your first segment for this scrim
+                Record your first segment for this lesson
               </p>
               <button
                 type="button"
                 onClick={() =>
-                  handleAddSegment(view.scrimId, view.scrimTitle)
+                  handleAddSegment(view.lessonId, view.lessonTitle)
                 }
                 className="mt-5 inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-red-500"
               >
@@ -510,7 +510,7 @@ export default function StudioPage() {
                 onTrim={handleTrim}
                 onReRecord={handleReRecord}
                 onDelete={(segmentId) =>
-                  handleDeleteSegment(view.scrimId, segmentId)
+                  handleDeleteSegment(view.lessonId, segmentId)
                 }
                 onPreview={handlePreview}
                 onCheckpoints={handleCheckpoints}
@@ -519,7 +519,7 @@ export default function StudioPage() {
               {trimmingSegment && (
                 <TrimEditor
                   segment={trimmingSegment}
-                  scrimId={view.scrimId}
+                  lessonId={view.lessonId}
                   onSave={handleTrimSave}
                   onClose={() => setTrimmingSegment(null)}
                 />
@@ -535,7 +535,7 @@ export default function StudioPage() {
               {checkpointSegment && !trimmingSegment && (
                 <CheckpointEditor
                   segment={checkpointSegment}
-                  scrimId={view.scrimId}
+                  lessonId={view.lessonId}
                   onClose={() => setCheckpointSegment(null)}
                 />
               )}

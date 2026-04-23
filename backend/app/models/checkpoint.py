@@ -13,7 +13,7 @@ class Checkpoint(SQLModel, table=True):
     segment_id: uuid.UUID = Field(
         sa_column=Column(
             "segment_id",
-            ForeignKey("scrim_segments.id", ondelete="CASCADE"),
+            ForeignKey("lesson_segments.id", ondelete="CASCADE"),
             nullable=False,
         )
     )

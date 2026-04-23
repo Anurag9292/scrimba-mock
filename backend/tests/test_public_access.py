@@ -3,7 +3,7 @@ from tests.conftest import auth_headers
 
 
 async def _setup_hierarchy(client, token):
-    """Create a full path > course > section > scrim hierarchy and return all IDs."""
+    """Create a full path > course > section > lesson hierarchy and return all IDs."""
     # Create path
     resp = await client.post("/api/paths/", json={"title": "Public Path", "status": "published"}, headers=auth_headers(token))
     assert resp.status_code == 201
@@ -19,17 +19,17 @@ async def _setup_hierarchy(client, token):
     assert resp.status_code == 201
     section = resp.json()
 
-    # Create published scrim in section
-    resp = await client.post("/api/scrims/", json={"title": "Public Scrim", "status": "published", "section_id": section["id"]}, headers=auth_headers(token))
+    # Create published lesson in section
+    resp = await client.post("/api/lessons/", json={"title": "Public Lesson", "status": "published", "section_id": section["id"]}, headers=auth_headers(token))
     assert resp.status_code == 201
-    scrim = resp.json()
+    lesson = resp.json()
 
-    # Create draft scrim (should not be visible to anonymous)
-    resp = await client.post("/api/scrims/", json={"title": "Draft Scrim", "status": "draft"}, headers=auth_headers(token))
+    # Create draft lesson (should not be visible to anonymous)
+    resp = await client.post("/api/lessons/", json={"title": "Draft Lesson", "status": "draft"}, headers=auth_headers(token))
     assert resp.status_code == 201
-    draft_scrim = resp.json()
+    draft_lesson = resp.json()
 
-    return {"path": path, "course": course, "section": section, "scrim": scrim, "draft_scrim": draft_scrim}
+    return {"path": path, "course": course, "section": section, "lesson": lesson, "draft_lesson": draft_lesson}
 
 
 class TestAnonymousPathAccess:
@@ -96,42 +96,42 @@ class TestAnonymousSectionAccess:
         assert resp.status_code == 200
         assert len(resp.json()) >= 1
 
-    async def test_list_section_scrims(self, client, creator_user):
+    async def test_list_section_lessons(self, client, creator_user):
         _, token = creator_user
         data = await _setup_hierarchy(client, token)
-        resp = await client.get(f"/api/courses/{data['course']['id']}/sections/{data['section']['id']}/scrims")
+        resp = await client.get(f"/api/courses/{data['course']['id']}/sections/{data['section']['id']}/lessons")
         assert resp.status_code == 200
         assert len(resp.json()) >= 1
 
 
-class TestAnonymousScrimAccess:
-    async def test_list_published_scrims(self, client, creator_user):
+class TestAnonymousLessonAccess:
+    async def test_list_published_lessons(self, client, creator_user):
         _, token = creator_user
         data = await _setup_hierarchy(client, token)
-        resp = await client.get("/api/scrims/")
+        resp = await client.get("/api/lessons/")
         assert resp.status_code == 200
-        scrims = resp.json()
+        lessons = resp.json()
         # All should be published
-        assert all(s["status"] == "published" for s in scrims)
+        assert all(s["status"] == "published" for s in lessons)
 
-    async def test_get_published_scrim(self, client, creator_user):
+    async def test_get_published_lesson(self, client, creator_user):
         _, token = creator_user
         data = await _setup_hierarchy(client, token)
-        resp = await client.get(f"/api/scrims/{data['scrim']['id']}")
+        resp = await client.get(f"/api/lessons/{data['lesson']['id']}")
         assert resp.status_code == 200
 
-    async def test_get_draft_scrim_anonymous_404(self, client, creator_user):
+    async def test_get_draft_lesson_anonymous_404(self, client, creator_user):
         _, token = creator_user
         data = await _setup_hierarchy(client, token)
-        resp = await client.get(f"/api/scrims/{data['draft_scrim']['id']}")
+        resp = await client.get(f"/api/lessons/{data['draft_lesson']['id']}")
         assert resp.status_code == 404
 
-    async def test_anonymous_cannot_create_scrim(self, client, test_db):
-        resp = await client.post("/api/scrims/", json={"title": "Hack"})
+    async def test_anonymous_cannot_create_lesson(self, client, test_db):
+        resp = await client.post("/api/lessons/", json={"title": "Hack"})
         assert resp.status_code == 401
 
-    async def test_anonymous_cannot_delete_scrim(self, client, creator_user):
+    async def test_anonymous_cannot_delete_lesson(self, client, creator_user):
         _, token = creator_user
         data = await _setup_hierarchy(client, token)
-        resp = await client.delete(f"/api/scrims/{data['scrim']['id']}")
+        resp = await client.delete(f"/api/lessons/{data['lesson']['id']}")
         assert resp.status_code == 401

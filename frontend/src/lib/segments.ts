@@ -1,4 +1,4 @@
-import type { FileMap, CodeEvent, CursorPosition, ScrimSegment } from "./types";
+import type { FileMap, CodeEvent, CursorPosition, LessonSegment } from "./types";
 
 /** Convert a Monaco 1-based line/column position to a 0-based string offset */
 export function positionToOffset(content: string, pos: CursorPosition): number {
@@ -126,7 +126,7 @@ export function findEventIndex(events: CodeEvent[], timeMs: number): number {
 }
 
 /** Compute the effective duration of a segment (accounting for trim) */
-export function segmentEffectiveDuration(seg: ScrimSegment): number {
+export function segmentEffectiveDuration(seg: LessonSegment): number {
   const end = seg.trim_end_ms ?? seg.duration_ms;
   return Math.max(0, end - seg.trim_start_ms);
 }
@@ -136,7 +136,7 @@ export function segmentEffectiveDuration(seg: ScrimSegment): number {
  * and the local time within that segment.
  */
 export function globalToSegmentTime(
-  segments: ScrimSegment[],
+  segments: LessonSegment[],
   globalTimeMs: number
 ): { segmentIndex: number; localTimeMs: number } {
   let accumulated = 0;
@@ -166,7 +166,7 @@ export function globalToSegmentTime(
  * Only replays events whose timestamps fall within [trim_start_ms, trim_end_ms].
  * If no trim bounds are set, replays all events.
  */
-export function computeFinalFiles(segment: ScrimSegment): FileMap {
+export function computeFinalFiles(segment: LessonSegment): FileMap {
   const trimEnd = segment.trim_end_ms ?? segment.duration_ms;
   const sorted = [...segment.code_events].sort(
     (a, b) => a.timestamp - b.timestamp
@@ -185,7 +185,7 @@ export function computeFinalFiles(segment: ScrimSegment): FileMap {
 }
 
 /** Precompute global start offsets for each segment */
-export function computeSegmentOffsets(segments: ScrimSegment[]): number[] {
+export function computeSegmentOffsets(segments: LessonSegment[]): number[] {
   const offsets: number[] = [];
   let accumulated = 0;
   for (const seg of segments) {

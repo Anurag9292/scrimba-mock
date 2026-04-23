@@ -214,25 +214,25 @@ class TestSections:
         assert resp.status_code == 200
         assert resp.json()["order"] == 0
 
-    async def test_list_section_scrims(self, client, creator_user):
+    async def test_list_section_lessons(self, client, creator_user):
         _, token = creator_user
         path = await _create_path(client, token)
         course = await _create_course(client, token, path["id"])
         section = await _create_section(client, token, course["id"])
 
-        # Create a scrim with section_id
-        resp = await client.post("/api/scrims/", json={
-            "title": "Scrim in section",
+        # Create a lesson with section_id
+        resp = await client.post("/api/lessons/", json={
+            "title": "Lesson in section",
             "section_id": section["id"],
         }, headers=auth_headers(token))
         assert resp.status_code == 201
 
-        # List scrims in the section
+        # List lessons in the section
         resp = await client.get(
-            f"/api/courses/{course['id']}/sections/{section['id']}/scrims",
+            f"/api/courses/{course['id']}/sections/{section['id']}/lessons",
             headers=auth_headers(token),
         )
         assert resp.status_code == 200
-        scrims = resp.json()
-        assert len(scrims) == 1
-        assert scrims[0]["title"] == "Scrim in section"
+        lessons = resp.json()
+        assert len(lessons) == 1
+        assert lessons[0]["title"] == "Lesson in section"

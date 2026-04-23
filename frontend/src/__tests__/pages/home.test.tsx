@@ -18,9 +18,9 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-// Mock ScrimList to avoid API calls in unit tests
-vi.mock("@/components/scrim/ScrimList", () => ({
-  default: () => <div data-testid="scrim-list">Scrim list placeholder</div>,
+// Mock LessonList to avoid API calls in unit tests
+vi.mock("@/components/lesson/LessonList", () => ({
+  default: () => <div data-testid="lesson-list">Lesson list placeholder</div>,
 }));
 
 // Mock AuthNav to avoid requiring AuthProvider in unit tests
@@ -63,10 +63,10 @@ describe("HomePage", () => {
     expect(startRecordingLink).toHaveAttribute("href", "/record");
   });
 
-  it("has a Browse Scrims button linking to #scrims", () => {
+  it("has a Browse Lessons button linking to #lessons", () => {
     render(<HomePage />);
-    const browseScrimsLink = screen.getByText("Browse Scrims").closest("a");
-    expect(browseScrimsLink).toHaveAttribute("href", "#scrims");
+    const browseLessonsLink = screen.getByText("Browse Lessons").closest("a");
+    expect(browseLessonsLink).toHaveAttribute("href", "#lessons");
   });
 
   it("renders feature cards", () => {

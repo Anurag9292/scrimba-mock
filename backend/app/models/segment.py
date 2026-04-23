@@ -6,11 +6,11 @@ from sqlalchemy import Column, DateTime, ForeignKey, JSON
 from sqlmodel import SQLModel, Field
 
 
-class ScrimSegment(SQLModel, table=True):
-    __tablename__ = "scrim_segments"
+class LessonSegment(SQLModel, table=True):
+    __tablename__ = "lesson_segments"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    scrim_id: uuid.UUID = Field(sa_column_kwargs={"nullable": False}, foreign_key="scrims.id")
+    lesson_id: uuid.UUID = Field(sa_column_kwargs={"nullable": False}, foreign_key="lessons.id")
     order: int = Field(default=0)
     video_filename: str | None = Field(default=None)
     code_events: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, default=[]))
@@ -46,7 +46,7 @@ class SegmentUpdate(BaseModel):
 
 class SegmentRead(BaseModel):
     id: uuid.UUID
-    scrim_id: uuid.UUID
+    lesson_id: uuid.UUID
     order: int
     video_filename: str | None
     code_events: list

@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db.database import get_session
-from app.models.scrim import Scrim
-from app.models.segment import ScrimSegment
+from app.models.lesson import Lesson
+from app.models.segment import LessonSegment
 from app.storage.file_storage import FileStorage
 from app.api.auth_deps import get_current_user, require_role
 from app.models.user import User
@@ -18,28 +18,28 @@ router = APIRouter(prefix="/api/upload", tags=["upload"])
 storage = FileStorage(settings.UPLOAD_DIR)
 
 
-@router.post("/video/{scrim_id}")
+@router.post("/video/{lesson_id}")
 async def upload_video(
-    scrim_id: uuid.UUID,
+    lesson_id: uuid.UUID,
     file: UploadFile,
     session: AsyncSession = Depends(get_session),
     user: User = Depends(require_role("creator", "admin")),
 ) -> dict:
-    scrim = await session.get(Scrim, scrim_id)
-    if scrim is None:
-        raise HTTPException(status_code=404, detail="Scrim not found")
+    lesson = await session.get(Lesson, lesson_id)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
 
     content = await file.read()
     if len(content) > settings.MAX_UPLOAD_SIZE:
         raise HTTPException(status_code=413, detail="File too large")
 
-    filename = f"{scrim_id}.webm"
+    filename = f"{lesson_id}.webm"
     path = await storage.save_file(filename, content)
 
-    scrim.video_filename = filename
-    session.add(scrim)
+    lesson.video_filename = filename
+    session.add(lesson)
     await session.commit()
-    await session.refresh(scrim)
+    await session.refresh(lesson)
 
     return {"filename": filename, "path": path}
 
@@ -97,20 +97,20 @@ def _serve_video(file_path: str, range_header: str | None) -> Response:
     )
 
 
-@router.get("/video/{scrim_id}", response_model=None)
+@router.get("/video/{lesson_id}", response_model=None)
 async def get_video(
-    scrim_id: uuid.UUID,
+    lesson_id: uuid.UUID,
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> Response:
-    scrim = await session.get(Scrim, scrim_id)
-    if scrim is None:
-        raise HTTPException(status_code=404, detail="Scrim not found")
+    lesson = await session.get(Lesson, lesson_id)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
 
-    if scrim.video_filename is None:
-        raise HTTPException(status_code=404, detail="No video uploaded for this scrim")
+    if lesson.video_filename is None:
+        raise HTTPException(status_code=404, detail="No video uploaded for this lesson")
 
-    file_path = await storage.get_file_path(scrim.video_filename)
+    file_path = await storage.get_file_path(lesson.video_filename)
     if file_path is None:
         raise HTTPException(status_code=404, detail="Video file not found on disk")
 
@@ -127,7 +127,7 @@ async def upload_segment_video(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(require_role("creator", "admin")),
 ) -> dict:
-    segment = await session.get(ScrimSegment, segment_id)
+    segment = await session.get(LessonSegment, segment_id)
     if segment is None:
         raise HTTPException(status_code=404, detail="Segment not found")
 
@@ -152,7 +152,7 @@ async def get_segment_video(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> Response:
-    segment = await session.get(ScrimSegment, segment_id)
+    segment = await session.get(LessonSegment, segment_id)
     if segment is None:
         raise HTTPException(status_code=404, detail="Segment not found")
 

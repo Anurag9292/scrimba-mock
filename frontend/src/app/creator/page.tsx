@@ -31,7 +31,7 @@ export default function CreatorDashboard() {
   }, [loadPaths]);
 
   const handleDelete = async (path: CoursePath) => {
-    if (!confirm(`Delete "${path.title}"? This will delete all courses, sections, and scrims within it.`)) {
+    if (!confirm(`Delete "${path.title}"? This will delete all courses, sections, and lessons within it.`)) {
       return;
     }
     const resp = await deleteCoursePath(path.id);

@@ -5,7 +5,7 @@ import type { editor } from "monaco-editor";
 import EditorWithPreview from "@/components/editor/EditorWithPreview";
 import CameraPreview from "@/components/recording/CameraPreview";
 import { useSegmentRecorder } from "@/hooks/useSegmentRecorder";
-import type { RecordingStatus, FileMap, ScrimSegment } from "@/lib/types";
+import type { RecordingStatus, FileMap, LessonSegment } from "@/lib/types";
 import { fetchSegments } from "@/lib/api";
 import { computeFinalFiles } from "@/lib/segments";
 
@@ -48,20 +48,20 @@ function StatusBadge({
 }
 
 interface SegmentRecorderProps {
-  /** The scrim ID to add segments to (null = will create a new draft) */
-  scrimId: string | null;
+  /** The lesson ID to add segments to (null = will create a new draft) */
+  lessonId: string | null;
   /** Called when user clicks back */
   onBack: () => void;
   /** Called after a segment is saved successfully */
-  onSegmentSaved: (scrimId: string) => void;
+  onSegmentSaved: (lessonId: string) => void;
   /** If provided, use these files instead of loading from last segment */
   initialFilesOverride?: FileMap;
-  /** Optional section ID to associate with a newly created scrim */
+  /** Optional section ID to associate with a newly created lesson */
   sectionId?: string | null;
 }
 
 export default function SegmentRecorder({
-  scrimId,
+  lessonId,
   onBack,
   onSegmentSaved,
   initialFilesOverride,
@@ -72,15 +72,15 @@ export default function SegmentRecorder({
   const filesRef = useRef<Record<string, string>>({});
   const [isInitialized, setIsInitialized] = useState(false);
   const [initialFiles, setInitialFiles] = useState<FileMap | null>(null);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(!!scrimId);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(!!lessonId);
 
-  // Set the scrim ID if we have one
+  // Set the lesson ID if we have one
   useEffect(() => {
-    if (scrimId) {
-      recorder.setScrimId(scrimId);
+    if (lessonId) {
+      recorder.setLessonId(lessonId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrimId]);
+  }, [lessonId]);
 
   // Load the final file state from the last segment (if resuming a draft)
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function SegmentRecorder({
       return;
     }
 
-    if (!scrimId) {
+    if (!lessonId) {
       setIsLoadingFiles(false);
       return;
     }
@@ -100,7 +100,7 @@ export default function SegmentRecorder({
 
     async function loadLastSegmentFiles() {
       setIsLoadingFiles(true);
-      const result = await fetchSegments(scrimId!);
+      const result = await fetchSegments(lessonId!);
       if (cancelled) return;
 
       if (result.success && result.data && result.data.length > 0) {
@@ -116,7 +116,7 @@ export default function SegmentRecorder({
     return () => {
       cancelled = true;
     };
-  }, [scrimId, initialFilesOverride]);
+  }, [lessonId, initialFilesOverride]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -193,7 +193,7 @@ export default function SegmentRecorder({
       // Stop recording
       const result = await recorder.stopRecording(filesRef.current);
       if (result) {
-        onSegmentSaved(result.scrimId);
+        onSegmentSaved(result.lessonId);
       }
     }
   }, [recorder, isInitialized, onSegmentSaved]);
@@ -250,7 +250,7 @@ export default function SegmentRecorder({
           <h1 className="text-sm font-semibold text-white">
             Record Segment
           </h1>
-          {scrimId && (
+          {lessonId && (
             <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400 ring-1 ring-amber-500/20">
               Adding to draft
             </span>

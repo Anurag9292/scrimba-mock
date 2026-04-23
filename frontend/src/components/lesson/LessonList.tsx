@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import type { Scrim } from "@/lib/types";
-import { fetchScrims, deleteScrim, updateScrim } from "@/lib/api";
+import type { Lesson } from "@/lib/types";
+import { fetchLessons, deleteLesson, updateLesson } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 
 /** Format milliseconds to a human-readable duration */
@@ -35,8 +35,8 @@ function formatDate(dateStr: string): string {
   });
 }
 
-export default function ScrimList() {
-  const [scrims, setScrims] = useState<Scrim[]>([]);
+export default function LessonList() {
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -46,43 +46,43 @@ export default function ScrimList() {
   const [editTitle, setEditTitle] = useState("");
   const editInputRef = useRef<HTMLInputElement>(null);
 
-  const loadScrims = useCallback(async () => {
+  const loadLessons = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    const result = await fetchScrims("published", { standalone: true });
+    const result = await fetchLessons("published", { standalone: true });
     if (result.success && result.data) {
-      // Double-filter: exclude scrims belonging to a course section
-      setScrims(result.data.filter((s) => !s.section_id));
+      // Double-filter: exclude lessons belonging to a course section
+      setLessons(result.data.filter((s) => !s.section_id));
     } else {
-      setError(result.error?.message ?? "Failed to load scrims");
+      setError(result.error?.message ?? "Failed to load lessons");
     }
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    loadScrims();
-  }, [loadScrims]);
+    loadLessons();
+  }, [loadLessons]);
 
   const handleDelete = useCallback(
     async (id: string, title: string) => {
       if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
 
       setDeletingId(id);
-      const result = await deleteScrim(id);
+      const result = await deleteLesson(id);
       if (result.success) {
-        setScrims((prev) => prev.filter((s) => s.id !== id));
-        toast("Scrim deleted", "success");
+        setLessons((prev) => prev.filter((s) => s.id !== id));
+        toast("Lesson deleted", "success");
       } else {
-        toast(result.error?.message ?? "Failed to delete scrim", "error");
+        toast(result.error?.message ?? "Failed to delete lesson", "error");
       }
       setDeletingId(null);
     },
     []
   );
 
-  const startEditing = useCallback((scrim: Scrim) => {
-    setEditingId(scrim.id);
-    setEditTitle(scrim.title);
+  const startEditing = useCallback((lesson: Lesson) => {
+    setEditingId(lesson.id);
+    setEditTitle(lesson.title);
     // Focus the input after render
     setTimeout(() => editInputRef.current?.focus(), 0);
   }, []);
@@ -94,9 +94,9 @@ export default function ScrimList() {
         setEditingId(null);
         return;
       }
-      const result = await updateScrim(id, { title: trimmed });
+      const result = await updateLesson(id, { title: trimmed });
       if (result.success && result.data) {
-        setScrims((prev) =>
+        setLessons((prev) =>
           prev.map((s) => (s.id === id ? { ...s, title: trimmed } : s))
         );
         toast("Title updated", "success");
@@ -114,7 +114,7 @@ export default function ScrimList() {
       <div className="flex items-center justify-center py-16">
         <div className="flex flex-col items-center gap-3">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-600 border-t-gray-300" />
-          <span className="text-sm text-gray-500">Loading scrims...</span>
+          <span className="text-sm text-gray-500">Loading lessons...</span>
         </div>
       </div>
     );
@@ -127,7 +127,7 @@ export default function ScrimList() {
         <p className="text-sm text-red-400">{error}</p>
         <button
           type="button"
-          onClick={loadScrims}
+          onClick={loadLessons}
           className="mt-3 text-sm text-gray-400 underline hover:text-white"
         >
           Try again
@@ -137,7 +137,7 @@ export default function ScrimList() {
   }
 
   // Empty state
-  if (scrims.length === 0) {
+  if (lessons.length === 0) {
     return (
       <div className="rounded-xl border border-gray-800/60 bg-gray-900/30 p-12 text-center">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900">
@@ -156,7 +156,7 @@ export default function ScrimList() {
             />
           </svg>
         </div>
-        <p className="text-sm text-gray-400">No scrims yet</p>
+        <p className="text-sm text-gray-400">No lessons yet</p>
         <p className="mt-1 text-xs text-gray-600">
           Record your first interactive coding session
         </p>
@@ -178,19 +178,19 @@ export default function ScrimList() {
     );
   }
 
-  // Filter scrims by search query
-  const filteredScrims = searchQuery.trim()
-    ? scrims.filter((s) =>
+  // Filter lessons by search query
+  const filteredLessons = searchQuery.trim()
+    ? lessons.filter((s) =>
         s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         s.language.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : scrims;
+    : lessons;
 
-  // Scrim list
+  // Lesson list
   return (
     <div className="space-y-3">
       {/* Search bar */}
-      {scrims.length > 1 && (
+      {lessons.length > 1 && (
         <div className="relative">
           <svg
             className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
@@ -206,7 +206,7 @@ export default function ScrimList() {
           </svg>
           <input
             type="text"
-            placeholder="Search scrims..."
+            placeholder="Search lessons..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full rounded-lg border border-gray-800 bg-gray-900/50 py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-brand-500/50 focus:bg-gray-900"
@@ -225,22 +225,22 @@ export default function ScrimList() {
       )}
 
       {/* No results */}
-      {filteredScrims.length === 0 && searchQuery && (
+      {filteredLessons.length === 0 && searchQuery && (
         <div className="py-8 text-center">
           <p className="text-sm text-gray-500">
-            No scrims matching &ldquo;{searchQuery}&rdquo;
+            No lessons matching &ldquo;{searchQuery}&rdquo;
           </p>
         </div>
       )}
 
-      {filteredScrims.map((scrim) => (
+      {filteredLessons.map((lesson) => (
         <div
-          key={scrim.id}
+          key={lesson.id}
           className="group flex items-center gap-4 rounded-xl border border-gray-800/60 bg-gray-900/30 p-4 transition-all hover:border-gray-700/60 hover:bg-gray-900/50"
         >
           {/* Play icon */}
           <Link
-            href={`/play/${scrim.id}`}
+            href={`/play/${lesson.id}`}
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-400 ring-1 ring-brand-500/20 transition-colors group-hover:bg-brand-500/15"
           >
             <svg
@@ -255,43 +255,43 @@ export default function ScrimList() {
 
           {/* Info */}
           <div className="flex-1 min-w-0">
-            {editingId === scrim.id ? (
+            {editingId === lesson.id ? (
               <input
                 ref={editInputRef}
                 type="text"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                onBlur={() => saveTitle(scrim.id)}
+                onBlur={() => saveTitle(lesson.id)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") saveTitle(scrim.id);
+                  if (e.key === "Enter") saveTitle(lesson.id);
                   if (e.key === "Escape") setEditingId(null);
                 }}
                 className="w-full rounded border border-brand-500/50 bg-gray-800 px-2 py-0.5 text-sm font-medium text-white outline-none focus:border-brand-500"
               />
             ) : (
-              <Link href={`/play/${scrim.id}`}>
+              <Link href={`/play/${lesson.id}`}>
                 <h3
                   className="truncate text-sm font-medium text-white group-hover:text-brand-300 transition-colors"
                   onDoubleClick={(e) => {
                     e.preventDefault();
-                    startEditing(scrim);
+                    startEditing(lesson);
                   }}
                   title="Double-click to rename"
                 >
-                  {scrim.title}
+                  {lesson.title}
                 </h3>
               </Link>
             )}
             <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-              <span>{formatDuration(scrim.duration_ms)}</span>
+              <span>{formatDuration(lesson.duration_ms)}</span>
               <span className="h-1 w-1 rounded-full bg-gray-700" />
-              <span>{scrim.language}</span>
+              <span>{lesson.language}</span>
               <span className="h-1 w-1 rounded-full bg-gray-700" />
-              <span>{formatDate(scrim.created_at)}</span>
-              {scrim.code_events.length > 0 && (
+              <span>{formatDate(lesson.created_at)}</span>
+              {lesson.code_events.length > 0 && (
                 <>
                   <span className="h-1 w-1 rounded-full bg-gray-700" />
-                  <span>{scrim.code_events.length} events</span>
+                  <span>{lesson.code_events.length} events</span>
                 </>
               )}
             </div>
@@ -300,7 +300,7 @@ export default function ScrimList() {
           {/* Actions */}
           <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             <Link
-              href={`/play/${scrim.id}`}
+              href={`/play/${lesson.id}`}
               className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
               title="Play"
             >
@@ -315,7 +315,7 @@ export default function ScrimList() {
             </Link>
             <button
               type="button"
-              onClick={() => startEditing(scrim)}
+              onClick={() => startEditing(lesson)}
               className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
               title="Rename"
             >
@@ -330,12 +330,12 @@ export default function ScrimList() {
             </button>
             <button
               type="button"
-              onClick={() => handleDelete(scrim.id, scrim.title)}
-              disabled={deletingId === scrim.id}
+              onClick={() => handleDelete(lesson.id, lesson.title)}
+              disabled={deletingId === lesson.id}
               className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
               title="Delete"
             >
-              {deletingId === scrim.id ? (
+              {deletingId === lesson.id ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-gray-300" />
               ) : (
                 <svg

@@ -57,10 +57,10 @@ export default function AuthNav() {
         </>
       )}
       <Link
-        href="#scrims"
+        href="#lessons"
         className="rounded-lg px-3.5 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800/60 hover:text-white"
       >
-        Scrims
+        Lessons
       </Link>
       <div className="ml-3 h-5 w-px bg-gray-800" />
       <div className="relative ml-3 flex items-center gap-2">

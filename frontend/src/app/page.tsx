@@ -1,5 +1,5 @@
 import Link from "next/link";
-import ScrimList from "@/components/scrim/ScrimList";
+import LessonList from "@/components/lesson/LessonList";
 import AuthNav from "@/components/auth/AuthNav";
 
 function Navbar() {
@@ -52,9 +52,9 @@ function HeroSection() {
             <RecordIcon />
             Start Recording
           </Link>
-          <Link href="#scrims" className="btn-secondary px-6 py-3 text-base">
+          <Link href="#lessons" className="btn-secondary px-6 py-3 text-base">
             <PlayIcon />
-            Browse Scrims
+            Browse Lessons
           </Link>
           <Link href="/paths" className="btn-secondary px-6 py-3 text-base">
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
@@ -68,20 +68,20 @@ function HeroSection() {
   );
 }
 
-function ScrimListSection() {
+function LessonListSection() {
   return (
     <section className="mx-auto max-w-5xl px-6 pb-12">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-white">Your Scrims</h2>
+        <h2 className="text-xl font-semibold text-white">Your Lessons</h2>
         <Link
           href="/record"
           className="btn-primary inline-flex items-center gap-2 px-4 py-2 text-sm"
         >
           <RecordIcon />
-          New Scrim
+          New Lesson
         </Link>
       </div>
-      <ScrimList />
+      <LessonList />
     </section>
   );
 }
@@ -111,7 +111,7 @@ function FeatureCards() {
         </Link>
 
         {/* Play Card */}
-        <Link href="#scrims" className="card-hover group block p-8">
+        <Link href="#lessons" className="card-hover group block p-8">
           <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-500/10 text-brand-400 ring-1 ring-brand-500/20 transition-colors group-hover:bg-brand-500/15">
             <PlayIcon />
           </div>
@@ -124,7 +124,7 @@ function FeatureCards() {
             resume playback seamlessly. Learning by doing, reimagined.
           </p>
           <div className="mt-5 flex items-center gap-1.5 text-sm font-medium text-brand-400 transition-colors group-hover:text-brand-300">
-            Browse scrims
+            Browse lessons
             <ArrowRightIcon />
           </div>
         </Link>
@@ -136,7 +136,7 @@ function FeatureCards() {
           { label: "Monaco Editor", desc: "VS Code experience" },
           { label: "Live Recording", desc: "Capture everything" },
           { label: "Interactive", desc: "Pause & edit code" },
-          { label: "Shareable", desc: "Link to any scrim" },
+          { label: "Shareable", desc: "Link to any lesson" },
         ].map((feature) => (
           <div
             key={feature.label}
@@ -202,8 +202,8 @@ export default function HomePage() {
       <Navbar />
       <main>
         <HeroSection />
-        <div id="scrims">
-          <ScrimListSection />
+        <div id="lessons">
+          <LessonListSection />
         </div>
         <FeatureCards />
       </main>

@@ -6,8 +6,8 @@ from sqlalchemy import Column, DateTime, ForeignKey, JSON
 from sqlmodel import SQLModel, Field
 
 
-class Scrim(SQLModel, table=True):
-    __tablename__ = "scrims"
+class Lesson(SQLModel, table=True):
+    __tablename__ = "lessons"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     title: str = Field(max_length=200)
@@ -45,7 +45,7 @@ class Scrim(SQLModel, table=True):
     )
 
 
-class ScrimCreate(BaseModel):
+class LessonCreate(BaseModel):
     title: str
     description: str | None = None
     duration_ms: int = 0
@@ -57,7 +57,7 @@ class ScrimCreate(BaseModel):
     status: str = "published"  # "draft" | "published"
 
 
-class ScrimUpdate(BaseModel):
+class LessonUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
     duration_ms: int | None = None
@@ -69,7 +69,7 @@ class ScrimUpdate(BaseModel):
     status: str | None = None
 
 
-class ScrimRead(BaseModel):
+class LessonRead(BaseModel):
     id: uuid.UUID
     title: str
     description: str | None

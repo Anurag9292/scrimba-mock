@@ -6,10 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db.database import init_db
-from app.api.scrims import router as scrims_router
+from app.api.lessons import router as lessons_router
 from app.api.segments import router as segments_router
 from app.api.upload import router as upload_router
-from app.api.checkpoints import router as checkpoints_router, scrim_checkpoints_router
+from app.api.checkpoints import router as checkpoints_router, lesson_checkpoints_router
 from app.api.auth import router as auth_router
 from app.api.admin import router as admin_router
 from app.api.course_paths import router as course_paths_router
@@ -40,10 +40,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(scrims_router)
+app.include_router(lessons_router)
 app.include_router(segments_router)
 app.include_router(checkpoints_router)
-app.include_router(scrim_checkpoints_router)
+app.include_router(lesson_checkpoints_router)
 app.include_router(upload_router)
 app.include_router(auth_router)
 app.include_router(admin_router)

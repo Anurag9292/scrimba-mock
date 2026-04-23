@@ -7,7 +7,7 @@ import { useRecordingClock } from "./useRecordingClock";
 import { useMediaRecorder } from "./useMediaRecorder";
 import { useCodeEventCapture } from "./useCodeEventCapture";
 import {
-  createScrim,
+  createLesson,
   createSegment,
   updateSegment,
   uploadSegmentVideo,
@@ -22,8 +22,8 @@ interface SegmentRecorderState {
   mediaStream: MediaStream | null;
   /** Any error message */
   error: string | null;
-  /** The ID of the parent scrim */
-  scrimId: string | null;
+  /** The ID of the parent lesson */
+  lessonId: string | null;
   /** The ID of the last saved segment */
   savedSegmentId: string | null;
   /** Whether the recording is being saved */
@@ -38,8 +38,8 @@ interface UseSegmentRecorderReturn extends SegmentRecorderState {
     editorInstance: editor.IStandaloneCodeEditor,
     files: FileMap
   ) => void;
-  /** Stop recording and save segment to backend. Returns { segmentId, scrimId } or null. */
-  stopRecording: (files: FileMap) => Promise<{ segmentId: string; scrimId: string } | null>;
+  /** Stop recording and save segment to backend. Returns { segmentId, lessonId } or null. */
+  stopRecording: (files: FileMap) => Promise<{ segmentId: string; lessonId: string } | null>;
   /** Pause recording */
   pauseRecording: () => void;
   /** Resume recording */
@@ -54,34 +54,34 @@ interface UseSegmentRecorderReturn extends SegmentRecorderState {
   recordFileRename: (oldName: string, newName: string) => void;
   /** Clean up all resources */
   cleanup: () => void;
-  /** Set the scrim ID to record segments for (use for existing drafts) */
-  setScrimId: (id: string) => void;
+  /** Set the lesson ID to record segments for (use for existing drafts) */
+  setLessonId: (id: string) => void;
 }
 
 /**
- * Hook for recording segments within a multi-segment scrim.
+ * Hook for recording segments within a multi-segment lesson.
  *
- * If no scrimId is set, the first call to stopRecording will create a new draft scrim.
- * Subsequent segments are appended to the same scrim.
+ * If no lessonId is set, the first call to stopRecording will create a new draft lesson.
+ * Subsequent segments are appended to the same lesson.
  */
 export function useSegmentRecorder(options?: { sectionId?: string | null }): UseSegmentRecorderReturn {
   const [status, setStatus] = useState<RecordingStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [scrimId, setScrimIdState] = useState<string | null>(null);
+  const [lessonId, setLessonIdState] = useState<string | null>(null);
   const [savedSegmentId, setSavedSegmentId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const initialFilesRef = useRef<FileMap>({});
-  const scrimIdRef = useRef<string | null>(null);
+  const lessonIdRef = useRef<string | null>(null);
   const sectionIdRef = useRef<string | null | undefined>(options?.sectionId);
 
   const clock = useRecordingClock();
   const media = useMediaRecorder();
   const capture = useCodeEventCapture();
 
-  const setScrimId = useCallback((id: string) => {
-    setScrimIdState(id);
-    scrimIdRef.current = id;
+  const setLessonId = useCallback((id: string) => {
+    setLessonIdState(id);
+    lessonIdRef.current = id;
   }, []);
 
   const initialize = useCallback(async (): Promise<boolean> => {
@@ -111,7 +111,7 @@ export function useSegmentRecorder(options?: { sectionId?: string | null }): Use
   );
 
   const stopRecording = useCallback(
-    async (files: FileMap): Promise<{ segmentId: string; scrimId: string } | null> => {
+    async (files: FileMap): Promise<{ segmentId: string; lessonId: string } | null> => {
       // Stop all systems
       const durationMs = clock.stop();
       const videoBlob = await media.stop();
@@ -121,11 +121,11 @@ export function useSegmentRecorder(options?: { sectionId?: string | null }): Use
       setIsSaving(true);
 
       try {
-        let currentScrimId = scrimIdRef.current;
+        let currentLessonId = lessonIdRef.current;
 
-        // If we don't have a scrim yet, create a draft
-        if (!currentScrimId) {
-          const scrimResult = await createScrim({
+        // If we don't have a lesson yet, create a draft
+        if (!currentLessonId) {
+          const lessonResult = await createLesson({
             title: `Recording ${new Date().toLocaleString()}`,
             language: "html",
             files: initialFilesRef.current,
@@ -133,19 +133,19 @@ export function useSegmentRecorder(options?: { sectionId?: string | null }): Use
             ...(sectionIdRef.current ? { section_id: sectionIdRef.current } : {}),
           });
 
-          if (!scrimResult.success || !scrimResult.data) {
+          if (!lessonResult.success || !lessonResult.data) {
             throw new Error(
-              scrimResult.error?.message ?? "Failed to create scrim"
+              lessonResult.error?.message ?? "Failed to create lesson"
             );
           }
 
-          currentScrimId = scrimResult.data.id;
-          scrimIdRef.current = currentScrimId;
-          setScrimIdState(currentScrimId);
+          currentLessonId = lessonResult.data.id;
+          lessonIdRef.current = currentLessonId;
+          setLessonIdState(currentLessonId);
         }
 
         // Create the segment
-        const segmentResult = await createSegment(currentScrimId, {
+        const segmentResult = await createSegment(currentLessonId, {
           duration_ms: durationMs,
           code_events: events as unknown as Array<Record<string, unknown>>,
           initial_files: initialFilesRef.current,
@@ -171,14 +171,14 @@ export function useSegmentRecorder(options?: { sectionId?: string | null }): Use
         }
 
         // Update segment with final data
-        await updateSegment(currentScrimId, segmentId, {
+        await updateSegment(currentLessonId, segmentId, {
           duration_ms: durationMs,
           code_events: events as unknown as Array<Record<string, unknown>>,
         });
 
         setSavedSegmentId(segmentId);
         setIsSaving(false);
-        return { segmentId, scrimId: currentScrimId };
+        return { segmentId, lessonId: currentLessonId };
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to save segment";
@@ -244,7 +244,7 @@ export function useSegmentRecorder(options?: { sectionId?: string | null }): Use
     elapsedMs: clock.elapsedMs,
     mediaStream: media.mediaStream,
     error: error ?? media.error,
-    scrimId,
+    lessonId,
     savedSegmentId,
     isSaving,
     initialize,
@@ -257,6 +257,6 @@ export function useSegmentRecorder(options?: { sectionId?: string | null }): Use
     recordFileDelete,
     recordFileRename,
     cleanup,
-    setScrimId,
+    setLessonId,
   };
 }

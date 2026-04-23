@@ -112,9 +112,9 @@ export default function RecordPage() {
       recorder.startRecording(editorRef.current, filesRef.current);
     } else if (recorder.status === "recording") {
       // Stop recording
-      const scrimId = await recorder.stopRecording(filesRef.current);
-      if (scrimId) {
-        router.push(`/play/${scrimId}`);
+      const lessonId = await recorder.stopRecording(filesRef.current);
+      if (lessonId) {
+        router.push(`/play/${lessonId}`);
       }
     }
   }, [recorder, isInitialized, router]);

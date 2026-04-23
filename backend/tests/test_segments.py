@@ -4,9 +4,9 @@ from httpx import AsyncClient
 from tests.conftest import auth_headers
 
 
-async def _create_scrim(client: AsyncClient, token: str, title: str = "Test Scrim") -> dict:
+async def _create_lesson(client: AsyncClient, token: str, title: str = "Test Lesson") -> dict:
     resp = await client.post(
-        "/api/scrims/",
+        "/api/lessons/",
         json={"title": title, "status": "draft"},
         headers=auth_headers(token),
     )
@@ -14,7 +14,7 @@ async def _create_scrim(client: AsyncClient, token: str, title: str = "Test Scri
     return resp.json()
 
 
-async def _create_segment(client: AsyncClient, token: str, scrim_id: str, **kwargs) -> dict:
+async def _create_segment(client: AsyncClient, token: str, lesson_id: str, **kwargs) -> dict:
     data = {
         "duration_ms": 5000,
         "code_events": [],
@@ -22,7 +22,7 @@ async def _create_segment(client: AsyncClient, token: str, scrim_id: str, **kwar
     }
     data.update(kwargs)
     resp = await client.post(
-        f"/api/scrims/{scrim_id}/segments/",
+        f"/api/lessons/{lesson_id}/segments/",
         json=data,
         headers=auth_headers(token),
     )
@@ -36,9 +36,9 @@ async def _create_segment(client: AsyncClient, token: str, scrim_id: str, **kwar
 @pytest.mark.asyncio
 async def test_create_segment(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
-    seg = await _create_segment(client, token, scrim["id"])
-    assert seg["scrim_id"] == scrim["id"]
+    lesson = await _create_lesson(client, token)
+    seg = await _create_segment(client, token, lesson["id"])
+    assert seg["lesson_id"] == lesson["id"]
     assert seg["order"] == 0
     assert seg["duration_ms"] == 5000
     assert seg["initial_files"] == {"index.html": "<h1>Hi</h1>"}
@@ -51,10 +51,10 @@ async def test_create_segment(client: AsyncClient, creator_user):
 @pytest.mark.asyncio
 async def test_auto_order_increment(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
-    s1 = await _create_segment(client, token, scrim["id"])
-    s2 = await _create_segment(client, token, scrim["id"])
-    s3 = await _create_segment(client, token, scrim["id"])
+    lesson = await _create_lesson(client, token)
+    s1 = await _create_segment(client, token, lesson["id"])
+    s2 = await _create_segment(client, token, lesson["id"])
+    s3 = await _create_segment(client, token, lesson["id"])
     assert s1["order"] == 0
     assert s2["order"] == 1
     assert s3["order"] == 2
@@ -63,16 +63,16 @@ async def test_auto_order_increment(client: AsyncClient, creator_user):
 @pytest.mark.asyncio
 async def test_explicit_order(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
-    seg = await _create_segment(client, token, scrim["id"], order=5)
+    lesson = await _create_lesson(client, token)
+    seg = await _create_segment(client, token, lesson["id"], order=5)
     assert seg["order"] == 5
 
 
 @pytest.mark.asyncio
-async def test_create_segment_scrim_not_found(client: AsyncClient, creator_user):
+async def test_create_segment_lesson_not_found(client: AsyncClient, creator_user):
     _, token = creator_user
     resp = await client.post(
-        "/api/scrims/00000000-0000-0000-0000-000000000000/segments/",
+        "/api/lessons/00000000-0000-0000-0000-000000000000/segments/",
         json={"duration_ms": 1000, "code_events": [], "initial_files": {}},
         headers=auth_headers(token),
     )
@@ -85,9 +85,9 @@ async def test_regular_user_cannot_create_segment(
 ):
     _, creator_token = creator_user
     _, user_token = regular_user
-    scrim = await _create_scrim(client, creator_token)
+    lesson = await _create_lesson(client, creator_token)
     resp = await client.post(
-        f"/api/scrims/{scrim['id']}/segments/",
+        f"/api/lessons/{lesson['id']}/segments/",
         json={"duration_ms": 1000, "code_events": [], "initial_files": {}},
         headers=auth_headers(user_token),
     )
@@ -100,9 +100,9 @@ async def test_regular_user_cannot_create_segment(
 @pytest.mark.asyncio
 async def test_list_segments_empty(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
+    lesson = await _create_lesson(client, token)
     resp = await client.get(
-        f"/api/scrims/{scrim['id']}/segments/",
+        f"/api/lessons/{lesson['id']}/segments/",
         headers=auth_headers(token),
     )
     assert resp.status_code == 200
@@ -112,11 +112,11 @@ async def test_list_segments_empty(client: AsyncClient, creator_user):
 @pytest.mark.asyncio
 async def test_list_segments_ordered(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
-    await _create_segment(client, token, scrim["id"])
-    await _create_segment(client, token, scrim["id"])
+    lesson = await _create_lesson(client, token)
+    await _create_segment(client, token, lesson["id"])
+    await _create_segment(client, token, lesson["id"])
     resp = await client.get(
-        f"/api/scrims/{scrim['id']}/segments/",
+        f"/api/lessons/{lesson['id']}/segments/",
         headers=auth_headers(token),
     )
     assert resp.status_code == 200
@@ -130,9 +130,9 @@ async def test_list_segments_ordered(client: AsyncClient, creator_user):
 async def test_anonymous_can_list_segments(client: AsyncClient, creator_user):
     """Anonymous users can list segments (public access)."""
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
-    await _create_segment(client, token, scrim["id"])
-    resp = await client.get(f"/api/scrims/{scrim['id']}/segments/")
+    lesson = await _create_lesson(client, token)
+    await _create_segment(client, token, lesson["id"])
+    resp = await client.get(f"/api/lessons/{lesson['id']}/segments/")
     assert resp.status_code == 200
     assert len(resp.json()) == 1
 
@@ -143,10 +143,10 @@ async def test_anonymous_can_list_segments(client: AsyncClient, creator_user):
 @pytest.mark.asyncio
 async def test_get_segment(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
-    seg = await _create_segment(client, token, scrim["id"])
+    lesson = await _create_lesson(client, token)
+    seg = await _create_segment(client, token, lesson["id"])
     resp = await client.get(
-        f"/api/scrims/{scrim['id']}/segments/{seg['id']}",
+        f"/api/lessons/{lesson['id']}/segments/{seg['id']}",
         headers=auth_headers(token),
     )
     assert resp.status_code == 200
@@ -156,23 +156,23 @@ async def test_get_segment(client: AsyncClient, creator_user):
 @pytest.mark.asyncio
 async def test_get_segment_not_found(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
+    lesson = await _create_lesson(client, token)
     resp = await client.get(
-        f"/api/scrims/{scrim['id']}/segments/00000000-0000-0000-0000-000000000000",
+        f"/api/lessons/{lesson['id']}/segments/00000000-0000-0000-0000-000000000000",
         headers=auth_headers(token),
     )
     assert resp.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_get_segment_wrong_scrim(client: AsyncClient, creator_user):
-    """Segment must belong to the correct scrim."""
+async def test_get_segment_wrong_lesson(client: AsyncClient, creator_user):
+    """Segment must belong to the correct lesson."""
     _, token = creator_user
-    scrim1 = await _create_scrim(client, token, "Scrim 1")
-    scrim2 = await _create_scrim(client, token, "Scrim 2")
-    seg = await _create_segment(client, token, scrim1["id"])
+    lesson1 = await _create_lesson(client, token, "Lesson 1")
+    lesson2 = await _create_lesson(client, token, "Lesson 2")
+    seg = await _create_segment(client, token, lesson1["id"])
     resp = await client.get(
-        f"/api/scrims/{scrim2['id']}/segments/{seg['id']}",
+        f"/api/lessons/{lesson2['id']}/segments/{seg['id']}",
         headers=auth_headers(token),
     )
     assert resp.status_code == 404
@@ -184,10 +184,10 @@ async def test_get_segment_wrong_scrim(client: AsyncClient, creator_user):
 @pytest.mark.asyncio
 async def test_update_segment(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
-    seg = await _create_segment(client, token, scrim["id"])
+    lesson = await _create_lesson(client, token)
+    seg = await _create_segment(client, token, lesson["id"])
     resp = await client.put(
-        f"/api/scrims/{scrim['id']}/segments/{seg['id']}",
+        f"/api/lessons/{lesson['id']}/segments/{seg['id']}",
         json={"duration_ms": 9999, "trim_start_ms": 100, "trim_end_ms": 5000},
         headers=auth_headers(token),
     )
@@ -201,10 +201,10 @@ async def test_update_segment(client: AsyncClient, creator_user):
 @pytest.mark.asyncio
 async def test_partial_update_segment(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
-    seg = await _create_segment(client, token, scrim["id"])
+    lesson = await _create_lesson(client, token)
+    seg = await _create_segment(client, token, lesson["id"])
     resp = await client.put(
-        f"/api/scrims/{scrim['id']}/segments/{seg['id']}",
+        f"/api/lessons/{lesson['id']}/segments/{seg['id']}",
         json={"duration_ms": 1234},
         headers=auth_headers(token),
     )
@@ -217,9 +217,9 @@ async def test_partial_update_segment(client: AsyncClient, creator_user):
 @pytest.mark.asyncio
 async def test_update_segment_not_found(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
+    lesson = await _create_lesson(client, token)
     resp = await client.put(
-        f"/api/scrims/{scrim['id']}/segments/00000000-0000-0000-0000-000000000000",
+        f"/api/lessons/{lesson['id']}/segments/00000000-0000-0000-0000-000000000000",
         json={"duration_ms": 1000},
         headers=auth_headers(token),
     )
@@ -232,10 +232,10 @@ async def test_regular_user_cannot_update_segment(
 ):
     _, creator_token = creator_user
     _, user_token = regular_user
-    scrim = await _create_scrim(client, creator_token)
-    seg = await _create_segment(client, creator_token, scrim["id"])
+    lesson = await _create_lesson(client, creator_token)
+    seg = await _create_segment(client, creator_token, lesson["id"])
     resp = await client.put(
-        f"/api/scrims/{scrim['id']}/segments/{seg['id']}",
+        f"/api/lessons/{lesson['id']}/segments/{seg['id']}",
         json={"duration_ms": 1000},
         headers=auth_headers(user_token),
     )
@@ -248,16 +248,16 @@ async def test_regular_user_cannot_update_segment(
 @pytest.mark.asyncio
 async def test_delete_segment(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
-    seg = await _create_segment(client, token, scrim["id"])
+    lesson = await _create_lesson(client, token)
+    seg = await _create_segment(client, token, lesson["id"])
     resp = await client.delete(
-        f"/api/scrims/{scrim['id']}/segments/{seg['id']}",
+        f"/api/lessons/{lesson['id']}/segments/{seg['id']}",
         headers=auth_headers(token),
     )
     assert resp.status_code == 204
     # Verify it's gone
     resp = await client.get(
-        f"/api/scrims/{scrim['id']}/segments/",
+        f"/api/lessons/{lesson['id']}/segments/",
         headers=auth_headers(token),
     )
     assert len(resp.json()) == 0
@@ -267,17 +267,17 @@ async def test_delete_segment(client: AsyncClient, creator_user):
 async def test_delete_segment_reorders(client: AsyncClient, creator_user):
     """Deleting a segment shifts remaining orders down."""
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
-    s1 = await _create_segment(client, token, scrim["id"])
-    s2 = await _create_segment(client, token, scrim["id"])
-    s3 = await _create_segment(client, token, scrim["id"])
+    lesson = await _create_lesson(client, token)
+    s1 = await _create_segment(client, token, lesson["id"])
+    s2 = await _create_segment(client, token, lesson["id"])
+    s3 = await _create_segment(client, token, lesson["id"])
     # Delete the middle one
     await client.delete(
-        f"/api/scrims/{scrim['id']}/segments/{s2['id']}",
+        f"/api/lessons/{lesson['id']}/segments/{s2['id']}",
         headers=auth_headers(token),
     )
     resp = await client.get(
-        f"/api/scrims/{scrim['id']}/segments/",
+        f"/api/lessons/{lesson['id']}/segments/",
         headers=auth_headers(token),
     )
     segments = resp.json()
@@ -291,9 +291,9 @@ async def test_delete_segment_reorders(client: AsyncClient, creator_user):
 @pytest.mark.asyncio
 async def test_delete_segment_not_found(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
+    lesson = await _create_lesson(client, token)
     resp = await client.delete(
-        f"/api/scrims/{scrim['id']}/segments/00000000-0000-0000-0000-000000000000",
+        f"/api/lessons/{lesson['id']}/segments/00000000-0000-0000-0000-000000000000",
         headers=auth_headers(token),
     )
     assert resp.status_code == 404
@@ -305,10 +305,10 @@ async def test_regular_user_cannot_delete_segment(
 ):
     _, creator_token = creator_user
     _, user_token = regular_user
-    scrim = await _create_scrim(client, creator_token)
-    seg = await _create_segment(client, creator_token, scrim["id"])
+    lesson = await _create_lesson(client, creator_token)
+    seg = await _create_segment(client, creator_token, lesson["id"])
     resp = await client.delete(
-        f"/api/scrims/{scrim['id']}/segments/{seg['id']}",
+        f"/api/lessons/{lesson['id']}/segments/{seg['id']}",
         headers=auth_headers(user_token),
     )
     assert resp.status_code == 403
@@ -320,20 +320,20 @@ async def test_regular_user_cannot_delete_segment(
 @pytest.mark.asyncio
 async def test_reorder_segment(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
-    s1 = await _create_segment(client, token, scrim["id"])
-    s2 = await _create_segment(client, token, scrim["id"])
-    s3 = await _create_segment(client, token, scrim["id"])
+    lesson = await _create_lesson(client, token)
+    s1 = await _create_segment(client, token, lesson["id"])
+    s2 = await _create_segment(client, token, lesson["id"])
+    s3 = await _create_segment(client, token, lesson["id"])
     # Move s3 to position 0
     resp = await client.put(
-        f"/api/scrims/{scrim['id']}/segments/{s3['id']}/reorder?new_order=0",
+        f"/api/lessons/{lesson['id']}/segments/{s3['id']}/reorder?new_order=0",
         headers=auth_headers(token),
     )
     assert resp.status_code == 200
     assert resp.json()["order"] == 0
     # Check full order
     resp = await client.get(
-        f"/api/scrims/{scrim['id']}/segments/",
+        f"/api/lessons/{lesson['id']}/segments/",
         headers=auth_headers(token),
     )
     segments = resp.json()
@@ -345,10 +345,10 @@ async def test_reorder_segment(client: AsyncClient, creator_user):
 @pytest.mark.asyncio
 async def test_reorder_segment_same_position(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
-    seg = await _create_segment(client, token, scrim["id"])
+    lesson = await _create_lesson(client, token)
+    seg = await _create_segment(client, token, lesson["id"])
     resp = await client.put(
-        f"/api/scrims/{scrim['id']}/segments/{seg['id']}/reorder?new_order=0",
+        f"/api/lessons/{lesson['id']}/segments/{seg['id']}/reorder?new_order=0",
         headers=auth_headers(token),
     )
     assert resp.status_code == 200
@@ -359,20 +359,20 @@ async def test_reorder_segment_same_position(client: AsyncClient, creator_user):
 async def test_reorder_segment_move_down(client: AsyncClient, creator_user):
     """Move first segment to last position."""
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
-    s1 = await _create_segment(client, token, scrim["id"])
-    s2 = await _create_segment(client, token, scrim["id"])
-    s3 = await _create_segment(client, token, scrim["id"])
+    lesson = await _create_lesson(client, token)
+    s1 = await _create_segment(client, token, lesson["id"])
+    s2 = await _create_segment(client, token, lesson["id"])
+    s3 = await _create_segment(client, token, lesson["id"])
     # Move s1 to position 2
     resp = await client.put(
-        f"/api/scrims/{scrim['id']}/segments/{s1['id']}/reorder?new_order=2",
+        f"/api/lessons/{lesson['id']}/segments/{s1['id']}/reorder?new_order=2",
         headers=auth_headers(token),
     )
     assert resp.status_code == 200
     assert resp.json()["order"] == 2
     # Check full order
     resp = await client.get(
-        f"/api/scrims/{scrim['id']}/segments/",
+        f"/api/lessons/{lesson['id']}/segments/",
         headers=auth_headers(token),
     )
     segments = resp.json()
@@ -384,9 +384,9 @@ async def test_reorder_segment_move_down(client: AsyncClient, creator_user):
 @pytest.mark.asyncio
 async def test_reorder_segment_not_found(client: AsyncClient, creator_user):
     _, token = creator_user
-    scrim = await _create_scrim(client, token)
+    lesson = await _create_lesson(client, token)
     resp = await client.put(
-        f"/api/scrims/{scrim['id']}/segments/00000000-0000-0000-0000-000000000000/reorder?new_order=0",
+        f"/api/lessons/{lesson['id']}/segments/00000000-0000-0000-0000-000000000000/reorder?new_order=0",
         headers=auth_headers(token),
     )
     assert resp.status_code == 404

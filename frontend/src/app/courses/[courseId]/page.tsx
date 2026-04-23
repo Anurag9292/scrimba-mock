@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { fetchSections, fetchSectionScrims } from "@/lib/api";
-import type { Section, Scrim } from "@/lib/types";
+import { fetchSections, fetchSectionLessons } from "@/lib/api";
+import type { Section, Lesson } from "@/lib/types";
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
@@ -18,7 +18,7 @@ export default function CourseDetailPage() {
   const params = useParams();
   const courseId = params.courseId as string;
   const [sections, setSections] = useState<Section[]>([]);
-  const [sectionScrims, setSectionScrims] = useState<Record<string, Scrim[]>>({});
+  const [sectionLessons, setSectionLessons] = useState<Record<string, Lesson[]>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -27,26 +27,26 @@ export default function CourseDetailPage() {
       if (sectionsResp.success && sectionsResp.data) {
         setSections(sectionsResp.data);
 
-        const scrimMap: Record<string, Scrim[]> = {};
+        const lessonMap: Record<string, Lesson[]> = {};
         await Promise.all(
           sectionsResp.data.map(async (section) => {
-            const scrimsResp = await fetchSectionScrims(courseId, section.id);
-            if (scrimsResp.success && scrimsResp.data) {
-              scrimMap[section.id] = scrimsResp.data.filter(
+            const lessonsResp = await fetchSectionLessons(courseId, section.id);
+            if (lessonsResp.success && lessonsResp.data) {
+              lessonMap[section.id] = lessonsResp.data.filter(
                 (s) => s.status === "published"
               );
             }
           })
         );
-        setSectionScrims(scrimMap);
+        setSectionLessons(lessonMap);
       }
       setIsLoading(false);
     }
     load();
   }, [courseId]);
 
-  const totalScrims = Object.values(sectionScrims).reduce(
-    (sum, scrims) => sum + scrims.length,
+  const totalLessons = Object.values(sectionLessons).reduce(
+    (sum, lessons) => sum + lessons.length,
     0
   );
 
@@ -94,11 +94,11 @@ export default function CourseDetailPage() {
           <div className="flex items-center gap-4 text-sm text-gray-500">
             <span>{sections.length} section{sections.length !== 1 ? "s" : ""}</span>
             <span className="h-1 w-1 rounded-full bg-gray-700" />
-            <span>{totalScrims} scrim{totalScrims !== 1 ? "s" : ""}</span>
+            <span>{totalLessons} lesson{totalLessons !== 1 ? "s" : ""}</span>
           </div>
         </div>
 
-        {/* Sections with scrims */}
+        {/* Sections with lessons */}
         {sections.length === 0 ? (
           <div className="py-16 text-center text-gray-500">
             No content available yet.
@@ -106,7 +106,7 @@ export default function CourseDetailPage() {
         ) : (
           <div className="space-y-8">
             {sections.map((section, sectionIndex) => {
-              const scrims = sectionScrims[section.id] || [];
+              const lessons = sectionLessons[section.id] || [];
               return (
                 <div key={section.id}>
                   {/* Section header */}
@@ -126,17 +126,17 @@ export default function CourseDetailPage() {
                     </div>
                   </div>
 
-                  {/* Scrims in section */}
-                  {scrims.length === 0 ? (
+                  {/* Lessons in section */}
+                  {lessons.length === 0 ? (
                     <div className="ml-11 rounded-lg border border-gray-800/40 py-6 text-center text-sm text-gray-600">
                       Coming soon
                     </div>
                   ) : (
                     <div className="ml-11 space-y-2">
-                      {scrims.map((scrim) => (
+                      {lessons.map((lesson) => (
                         <Link
-                          key={scrim.id}
-                          href={`/play/${scrim.id}`}
+                          key={lesson.id}
+                          href={`/play/${lesson.id}`}
                           className="group flex items-center gap-4 rounded-lg border border-gray-800/40 bg-gray-900/30 p-4 transition-all hover:border-gray-700 hover:bg-gray-900/60"
                         >
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-600/10 text-brand-400 group-hover:bg-brand-600/20 transition-colors">
@@ -146,14 +146,14 @@ export default function CourseDetailPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="text-sm font-medium text-white group-hover:text-brand-400 transition-colors">
-                              {scrim.title}
+                              {lesson.title}
                             </h3>
                             <div className="mt-0.5 flex items-center gap-3 text-xs text-gray-500">
-                              <span>{scrim.language}</span>
-                              {scrim.duration_ms > 0 && (
+                              <span>{lesson.language}</span>
+                              {lesson.duration_ms > 0 && (
                                 <>
                                   <span className="h-1 w-1 rounded-full bg-gray-700" />
-                                  <span>{formatDuration(scrim.duration_ms)}</span>
+                                  <span>{formatDuration(lesson.duration_ms)}</span>
                                 </>
                               )}
                             </div>

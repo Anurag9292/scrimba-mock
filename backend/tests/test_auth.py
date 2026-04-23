@@ -124,18 +124,18 @@ class TestMe:
 
 
 class TestRoleProtection:
-    async def test_regular_user_cannot_create_scrim(self, client, regular_user):
+    async def test_regular_user_cannot_create_lesson(self, client, regular_user):
         _, token = regular_user
-        resp = await client.post("/api/scrims/", json={"title": "Test"}, headers=auth_headers(token))
+        resp = await client.post("/api/lessons/", json={"title": "Test"}, headers=auth_headers(token))
         assert resp.status_code == 403
 
-    async def test_creator_can_create_scrim(self, client, creator_user):
+    async def test_creator_can_create_lesson(self, client, creator_user):
         _, token = creator_user
-        resp = await client.post("/api/scrims/", json={"title": "Test"}, headers=auth_headers(token))
+        resp = await client.post("/api/lessons/", json={"title": "Test"}, headers=auth_headers(token))
         assert resp.status_code == 201
 
-    async def test_unauthenticated_can_list_published_scrims(self, client, test_db):
-        resp = await client.get("/api/scrims/")
+    async def test_unauthenticated_can_list_published_lessons(self, client, test_db):
+        resp = await client.get("/api/lessons/")
         assert resp.status_code == 200
 
 

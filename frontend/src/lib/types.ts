@@ -13,7 +13,7 @@ export type Language =
   | "rust"
   | "go";
 
-/** Types of events that can be recorded during a scrim session */
+/** Types of events that can be recorded during a lesson session */
 export type CodeEventType =
   | "insert"
   | "delete"
@@ -62,11 +62,11 @@ export interface SelectionRange {
 /** Recording status for the UI */
 export type RecordingStatus = "idle" | "recording" | "paused" | "stopped";
 
-/** Scrim status */
-export type ScrimStatus = "draft" | "published";
+/** Lesson status */
+export type LessonStatus = "draft" | "published";
 
-/** A complete scrim (recorded interactive coding session) */
-export interface Scrim {
+/** A complete lesson (recorded interactive coding session) */
+export interface Lesson {
   id: string;
   title: string;
   description?: string;
@@ -76,17 +76,17 @@ export interface Scrim {
   initial_code: string;
   language: string;
   files?: FileMap;
-  status: ScrimStatus;
+  status: LessonStatus;
   section_id?: string | null;
   created_by?: string | null;
   created_at: string;
   updated_at: string;
 }
 
-/** A single segment within a multi-segment scrim recording */
-export interface ScrimSegment {
+/** A single segment within a multi-segment lesson recording */
+export interface LessonSegment {
   id: string;
-  scrim_id: string;
+  lesson_id: string;
   order: number;
   video_filename?: string;
   code_events: CodeEvent[];
@@ -127,7 +127,7 @@ export type CheckpointStatus = "idle" | "active" | "validating" | "passed" | "fa
 
 /** Playback state for the player */
 export interface PlaybackState {
-  /** Whether the scrim is currently playing */
+  /** Whether the lesson is currently playing */
   isPlaying: boolean;
   /** Current playback position in milliseconds */
   currentTimeMs: number;
