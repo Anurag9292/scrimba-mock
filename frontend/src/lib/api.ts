@@ -69,7 +69,7 @@ async function apiFetch<T>(
 
 /** Fetch all scrims */
 export async function fetchScrims(): Promise<ApiResponse<Scrim[]>> {
-  return apiFetch<Scrim[]>("/api/scrims");
+  return apiFetch<Scrim[]>("/api/scrims/");
 }
 
 /** Fetch a single scrim by ID */
@@ -81,7 +81,7 @@ export async function fetchScrim(id: string): Promise<ApiResponse<Scrim>> {
 export async function createScrim(
   data: ScrimCreate
 ): Promise<ApiResponse<Scrim>> {
-  return apiFetch<Scrim>("/api/scrims", {
+  return apiFetch<Scrim>("/api/scrims/", {
     method: "POST",
     body: JSON.stringify(data),
   });
