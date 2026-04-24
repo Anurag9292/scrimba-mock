@@ -566,7 +566,7 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
       const targetIndex = findEventIndex(events, timeMs);
 
       if (targetIndex > lastAppliedIndexRef.current) {
-        const { files, activeFileName: newActive } = replayEvents(
+        const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
           currentFilesRef.current,
           events,
           lastAppliedIndexRef.current,
@@ -579,8 +579,11 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
           setActiveFileName(newActive);
         }
         setCurrentFiles(files);
+        if (newSlideId !== undefined) {
+          setActiveCourseSlideId(newSlideId);
+        }
       } else if (targetIndex < lastAppliedIndexRef.current) {
-        const { files, activeFileName: newActive } = replayEvents(
+        const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
           initialFilesRef.current,
           events,
           0,
@@ -593,6 +596,9 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
           setActiveFileName(newActive);
         }
         setCurrentFiles(files);
+        if (newSlideId !== undefined) {
+          setActiveCourseSlideId(newSlideId);
+        }
       }
 
       const stillPlaying = video
@@ -685,7 +691,7 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
 
         const events = eventsRef.current;
         const targetIndex = findEventIndex(events, timeMs);
-        const { files, activeFileName: newActive } = replayEvents(
+        const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
           initialFilesRef.current,
           events,
           0,
@@ -698,6 +704,9 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
           setActiveFileName(newActive);
         }
         setCurrentFiles(files);
+        if (newSlideId !== undefined) {
+          setActiveCourseSlideId(newSlideId);
+        }
         currentTimeMsRef.current = timeMs;
         setCurrentTimeMs(timeMs);
         setSeekVersion((v) => v + 1);

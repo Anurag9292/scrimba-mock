@@ -10,6 +10,7 @@ import {
   deleteSection,
   fetchSectionLessons,
   deleteLesson,
+  fetchCourseById,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import type { Section, Lesson } from "@/lib/types";
@@ -34,16 +35,9 @@ export default function CourseSectionsPage() {
   // Resolve pathId from the course
   useEffect(() => {
     async function resolvePath() {
-      const { apiFetch } = await import("@/lib/api").then(m => ({ apiFetch: m }));
-      // Use the course lookup endpoint to get path_id
-      const resp = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/courses/${courseId}`
-      );
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data.path_id) {
-          setPathId(data.path_id);
-        }
+      const resp = await fetchCourseById(courseId);
+      if (resp.success && resp.data?.path_id) {
+        setPathId(resp.data.path_id);
       }
     }
     resolvePath();
