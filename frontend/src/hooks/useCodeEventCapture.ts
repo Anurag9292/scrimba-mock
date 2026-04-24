@@ -11,6 +11,8 @@ interface CodeEventCapture {
   stopCapture: () => CodeEvent[];
   /** Get events captured so far (without stopping) */
   getEvents: () => CodeEvent[];
+  /** Get the current event count (for debug display) */
+  getEventCount: () => number;
   /** Record a file switch event manually */
   recordFileSwitch: (fileName: string) => void;
   /** Record a file creation event */
@@ -155,6 +157,10 @@ export function useCodeEventCapture(): CodeEventCapture {
     return [...eventsRef.current];
   }, []);
 
+  const getEventCount = useCallback((): number => {
+    return eventsRef.current.length;
+  }, []);
+
   const recordFileSwitch = useCallback(
     (fileName: string) => {
       if (!startTimeRef.current) return;
@@ -255,6 +261,7 @@ export function useCodeEventCapture(): CodeEventCapture {
     startCapture,
     stopCapture,
     getEvents,
+    getEventCount,
     recordFileSwitch,
     recordFileCreate,
     recordFileDelete,

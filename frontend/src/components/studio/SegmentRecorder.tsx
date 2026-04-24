@@ -333,6 +333,13 @@ export default function SegmentRecorder({
             elapsedMs={recorder.elapsedMs}
           />
 
+          {/* Debug: show live event count during recording */}
+          {(recorder.status === "recording" || recorder.status === "paused") && (
+            <span className="rounded-lg border border-cyan-800 bg-cyan-900/30 px-2 py-1 font-mono text-xs text-cyan-400">
+              Events: {recorder.eventCount}
+            </span>
+          )}
+
           {recorder.error && (
             <span className="text-xs text-red-400">{recorder.error}</span>
           )}
