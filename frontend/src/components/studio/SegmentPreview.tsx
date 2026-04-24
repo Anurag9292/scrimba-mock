@@ -337,6 +337,8 @@ export default function SegmentPreview({
                 <CodeRunnerPreview
                   code={currentFiles[activeFileName] ?? ""}
                   language={language as "python" | "javascript"}
+                  autoRun={isPlaying}
+                  autoRunDebounce={1500}
                 />
               ) : (
                 <LivePreview html={html} css={css} javascript={javascript} />

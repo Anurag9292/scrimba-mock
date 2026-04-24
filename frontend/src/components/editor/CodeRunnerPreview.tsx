@@ -89,6 +89,9 @@ export default function CodeRunnerPreview({
   const [jsRunning, setJsRunning] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const lastCodeRef = useRef(code);
+  // Track whether autoRun was active on the previous render so we can
+  // detect the false→true transition and force an immediate execution.
+  const prevAutoRunRef = useRef(autoRun);
 
   const isPython = language === "python";
 
@@ -114,10 +117,22 @@ export default function CodeRunnerPreview({
     }
   }, [isPython, pyodide]);
 
-  // Auto-run with debounce when code changes (during playback)
+  // Auto-run when code changes during playback, or when autoRun is first
+  // activated (e.g. user presses play). Without the activation check the
+  // terminal would stay blank until a code-change event fires, because
+  // lastCodeRef is initialised to the current code at mount time.
   useEffect(() => {
-    if (!autoRun) return;
-    if (code === lastCodeRef.current) return;
+    if (!autoRun) {
+      prevAutoRunRef.current = false;
+      return;
+    }
+
+    const justActivated = !prevAutoRunRef.current;
+    prevAutoRunRef.current = true;
+
+    // Skip only if autoRun was already on AND the code hasn't changed.
+    // When autoRun just turned on we always want to execute the current code.
+    if (!justActivated && code === lastCodeRef.current) return;
     lastCodeRef.current = code;
 
     if (debounceRef.current) {
@@ -125,7 +140,7 @@ export default function CodeRunnerPreview({
     }
     debounceRef.current = setTimeout(() => {
       handleRun();
-    }, autoRunDebounce);
+    }, justActivated ? 0 : autoRunDebounce);
 
     return () => {
       if (debounceRef.current) {
