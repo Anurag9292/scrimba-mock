@@ -72,6 +72,8 @@ export interface UsePlaybackReturn {
   courseId: string | null;
   /** Active course slide ID (from slide_activate code events during playback) */
   activeCourseSlideId: string | null;
+  /** Increments when a code_run event is replayed — drives CodeRunnerPreview execution */
+  codeRunTrigger: number;
 }
 
 export function usePlayback(lessonId: string): UsePlaybackReturn {
@@ -102,6 +104,8 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
   const [courseId, setCourseId] = useState<string | null>(null);
   // Active course slide ID (driven by slide_activate/slide_deactivate code events)
   const [activeCourseSlideId, setActiveCourseSlideId] = useState<string | null>(null);
+  // Increments when a code_run event is replayed — tells CodeRunnerPreview to execute
+  const [codeRunTrigger, setCodeRunTrigger] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null!) as React.RefObject<HTMLVideoElement>;
   const rafRef = useRef<number>(0);
@@ -200,7 +204,7 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
 
     if (targetIndex !== lastAppliedIndexRef.current) {
       // Always recompute from initial files for reliability
-      const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
+      const { files, activeFileName: newActive, activeSlideId: newSlideId, codeRunCount } = replayEvents(
         initialFilesRef.current,
         events,
         0,
@@ -216,6 +220,10 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
       // Update course slide state on seek
       if (newSlideId !== undefined) {
         setActiveCourseSlideId(newSlideId);
+      }
+      // Trigger code execution if any code_run events were in this batch
+      if (codeRunCount > 0) {
+        setCodeRunTrigger((prev) => prev + codeRunCount);
       }
     }
   }
@@ -916,5 +924,6 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
     courseSlides,
     courseId,
     activeCourseSlideId,
+    codeRunTrigger,
   };
 }
