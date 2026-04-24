@@ -677,6 +677,9 @@ export default function StudioPage() {
                 <SegmentPreview
                   segment={previewSegment}
                   onClose={() => setPreviewSegment(null)}
+                  courseSlides={courseSlides}
+                  courseId={courseId ?? undefined}
+                  slideOffset={currentLesson?.slide_offset ?? 0}
                 />
               )}
 

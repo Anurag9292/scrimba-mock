@@ -83,16 +83,24 @@ export function applyCodeEvent(files: FileMap, event: CodeEvent): FileMap {
   return { ...files, [event.fileName]: newContent };
 }
 
-/** Replay all events from startIndex..endIndex onto files */
+/**
+ * Replay all events from startIndex..endIndex onto files.
+ *
+ * `activeSlideId` semantics:
+ * - `undefined` = no slide event was encountered in this batch (caller should keep previous state)
+ * - `string`    = a slide_activate was the last slide event (show this slide)
+ * - `null`      = a slide_deactivate was the last slide event (hide slides)
+ */
 export function replayEvents(
   files: FileMap,
   events: CodeEvent[],
   startIndex: number,
   endIndex: number
-): { files: FileMap; activeFileName: string | null; activeSlideId: string | null } {
+): { files: FileMap; activeFileName: string | null; activeSlideId: string | null | undefined } {
   let current = files;
   let activeFileName: string | null = null;
-  let activeSlideId: string | null = null;
+  // undefined = no slide event encountered in this batch
+  let activeSlideId: string | null | undefined = undefined;
 
   for (let i = startIndex; i < endIndex && i < events.length; i++) {
     const event = events[i];
