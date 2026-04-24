@@ -6,6 +6,7 @@ import type { LessonSegment, FileMap, CodeEvent, CourseSlide } from "@/lib/types
 import { getSegmentVideoUrl } from "@/lib/api";
 import { replayEvents, findEventIndex } from "@/lib/segments";
 import EditorPanel from "@/components/editor/EditorPanel";
+import FileExplorer from "@/components/editor/FileExplorer";
 import LivePreview from "@/components/editor/LivePreview";
 import CodeRunnerPreview from "@/components/editor/CodeRunnerPreview";
 import SlideViewer from "@/components/player/SlideViewer";
@@ -285,9 +286,20 @@ export default function SegmentPreview({
         </button>
       </div>
 
-      {/* Main content: Editor + Preview + Video */}
+      {/* Main content: File Explorer + Editor + Preview + Video */}
       <PanelGroup direction="horizontal" className="h-[420px]">
-        <Panel defaultSize={40} minSize={20} id="seg-editor">
+        <Panel defaultSize={12} minSize={8} maxSize={20} id="seg-files">
+          <FileExplorer
+            files={currentFiles}
+            activeFile={activeFileName}
+            onFileSelect={(path) => setActiveFileName(path)}
+            readOnly
+          />
+        </Panel>
+
+        <PanelHandle />
+
+        <Panel defaultSize={33} minSize={15} id="seg-editor">
           <div className="flex h-full flex-col border-r border-gray-800">
             <EditorPanel
               key={`seg-preview-${segment.id}-v${seekVersion}`}
