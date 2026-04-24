@@ -165,13 +165,11 @@ async def get_lesson_course_info(
 
     course = await session.get(Course, section.course_id)
     path_id = str(course.path_id) if course else None
-    course_language = course.language if course else None
 
     return {
         "course_id": str(section.course_id),
         "path_id": path_id,
         "section_id": str(lesson.section_id),
-        "language": course_language,
     }
 
 

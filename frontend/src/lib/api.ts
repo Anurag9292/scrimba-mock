@@ -894,8 +894,8 @@ export async function updateCourseCodebase(
 /** Resolve the course info for a lesson (course_id, path_id, section_id) */
 export async function fetchLessonCourseInfo(
   lessonId: string
-): Promise<ApiResponse<{ course_id: string | null; path_id: string | null; section_id: string | null; language: string | null }>> {
-  return apiFetch<{ course_id: string | null; path_id: string | null; section_id: string | null; language: string | null }>(
+): Promise<ApiResponse<{ course_id: string | null; path_id: string | null; section_id: string | null }>> {
+  return apiFetch<{ course_id: string | null; path_id: string | null; section_id: string | null }>(
     `/api/lessons/${lessonId}/course-info`
   );
 }

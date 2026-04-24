@@ -195,15 +195,8 @@ export default function PlayerPage() {
       ? Math.min(1, playback.currentTimeMs / playback.durationMs)
       : 0;
 
-  // Determine preview type from lesson language, falling back to the course
-  // language when the lesson's own field is the default "html". This ensures
-  // Python/JavaScript courses show the terminal even if the lesson record was
-  // created before the language was properly propagated.
-  const rawLessonLang = playback.lesson?.language ?? "html";
-  const lessonLanguage =
-    rawLessonLang === "html" && playback.courseLanguage
-      ? playback.courseLanguage
-      : rawLessonLang;
+  // Determine preview type from lesson language
+  const lessonLanguage = playback.lesson?.language ?? "html";
   const useCodeRunner = lessonLanguage === "python" || lessonLanguage === "javascript";
 
   // Extract HTML/CSS/JS from current files for live preview
