@@ -6,7 +6,7 @@ import EditorWithPreview from "@/components/editor/EditorWithPreview";
 import CameraPreview from "@/components/recording/CameraPreview";
 import { useSegmentRecorder } from "@/hooks/useSegmentRecorder";
 import type { RecordingStatus, FileMap, LessonSegment, CourseSlide } from "@/lib/types";
-import { fetchSegments, fetchComputedStartFiles } from "@/lib/api";
+import { fetchSegments, fetchComputedStartFiles, fetchSectionById, fetchCourseById } from "@/lib/api";
 import { computeFinalFiles } from "@/lib/segments";
 
 /** Format milliseconds to mm:ss display */
@@ -104,9 +104,28 @@ export default function SegmentRecorder({
     }
 
     if (!lessonId) {
-      // No lesson yet and no override — keep loading if we might get one later
-      // (the studio page auto-transitions only after course data is loaded,
-      // so in practice initialFilesOverride should already be set)
+      // No lesson yet and no override — try to resolve from sectionId
+      if (sectionId) {
+        (async () => {
+          setIsLoadingFiles(true);
+          try {
+            const sectionResp = await fetchSectionById(sectionId);
+            if (sectionResp.success && sectionResp.data) {
+              const courseResp = await fetchCourseById(sectionResp.data.course_id);
+              if (courseResp.success && courseResp.data?.initial_files) {
+                const files = courseResp.data.initial_files;
+                if (Object.keys(files).length > 0) {
+                  setInitialFiles(files);
+                }
+              }
+            }
+          } catch {
+            // Non-critical — fall back to defaults
+          }
+          setIsLoadingFiles(false);
+        })();
+        return;
+      }
       setIsLoadingFiles(false);
       return;
     }
