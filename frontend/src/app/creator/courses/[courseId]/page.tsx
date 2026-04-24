@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   fetchSections,
@@ -13,6 +13,10 @@ import {
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import type { Section, Lesson } from "@/lib/types";
+import CourseSlideLibrary from "@/components/studio/CourseSlideLibrary";
+import CourseCodebaseEditor from "@/components/studio/CourseCodebaseEditor";
+
+type CourseTab = "sections" | "codebase" | "slides";
 
 export default function CourseSectionsPage() {
   const params = useParams();
@@ -24,6 +28,26 @@ export default function CourseSectionsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<CourseTab>("sections");
+  const [pathId, setPathId] = useState<string | null>(null);
+
+  // Resolve pathId from the course
+  useEffect(() => {
+    async function resolvePath() {
+      const { apiFetch } = await import("@/lib/api").then(m => ({ apiFetch: m }));
+      // Use the course lookup endpoint to get path_id
+      const resp = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/courses/${courseId}`
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.path_id) {
+          setPathId(data.path_id);
+        }
+      }
+    }
+    resolvePath();
+  }, [courseId]);
 
   const loadData = useCallback(async () => {
     const sectionsResp = await fetchSections(courseId);
@@ -103,13 +127,48 @@ export default function CourseSectionsPage() {
       </nav>
 
       {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Sections & Lessons</h1>
+          <h1 className="text-2xl font-bold text-white">Course Management</h1>
           <p className="mt-1 text-sm text-gray-400">
-            Organize lessons into sections within this course
+            Manage your course codebase, slides, and lesson structure
           </p>
         </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="mb-6 flex items-center gap-1 rounded-lg border border-gray-800 bg-gray-900/50 p-1">
+        {[
+          { id: "sections" as CourseTab, label: "Sections & Lessons" },
+          { id: "codebase" as CourseTab, label: "Codebase" },
+          { id: "slides" as CourseTab, label: "Slide Library" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === tab.id
+                ? "bg-gray-800 text-white"
+                : "text-gray-400 hover:text-gray-300"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === "codebase" && pathId && (
+        <CourseCodebaseEditor pathId={pathId} courseId={courseId} />
+      )}
+
+      {activeTab === "slides" && (
+        <CourseSlideLibrary courseId={courseId} />
+      )}
+
+      {activeTab === "sections" && (
+      <>
+      <div className="mb-4 flex items-center justify-end">
         <button
           onClick={() => setShowCreateModal(true)}
           className="btn-primary inline-flex items-center gap-2 px-4 py-2 text-sm"
@@ -277,6 +336,9 @@ export default function CourseSectionsPage() {
             );
           })}
         </div>
+      )}
+
+      </>
       )}
 
       {/* Create/Edit Section Modal */}

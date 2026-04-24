@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Lesson, LessonSegment } from "@/lib/types";
+import type { Lesson, LessonSegment, CourseSlide } from "@/lib/types";
 import {
   fetchLessons,
   fetchLesson,
@@ -13,6 +13,8 @@ import {
   publishLesson,
   updateLesson,
   reorderSegment,
+  fetchLessonCourseInfo,
+  fetchCourseSlides,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import SegmentRecorder from "@/components/studio/SegmentRecorder";
@@ -73,6 +75,10 @@ export default function StudioPage() {
   const [previewSegment, setPreviewSegment] = useState<LessonSegment | null>(null);
   const [checkpointSegment, setCheckpointSegment] = useState<LessonSegment | null>(null);
   const [slideSegment, setSlideSegment] = useState<LessonSegment | null>(null);
+  // Course-level data for slides
+  const [courseSlides, setCourseSlides] = useState<CourseSlide[]>([]);
+  const [courseId, setCourseId] = useState<string | null>(null);
+  const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
 
   // If a lessonId is provided in the URL, load that lesson directly into segments view
   useEffect(() => {
@@ -124,6 +130,23 @@ export default function StudioPage() {
       loadDrafts();
     } else if (view.type === "segments") {
       loadSegments(view.lessonId);
+
+      // Load course info and slides for this lesson
+      (async () => {
+        const lessonResp = await fetchLesson(view.lessonId);
+        if (lessonResp.success && lessonResp.data) {
+          setCurrentLesson(lessonResp.data);
+        }
+
+        const courseInfoResp = await fetchLessonCourseInfo(view.lessonId);
+        if (courseInfoResp.success && courseInfoResp.data?.course_id) {
+          setCourseId(courseInfoResp.data.course_id);
+          const slidesResp = await fetchCourseSlides(courseInfoResp.data.course_id);
+          if (slidesResp.success && slidesResp.data) {
+            setCourseSlides(slidesResp.data);
+          }
+        }
+      })();
     }
   }, [view, loadDrafts, loadSegments, lessonIdParam]);
 
@@ -323,6 +346,9 @@ export default function StudioPage() {
         onBack={handleBack}
         initialFilesOverride={rerecordInitialFiles}
         sectionId={sectionId}
+        courseSlides={courseSlides}
+        courseId={courseId ?? undefined}
+        slideOffset={currentLesson?.slide_offset ?? 0}
         onSegmentSaved={async (lessonId) => {
           // Delete the old segment being replaced
           await deleteSegment(lessonId, view.segmentId);
@@ -358,6 +384,9 @@ export default function StudioPage() {
         lessonId={view.lessonId}
         onBack={handleBack}
         sectionId={sectionId}
+        courseSlides={courseSlides}
+        courseId={courseId ?? undefined}
+        slideOffset={currentLesson?.slide_offset ?? 0}
         onSegmentSaved={(lessonId) =>
           handleSegmentSaved(lessonId, view.lessonTitle)
         }
@@ -431,6 +460,31 @@ export default function StudioPage() {
               {segments.length} segment{segments.length !== 1 ? "s" : ""} &middot;{" "}
               {formatTime(totalDuration)}
             </span>
+            {/* Slide offset selector */}
+            {courseSlides.length > 0 && (
+              <div className="flex items-center gap-1.5 rounded-lg border border-gray-800 bg-gray-900/80 px-2 py-1">
+                <span className="h-2 w-2 rounded-full bg-purple-400" />
+                <span className="text-[10px] text-gray-400">Slide from:</span>
+                <select
+                  value={currentLesson?.slide_offset ?? 0}
+                  onChange={async (e) => {
+                    const offset = parseInt(e.target.value, 10);
+                    const resp = await updateLesson(view.lessonId, { slide_offset: offset });
+                    if (resp.success && resp.data) {
+                      setCurrentLesson(resp.data);
+                      toast(`Slide offset set to ${offset + 1}`, "success");
+                    }
+                  }}
+                  className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 text-[10px] text-white"
+                >
+                  {courseSlides.map((slide, idx) => (
+                    <option key={slide.id} value={idx}>
+                      #{idx + 1}: {slide.title || slide.type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button
               type="button"
               onClick={() =>

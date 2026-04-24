@@ -23,7 +23,9 @@ export type CodeEventType =
   | "file_create"
   | "file_delete"
   | "file_rename"
-  | "file_switch";
+  | "file_switch"
+  | "slide_activate"
+  | "slide_deactivate";
 
 /** A single recorded code event with timing information */
 export interface CodeEvent {
@@ -41,6 +43,8 @@ export interface CodeEvent {
   text?: string;
   /** For rename events, the new file name */
   newFileName?: string;
+  /** For slide_activate events, the ID of the slide to show */
+  slideId?: string;
 }
 
 /** Cursor position within a file */
@@ -77,6 +81,8 @@ export interface Lesson {
   language: string;
   files?: FileMap;
   status: LessonStatus;
+  visible_files?: string[] | null;
+  slide_offset: number;
   section_id?: string | null;
   created_by?: string | null;
   created_at: string;
@@ -136,6 +142,20 @@ export interface SlideContent {
   language: string | null;
   image_filename: string | null;
   timestamp_ms: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A course-level slide that is inherited by all lessons in the course */
+export interface CourseSlide {
+  id: string;
+  course_id: string;
+  order: number;
+  type: SlideType;
+  title: string | null;
+  content: string;
+  language: string | null;
+  image_filename: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -241,6 +261,10 @@ export interface Course {
   slug: string;
   order: number;
   status: "draft" | "published";
+  /** Course-level codebase: initial code files shared across all lessons */
+  initial_files: FileMap | null;
+  /** Primary language for the course */
+  language: string;
   created_by: string;
   created_at: string;
   updated_at: string;
