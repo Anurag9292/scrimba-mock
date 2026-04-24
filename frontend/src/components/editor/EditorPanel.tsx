@@ -216,11 +216,39 @@ export default function EditorPanel({
     didMountRef.current = true;
   }, []);
 
-  // In readOnly/playback mode, sync files from parent when they actually change
+  // Sync files from parent when they change externally.
+  // - In readOnly/playback mode: always sync content from parent.
+  // - In edit mode: only merge structural changes (files added/removed
+  //   externally, e.g. via FileExplorer) while preserving local edits.
   useEffect(() => {
-    if (readOnly && initialFiles) {
+    if (!initialFiles) return;
+
+    if (readOnly) {
       setFiles((prev) => (filesEqual(prev, initialFiles) ? prev : initialFiles));
+      return;
     }
+
+    // Edit mode — merge external additions / removals only
+    setFiles((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(initialFiles);
+
+      // Same set of file names → nothing to do (content is managed locally)
+      if (
+        prevKeys.length === nextKeys.length &&
+        prevKeys.every((k) => k in initialFiles)
+      ) {
+        return prev;
+      }
+
+      // Files were added or removed externally — merge:
+      // keep local content for existing files, pull new files from parent
+      const merged: Record<string, string> = {};
+      for (const key of nextKeys) {
+        merged[key] = key in prev ? prev[key] : initialFiles[key];
+      }
+      return merged;
+    });
   }, [readOnly, initialFiles]);
 
   // Sync active file from parent when controlledActiveFile changes
