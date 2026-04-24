@@ -56,9 +56,18 @@ function executeJavaScript(code: string): TerminalLine[] {
   };
 
   try {
-    // Execute with sandboxed console
+    // Execute with sandboxed console. Use an expression-returning wrapper so
+    // that the last expression result can be displayed REPL-style (e.g. `2+2`
+    // shows `4` even without console.log).
     const fn = new Function("console", code);
-    fn(sandbox.console);
+    const result = fn(sandbox.console);
+    if (lines.length === 0 && result !== undefined && result !== null) {
+      lines.push({
+        text: typeof result === "object" ? JSON.stringify(result, null, 2) : String(result),
+        stream: "stdout",
+        timestamp: now,
+      });
+    }
   } catch (err: unknown) {
     lines.push({
       text: err instanceof Error ? `${err.name}: ${err.message}` : String(err),

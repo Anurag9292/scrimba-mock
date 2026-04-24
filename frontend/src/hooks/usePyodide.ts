@@ -123,16 +123,28 @@ export function usePyodide(): UsePyodideReturn {
         },
       });
 
-      // Execute the code
+      // Execute the code and capture the return value (last expression result).
+      // This gives REPL-like behaviour: `2+2` shows `4` even without print().
       try {
-        await pyodide.runPythonAsync(code);
+        const result = await pyodide.runPythonAsync(code);
+        // Display the last expression result if there was no explicit output,
+        // mimicking Python's interactive interpreter.
+        if (lines.length === 0 && result !== undefined && result !== null) {
+          const repr = typeof result === "object" && result.toString
+            ? result.toString()
+            : String(result);
+          if (repr !== "None" && repr !== "") {
+            lines.push({ text: repr, stream: "stdout", timestamp: Date.now() });
+            setOutput([...lines]);
+          }
+        }
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         lines.push({ text: errorMsg, stream: "stderr", timestamp: Date.now() });
         setOutput([...lines]);
       }
 
-      // If no output at all, show a hint
+      // If still no output at all, show a hint
       if (lines.length === 0) {
         setOutput([{
           text: "(No output — use print() to see results)",
