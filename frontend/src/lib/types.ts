@@ -25,7 +25,8 @@ export type CodeEventType =
   | "file_rename"
   | "file_switch"
   | "slide_activate"
-  | "slide_deactivate";
+  | "slide_deactivate"
+  | "code_run";
 
 /** A single recorded code event with timing information */
 export interface CodeEvent {

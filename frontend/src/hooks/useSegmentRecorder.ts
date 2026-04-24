@@ -56,6 +56,8 @@ interface UseSegmentRecorderReturn extends SegmentRecorderState {
   recordSlideActivate: (slideId: string) => void;
   /** Record a slide deactivation event */
   recordSlideDeactivate: () => void;
+  /** Record a code execution event (user clicked Run) */
+  recordCodeRun: (fileName: string) => void;
   /** Clean up all resources */
   cleanup: () => void;
   /** Set the lesson ID to record segments for (use for existing drafts) */
@@ -263,6 +265,7 @@ export function useSegmentRecorder(options?: { sectionId?: string | null; langua
     recordFileRename,
     recordSlideActivate: capture.recordSlideActivate,
     recordSlideDeactivate: capture.recordSlideDeactivate,
+    recordCodeRun: capture.recordCodeRun,
     cleanup,
     setLessonId,
   };

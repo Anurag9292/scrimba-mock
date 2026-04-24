@@ -78,6 +78,7 @@ export default function SegmentPreview({
   const [activeCourseSlideId, setActiveCourseSlideId] = useState<string | null>(
     precomputedInit.activeSlideId !== undefined ? precomputedInit.activeSlideId : null
   );
+  const [codeRunTrigger, setCodeRunTrigger] = useState(0);
 
   // Compute available slides and find the active one
   const availableSlides = (courseSlides || []).slice(slideOffset);
@@ -121,7 +122,7 @@ export default function SegmentPreview({
     const targetIndex = findEventIndex(events, localTimeMs);
 
     if (targetIndex > lastAppliedIndexRef.current) {
-      const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
+      const { files, activeFileName: newActive, activeSlideId: newSlideId, codeRunCount } = replayEvents(
         currentFilesRef.current,
         events,
         lastAppliedIndexRef.current,
@@ -136,6 +137,9 @@ export default function SegmentPreview({
       }
       if (newSlideId !== undefined) {
         setActiveCourseSlideId(newSlideId);
+      }
+      if (codeRunCount > 0) {
+        setCodeRunTrigger((prev) => prev + codeRunCount);
       }
     } else if (targetIndex < lastAppliedIndexRef.current) {
       // Seeked backward — recompute from initial
@@ -337,8 +341,8 @@ export default function SegmentPreview({
                 <CodeRunnerPreview
                   code={currentFiles[activeFileName] ?? ""}
                   language={language as "python" | "javascript"}
-                  autoRun={isPlaying}
-                  autoRunDebounce={1500}
+                  runTrigger={codeRunTrigger}
+                  readOnly
                 />
               ) : (
                 <LivePreview html={html} css={css} javascript={javascript} />

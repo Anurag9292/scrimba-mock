@@ -235,6 +235,15 @@ export default function SegmentRecorder({
     }
   }, [recorder]);
 
+  const handleCodeRun = useCallback(
+    (fileName: string) => {
+      if (recorder.status === "recording") {
+        recorder.recordCodeRun(fileName);
+      }
+    },
+    [recorder]
+  );
+
   const handleRecord = useCallback(async () => {
     if (recorder.status === "idle" || recorder.status === "stopped") {
       // Initialize camera if not done yet
@@ -438,6 +447,7 @@ export default function SegmentRecorder({
           slideOffset={slideOffset}
           onSlideActivate={handleSlideActivate}
           onSlideDeactivate={handleSlideDeactivate}
+          onCodeRun={handleCodeRun}
         />
 
         <CameraPreview

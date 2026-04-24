@@ -43,6 +43,8 @@ interface EditorWithPreviewProps {
   onSlideActivate?: (slideId: string) => void;
   /** Called when slides are deactivated */
   onSlideDeactivate?: () => void;
+  /** Called when user clicks Run in the terminal (for recording code_run events) */
+  onCodeRun?: (fileName: string) => void;
 }
 
 export default function EditorWithPreview({
@@ -60,6 +62,7 @@ export default function EditorWithPreview({
   slideOffset = 0,
   onSlideActivate,
   onSlideDeactivate,
+  onCodeRun,
 }: EditorWithPreviewProps) {
   const [files, setFiles] = useState<Record<string, string>>(initialFiles ?? DEFAULT_FILES);
   const [activeSlideId, setActiveSlideId] = useState<string | null>(null);
@@ -206,6 +209,7 @@ export default function EditorWithPreview({
               <CodeRunnerPreview
                 code={files[activeFile] ?? ""}
                 language={language as "python" | "javascript"}
+                onRun={onCodeRun ? () => onCodeRun(activeFile) : undefined}
               />
             ) : (
               <LivePreview html={html} css={css} javascript={javascript} />

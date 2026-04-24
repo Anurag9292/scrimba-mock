@@ -96,11 +96,13 @@ export function replayEvents(
   events: CodeEvent[],
   startIndex: number,
   endIndex: number
-): { files: FileMap; activeFileName: string | null; activeSlideId: string | null | undefined } {
+): { files: FileMap; activeFileName: string | null; activeSlideId: string | null | undefined; codeRunCount: number } {
   let current = files;
   let activeFileName: string | null = null;
   // undefined = no slide event encountered in this batch
   let activeSlideId: string | null | undefined = undefined;
+  // Number of code_run events encountered in this batch
+  let codeRunCount = 0;
 
   for (let i = startIndex; i < endIndex && i < events.length; i++) {
     const event = events[i];
@@ -116,11 +118,13 @@ export function replayEvents(
       activeSlideId = event.slideId;
     } else if (event.type === "slide_deactivate") {
       activeSlideId = null;
+    } else if (event.type === "code_run") {
+      codeRunCount++;
     }
     current = applyCodeEvent(current, event);
   }
 
-  return { files: current, activeFileName, activeSlideId };
+  return { files: current, activeFileName, activeSlideId, codeRunCount };
 }
 
 /** Find the event index for a given timestamp using binary search */

@@ -23,6 +23,8 @@ interface CodeEventCapture {
   recordSlideActivate: (slideId: string) => void;
   /** Record a slide deactivation event (creator switched back to code) */
   recordSlideDeactivate: () => void;
+  /** Record a code execution event (user clicked Run / Ctrl+Enter) */
+  recordCodeRun: (fileName: string) => void;
   /** Clear all captured events */
   clear: () => void;
 }
@@ -226,6 +228,19 @@ export function useCodeEventCapture(): CodeEventCapture {
     eventsRef.current.push(event);
   }, [getTimestamp]);
 
+  const recordCodeRun = useCallback(
+    (fileName: string) => {
+      if (!startTimeRef.current) return;
+      const event: CodeEvent = {
+        type: "code_run",
+        timestamp: getTimestamp(),
+        fileName,
+      };
+      eventsRef.current.push(event);
+    },
+    [getTimestamp]
+  );
+
   const clear = useCallback(() => {
     eventsRef.current = [];
   }, []);
@@ -240,6 +255,7 @@ export function useCodeEventCapture(): CodeEventCapture {
     recordFileRename,
     recordSlideActivate,
     recordSlideDeactivate,
+    recordCodeRun,
     clear,
   };
 }
