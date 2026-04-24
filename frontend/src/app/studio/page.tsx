@@ -85,6 +85,7 @@ export default function StudioPage() {
   const [pathId, setPathId] = useState<string | null>(null);
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
   const [courseInitialFiles, setCourseInitialFiles] = useState<FileMap | null>(null);
+  const [courseLanguage, setCourseLanguage] = useState<string>("html");
   // True while we're resolving course data from sectionId — blocks recording start
   const [isCourseDataLoading, setIsCourseDataLoading] = useState(!!sectionId);
 
@@ -120,6 +121,10 @@ export default function StudioPage() {
         if (!cancelled && courseResp.success && courseResp.data?.path_id) {
           const resolvedPathId = courseResp.data.path_id;
           setPathId(resolvedPathId);
+          // Store the course language
+          if (courseResp.data.language) {
+            setCourseLanguage(courseResp.data.language);
+          }
           // Use course initial_files directly if available
           if (courseResp.data.initial_files && Object.keys(courseResp.data.initial_files).length > 0) {
             setCourseInitialFiles(courseResp.data.initial_files);
@@ -217,7 +222,7 @@ export default function StudioPage() {
             setCourseSlides(slidesResp.data);
           }
 
-          // Load course codebase for use when starting new segments
+          // Load course codebase and language for use when starting new segments
           if (courseInfoResp.data.path_id) {
             const codebaseResp = await fetchCourseCodebase(
               courseInfoResp.data.path_id, resolvedCourseId
@@ -226,6 +231,9 @@ export default function StudioPage() {
               const files = codebaseResp.data.initial_files;
               if (files && Object.keys(files).length > 0) {
                 setCourseInitialFiles(files);
+              }
+              if (codebaseResp.data.language) {
+                setCourseLanguage(codebaseResp.data.language);
               }
             }
           }
@@ -441,7 +449,7 @@ export default function StudioPage() {
         courseSlides={courseSlides}
         courseId={courseId ?? undefined}
         slideOffset={currentLesson?.slide_offset ?? 0}
-        language={currentLesson?.language ?? "html"}
+        language={currentLesson?.language ?? courseLanguage}
         onSegmentSaved={async (lessonId) => {
           // Delete the old segment being replaced
           await deleteSegment(lessonId, view.segmentId);
@@ -490,7 +498,7 @@ export default function StudioPage() {
         courseSlides={courseSlides}
         courseId={courseId ?? undefined}
         slideOffset={currentLesson?.slide_offset ?? 0}
-        language={currentLesson?.language ?? "html"}
+        language={currentLesson?.language ?? courseLanguage}
         onSegmentSaved={(lessonId) =>
           handleSegmentSaved(lessonId, view.lessonTitle)
         }
@@ -704,7 +712,7 @@ export default function StudioPage() {
                   courseSlides={courseSlides}
                   courseId={courseId ?? undefined}
                   slideOffset={currentLesson?.slide_offset ?? 0}
-                  language={currentLesson?.language ?? "html"}
+                  language={currentLesson?.language ?? courseLanguage}
                 />
               )}
 
