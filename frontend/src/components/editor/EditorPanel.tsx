@@ -204,14 +204,19 @@ export default function EditorPanel({
     }
   }, [readOnly, initialFiles]);
 
-  // In readOnly/playback mode, sync active file from parent
+  // Sync active file from parent when controlledActiveFile changes
   useEffect(() => {
-    if (readOnly && controlledActiveFile) {
+    if (controlledActiveFile) {
       setActiveFile((prev) =>
         prev === controlledActiveFile ? prev : controlledActiveFile
       );
+      // Also deactivate slide tab when switching to a file from the explorer
+      if (isSlideTabActive) {
+        setIsSlideTabActive(false);
+        onSlideDeactivate?.();
+      }
     }
-  }, [readOnly, controlledActiveFile]);
+  }, [controlledActiveFile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Externally controlled slide activation (during playback)
   useEffect(() => {

@@ -152,6 +152,7 @@ export default function EditorWithPreview({
             onFilesChange={handleFilesChange}
             readOnly={readOnly}
             onEditorMount={onEditorMount}
+            controlledActiveFile={activeFile}
             onActiveFileChange={handleActiveFileChange}
             onFileCreate={onFileCreate}
             onFileDelete={onFileDelete}
