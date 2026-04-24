@@ -6,14 +6,20 @@ import { Panel, PanelGroup } from "react-resizable-panels";
 import PanelHandle from "@/components/ui/PanelHandle";
 import EditorPanel, { DEFAULT_FILES } from "./EditorPanel";
 import LivePreview from "./LivePreview";
+import CodeRunnerPreview from "./CodeRunnerPreview";
 import SlideViewer from "../player/SlideViewer";
 import type { CourseSlide } from "@/lib/types";
+
+/** Languages that use the terminal/code-runner preview instead of the browser preview */
+const CODE_RUNNER_LANGUAGES = new Set(["python", "javascript"]);
 
 interface EditorWithPreviewProps {
   /** Optional initial files to seed the editor */
   initialFiles?: Record<string, string>;
   /** Whether the editor is read-only (for playback mode) */
   readOnly?: boolean;
+  /** Course/lesson language — determines preview type (html=browser, python/javascript=terminal) */
+  language?: string;
   /** Callback when the Monaco editor mounts */
   onEditorMount?: OnMount;
   /** Callback when files change */
@@ -41,6 +47,7 @@ interface EditorWithPreviewProps {
 export default function EditorWithPreview({
   initialFiles,
   readOnly = false,
+  language = "html",
   onEditorMount,
   onFilesChange: externalOnFilesChange,
   onActiveFileChange,
@@ -55,6 +62,9 @@ export default function EditorWithPreview({
 }: EditorWithPreviewProps) {
   const [files, setFiles] = useState<Record<string, string>>(initialFiles ?? DEFAULT_FILES);
   const [activeSlideId, setActiveSlideId] = useState<string | null>(null);
+  const [activeFile, setActiveFile] = useState(Object.keys(initialFiles ?? DEFAULT_FILES)[0] ?? "index.html");
+
+  const useCodeRunner = CODE_RUNNER_LANGUAGES.has(language);
 
   const handleFilesChange = useCallback((updated: Record<string, string>) => {
     setFiles(updated);
@@ -70,6 +80,11 @@ export default function EditorWithPreview({
     setActiveSlideId(null);
     onSlideDeactivate?.();
   }, [onSlideDeactivate]);
+
+  const handleActiveFileChange = useCallback((fileName: string) => {
+    setActiveFile(fileName);
+    onActiveFileChange?.(fileName);
+  }, [onActiveFileChange]);
 
   // Extract HTML/CSS/JS for the live preview by matching common filenames
   const html = files["index.html"] ?? "";
@@ -92,7 +107,7 @@ export default function EditorWithPreview({
             onFilesChange={handleFilesChange}
             readOnly={readOnly}
             onEditorMount={onEditorMount}
-            onActiveFileChange={onActiveFileChange}
+            onActiveFileChange={handleActiveFileChange}
             onFileCreate={onFileCreate}
             onFileDelete={onFileDelete}
             onFileRename={onFileRename}
@@ -127,7 +142,7 @@ export default function EditorWithPreview({
                 />
               </svg>
               <span className="text-xs font-medium text-gray-400">
-                {activeSlide ? "Slide" : "Preview"}
+                {activeSlide ? "Slide" : useCodeRunner ? "Output" : "Preview"}
               </span>
             </div>
             {activeSlide && (
@@ -137,10 +152,15 @@ export default function EditorWithPreview({
             )}
           </div>
 
-          {/* Preview content: slide or live preview */}
+          {/* Preview content: slide, terminal, or live preview */}
           <div className="flex-1 min-h-0">
             {activeSlide && courseId ? (
               <SlideViewer slide={activeSlide} courseId={courseId} />
+            ) : useCodeRunner ? (
+              <CodeRunnerPreview
+                code={files[activeFile] ?? ""}
+                language={language as "python" | "javascript"}
+              />
             ) : (
               <LivePreview html={html} css={css} javascript={javascript} />
             )}

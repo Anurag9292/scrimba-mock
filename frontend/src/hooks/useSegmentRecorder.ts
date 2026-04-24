@@ -68,7 +68,7 @@ interface UseSegmentRecorderReturn extends SegmentRecorderState {
  * If no lessonId is set, the first call to stopRecording will create a new draft lesson.
  * Subsequent segments are appended to the same lesson.
  */
-export function useSegmentRecorder(options?: { sectionId?: string | null }): UseSegmentRecorderReturn {
+export function useSegmentRecorder(options?: { sectionId?: string | null; language?: string }): UseSegmentRecorderReturn {
   const [status, setStatus] = useState<RecordingStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [lessonId, setLessonIdState] = useState<string | null>(null);
@@ -78,6 +78,7 @@ export function useSegmentRecorder(options?: { sectionId?: string | null }): Use
   const initialFilesRef = useRef<FileMap>({});
   const lessonIdRef = useRef<string | null>(null);
   const sectionIdRef = useRef<string | null | undefined>(options?.sectionId);
+  const languageRef = useRef<string>(options?.language ?? "html");
 
   const clock = useRecordingClock();
   const media = useMediaRecorder();
@@ -131,7 +132,7 @@ export function useSegmentRecorder(options?: { sectionId?: string | null }): Use
         if (!currentLessonId) {
           const lessonResult = await createLesson({
             title: `Recording ${new Date().toLocaleString()}`,
-            language: "html",
+            language: languageRef.current,
             files: initialFilesRef.current,
             status: "draft",
             ...(sectionIdRef.current ? { section_id: sectionIdRef.current } : {}),
