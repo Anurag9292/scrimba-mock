@@ -1,4 +1,4 @@
-import type { Lesson, LessonSegment, Checkpoint, ApiResponse, User, TokenResponse, CoursePath, Course, Section } from "./types";
+import type { Lesson, LessonSegment, Checkpoint, SlideContent, ApiResponse, User, TokenResponse, CoursePath, Course, Section } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -433,6 +433,162 @@ export async function reorderCheckpoint(
     `/api/lessons/${lessonId}/segments/${segmentId}/checkpoints/${checkpointId}/reorder?new_order=${newOrder}`,
     { method: "PUT" }
   );
+}
+
+// --- Slide API ---
+
+/** Data required to create a new slide */
+export interface SlideCreate {
+  order?: number;
+  type?: string;
+  title?: string;
+  content?: string;
+  language?: string;
+  timestamp_ms?: number;
+}
+
+/** Data for updating a slide */
+export interface SlideUpdate {
+  order?: number;
+  type?: string;
+  title?: string;
+  content?: string;
+  language?: string;
+  timestamp_ms?: number;
+}
+
+/** Fetch all slides for a specific segment */
+export async function fetchSlides(
+  lessonId: string,
+  segmentId: string
+): Promise<ApiResponse<SlideContent[]>> {
+  return apiFetch<SlideContent[]>(
+    `/api/lessons/${lessonId}/segments/${segmentId}/slides/`
+  );
+}
+
+/** Fetch all slides across all segments of a lesson (bulk fetch for the player) */
+export async function fetchLessonSlides(
+  lessonId: string
+): Promise<ApiResponse<SlideContent[]>> {
+  return apiFetch<SlideContent[]>(`/api/lessons/${lessonId}/slides/`);
+}
+
+/** Create a new slide for a segment */
+export async function createSlide(
+  lessonId: string,
+  segmentId: string,
+  data: SlideCreate
+): Promise<ApiResponse<SlideContent>> {
+  return apiFetch<SlideContent>(
+    `/api/lessons/${lessonId}/segments/${segmentId}/slides/`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+/** Update an existing slide */
+export async function updateSlide(
+  lessonId: string,
+  segmentId: string,
+  slideId: string,
+  data: SlideUpdate
+): Promise<ApiResponse<SlideContent>> {
+  return apiFetch<SlideContent>(
+    `/api/lessons/${lessonId}/segments/${segmentId}/slides/${slideId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+/** Delete a slide */
+export async function deleteSlide(
+  lessonId: string,
+  segmentId: string,
+  slideId: string
+): Promise<ApiResponse<void>> {
+  return apiFetch<void>(
+    `/api/lessons/${lessonId}/segments/${segmentId}/slides/${slideId}`,
+    { method: "DELETE" }
+  );
+}
+
+/** Reorder a slide to a new position */
+export async function reorderSlide(
+  lessonId: string,
+  segmentId: string,
+  slideId: string,
+  newOrder: number
+): Promise<ApiResponse<SlideContent>> {
+  return apiFetch<SlideContent>(
+    `/api/lessons/${lessonId}/segments/${segmentId}/slides/${slideId}/reorder?new_order=${newOrder}`,
+    { method: "PUT" }
+  );
+}
+
+/** Upload an image for a slide */
+export async function uploadSlideImage(
+  lessonId: string,
+  segmentId: string,
+  slideId: string,
+  imageFile: File
+): Promise<ApiResponse<{ filename: string }>> {
+  const url = `${API_URL}/api/lessons/${lessonId}/segments/${segmentId}/slides/${slideId}/image`;
+  const formData = new FormData();
+  formData.append("file", imageFile);
+
+  try {
+    const headers: Record<string, string> = {};
+    const token = getAuthToken();
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      body: formData,
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      return {
+        success: false,
+        error: {
+          code: `HTTP_${response.status}`,
+          message:
+            errorBody?.detail ??
+            errorBody?.message ??
+            `Upload failed with status ${response.status}`,
+        },
+      };
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (err) {
+    return {
+      success: false,
+      error: {
+        code: "NETWORK_ERROR",
+        message:
+          err instanceof Error ? err.message : "Upload failed unexpectedly",
+      },
+    };
+  }
+}
+
+/** Get the URL for a slide's image */
+export function getSlideImageUrl(
+  lessonId: string,
+  segmentId: string,
+  slideId: string
+): string {
+  return `${API_URL}/api/lessons/${lessonId}/segments/${segmentId}/slides/${slideId}/image`;
 }
 
 // --- Auth API ---

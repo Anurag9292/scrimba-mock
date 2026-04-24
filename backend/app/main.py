@@ -10,6 +10,7 @@ from app.api.lessons import router as lessons_router
 from app.api.segments import router as segments_router
 from app.api.upload import router as upload_router
 from app.api.checkpoints import router as checkpoints_router, lesson_checkpoints_router
+from app.api.slides import router as slides_router, lesson_slides_router
 from app.api.auth import router as auth_router
 from app.api.admin import router as admin_router
 from app.api.course_paths import router as course_paths_router
@@ -44,6 +45,8 @@ app.include_router(lessons_router)
 app.include_router(segments_router)
 app.include_router(checkpoints_router)
 app.include_router(lesson_checkpoints_router)
+app.include_router(slides_router)
+app.include_router(lesson_slides_router)
 app.include_router(upload_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
