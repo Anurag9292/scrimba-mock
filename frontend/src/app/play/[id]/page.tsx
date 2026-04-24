@@ -47,6 +47,8 @@ export default function PlayerPage() {
 
   // Track which slide is currently shown in the editor's Slide tab
   const [editorActiveSlideId, setEditorActiveSlideId] = useState<string | null>(null);
+  // Track user-selected file from the explorer (overrides playback's activeFileName)
+  const [userSelectedFile, setUserSelectedFile] = useState<string | null>(null);
 
   // Find the active course slide for the preview panel
   const courseSlides = playback.courseSlides ?? [];
@@ -58,6 +60,16 @@ export default function PlayerPage() {
 
   // Resolve the course ID from the lesson's section hierarchy
   const courseId = playback.courseId ?? undefined;
+
+  // Effective active file: user selection overrides playback during pause/interactive
+  const effectiveActiveFile = userSelectedFile ?? playback.activeFileName;
+
+  // Reset user selection when playback changes the active file
+  useEffect(() => {
+    if (playback.isPlaying) {
+      setUserSelectedFile(null);
+    }
+  }, [playback.activeFileName, playback.isPlaying]);
 
   const isCheckpointActive = playback.activeCheckpoint !== null;
 
@@ -363,10 +375,8 @@ export default function PlayerPage() {
                 <div className="w-48 h-full">
                   <FileExplorer
                     files={playback.currentFiles}
-                    activeFile={playback.activeFileName}
-                    onFileSelect={(path) => {
-                      // The EditorPanel will handle the tab switch
-                    }}
+                    activeFile={effectiveActiveFile}
+                    onFileSelect={(path) => setUserSelectedFile(path)}
                     onFileCreate={playback.isInteractive ? handleExplorerFileCreate : undefined}
                     onFileDelete={playback.isInteractive ? handleExplorerFileDelete : undefined}
                     readOnly={!playback.isInteractive}
@@ -388,7 +398,7 @@ export default function PlayerPage() {
                 <EditorPanel
                   key={playback.isInteractive ? `interactive-${id}` : `playback-${id}-v${playback.seekVersion}`}
                   initialFiles={playback.currentFiles}
-                  controlledActiveFile={!playback.isInteractive ? playback.activeFileName : undefined}
+                  controlledActiveFile={effectiveActiveFile}
                   readOnly={!playback.isInteractive}
                   onFilesChange={playback.isInteractive ? playback.updateFiles : undefined}
                   courseSlides={courseSlides}
