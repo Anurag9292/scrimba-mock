@@ -333,13 +333,6 @@ export default function SegmentRecorder({
             elapsedMs={recorder.elapsedMs}
           />
 
-          {/* Live event counter — shows how many code events have been captured */}
-          {(recorder.status === "recording" || recorder.status === "paused") && (
-            <span className="rounded-lg border border-gray-700 bg-gray-800 px-2 py-1 font-mono text-xs text-gray-400">
-              {recorder.eventCount} events
-            </span>
-          )}
-
           {recorder.error && (
             <span className="text-xs text-red-400">{recorder.error}</span>
           )}
