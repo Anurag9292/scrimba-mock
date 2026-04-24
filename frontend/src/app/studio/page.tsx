@@ -100,7 +100,10 @@ export default function StudioPage() {
     async function resolveCourseFromSection() {
       // Look up section to get course_id
       const sectionResp = await fetchSectionById(sectionId!);
-      if (cancelled || !sectionResp.success || !sectionResp.data) return;
+      if (cancelled || !sectionResp.success || !sectionResp.data) {
+        if (!cancelled) setIsCourseDataLoading(false);
+        return;
+      }
 
       const resolvedCourseId = sectionResp.data.course_id;
       setCourseId(resolvedCourseId);
@@ -722,6 +725,18 @@ export default function StudioPage() {
               )}
             </div>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  // --- Loading course data (blocks UI when arriving from "Add lesson to this section") ---
+  if (sectionId && isCourseDataLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-600 border-t-gray-300" />
+          <span className="text-sm text-gray-500">Loading course codebase...</span>
         </div>
       </div>
     );
