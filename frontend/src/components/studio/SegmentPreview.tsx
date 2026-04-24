@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { Panel, PanelGroup } from "react-resizable-panels";
 import type { LessonSegment, FileMap, CodeEvent } from "@/lib/types";
 import { getSegmentVideoUrl } from "@/lib/api";
 import { replayEvents, findEventIndex } from "@/lib/segments";
 import EditorPanel from "@/components/editor/EditorPanel";
 import LivePreview from "@/components/editor/LivePreview";
+import PanelHandle from "@/components/ui/PanelHandle";
 
 interface SegmentPreviewProps {
   segment: LessonSegment;
@@ -247,40 +249,47 @@ export default function SegmentPreview({ segment, onClose }: SegmentPreviewProps
       </div>
 
       {/* Main content: Editor + Preview + Video */}
-      <div className="flex" style={{ height: "420px" }}>
-        {/* Left: Code editor */}
-        <div className="flex w-2/5 flex-col border-r border-gray-800">
-          <EditorPanel
-            key={`seg-preview-${segment.id}-v${seekVersion}`}
-            initialFiles={currentFiles}
-            controlledActiveFile={activeFileName}
-            readOnly
-          />
-        </div>
-
-        {/* Center: Live preview */}
-        <div className="flex w-2/5 flex-col border-r border-gray-800">
-          <div className="flex h-8 shrink-0 items-center border-b border-gray-800 bg-[#252526] px-3">
-            <span className="text-[10px] font-medium text-gray-500">Preview</span>
-          </div>
-          <div className="flex-1 min-h-0">
-            <LivePreview html={html} css={css} javascript={javascript} />
-          </div>
-        </div>
-
-        {/* Right: Video */}
-        <div className="flex w-1/5 flex-col">
-          <div className="flex-1 bg-black flex items-center">
-            <video
-              ref={videoRef}
-              src={getSegmentVideoUrl(segment.id)}
-              onLoadedMetadata={handleVideoLoaded}
-              className="w-full"
-              playsInline
+      <PanelGroup direction="horizontal" className="h-[420px]">
+        <Panel defaultSize={40} minSize={20} id="seg-editor">
+          <div className="flex h-full flex-col border-r border-gray-800">
+            <EditorPanel
+              key={`seg-preview-${segment.id}-v${seekVersion}`}
+              initialFiles={currentFiles}
+              controlledActiveFile={activeFileName}
+              readOnly
             />
           </div>
-        </div>
-      </div>
+        </Panel>
+
+        <PanelHandle />
+
+        <Panel defaultSize={40} minSize={20} id="seg-preview">
+          <div className="flex h-full flex-col border-r border-gray-800">
+            <div className="flex h-8 shrink-0 items-center border-b border-gray-800 bg-[#252526] px-3">
+              <span className="text-[10px] font-medium text-gray-500">Preview</span>
+            </div>
+            <div className="flex-1 min-h-0">
+              <LivePreview html={html} css={css} javascript={javascript} />
+            </div>
+          </div>
+        </Panel>
+
+        <PanelHandle />
+
+        <Panel defaultSize={20} minSize={10} maxSize={35} id="seg-video">
+          <div className="flex h-full flex-col">
+            <div className="flex-1 bg-black flex items-center">
+              <video
+                ref={videoRef}
+                src={getSegmentVideoUrl(segment.id)}
+                onLoadedMetadata={handleVideoLoaded}
+                className="w-full"
+                playsInline
+              />
+            </div>
+          </div>
+        </Panel>
+      </PanelGroup>
 
       {/* Controls bar */}
       <div className="flex items-center gap-3 border-t border-gray-800 px-4 py-2">

@@ -1,11 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { Panel, PanelGroup } from "react-resizable-panels";
+import type { ImperativePanelHandle } from "react-resizable-panels";
+import PanelHandle from "@/components/ui/PanelHandle";
 import EditorPanel from "@/components/editor/EditorPanel";
 import LivePreview from "@/components/editor/LivePreview";
 import CheckpointPanel from "@/components/checkpoint/CheckpointPanel";
+import SlideViewer from "@/components/player/SlideViewer";
 import { usePlayback } from "@/hooks/usePlayback";
 import { segmentEffectiveDuration } from "@/lib/segments";
 
@@ -25,6 +29,15 @@ export default function PlayerPage() {
   const playback = usePlayback(id);
   const progressRef = useRef<HTMLDivElement>(null);
   const previewIframeRef = useRef<HTMLIFrameElement>(null);
+
+  const [videoPanelVisible, setVideoPanelVisible] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("player-video-visible") !== "false";
+    }
+    return true;
+  });
+
+  const videoPanelRef = useRef<ImperativePanelHandle>(null);
 
   const isCheckpointActive = playback.activeCheckpoint !== null;
 
@@ -55,6 +68,21 @@ export default function PlayerPage() {
     const nextIndex = (currentIndex + 1) % SPEED_OPTIONS.length;
     playback.setPlaybackRate(SPEED_OPTIONS[nextIndex]);
   }, [playback]);
+
+  const toggleVideoPanel = useCallback(() => {
+    setVideoPanelVisible((prev) => {
+      const next = !prev;
+      localStorage.setItem("player-video-visible", String(next));
+      if (videoPanelRef.current) {
+        if (next) {
+          videoPanelRef.current.expand();
+        } else {
+          videoPanelRef.current.collapse();
+        }
+      }
+      return next;
+    });
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -87,12 +115,17 @@ export default function PlayerPage() {
             Math.max(0, playback.currentTimeMs - (e.shiftKey ? 10000 : 5000))
           );
           break;
+        case "v":
+        case "V":
+          e.preventDefault();
+          toggleVideoPanel();
+          break;
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [playback]);
+  }, [playback, toggleVideoPanel]);
 
   const progressFraction =
     playback.durationMs > 0
@@ -173,6 +206,22 @@ export default function PlayerPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Video panel toggle */}
+          <button
+            type="button"
+            onClick={toggleVideoPanel}
+            className={`rounded-lg p-1.5 transition-colors ${
+              videoPanelVisible
+                ? "text-gray-400 hover:bg-gray-800 hover:text-white"
+                : "text-gray-600 hover:bg-gray-800 hover:text-gray-400"
+            }`}
+            title={videoPanelVisible ? "Hide video panel (V)" : "Show video panel (V)"}
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+            </svg>
+          </button>
+
           {/* Playback status badge */}
           <div className="flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900 px-3 py-1.5 text-xs text-gray-400">
             <span
@@ -223,276 +272,354 @@ export default function PlayerPage() {
       </header>
 
       {/* Main content */}
-      <div className="flex flex-1 min-h-0">
-        {/* Left: Editor + Preview */}
-        <div className="flex flex-1 flex-col min-w-0">
-          <div className="flex flex-1 min-h-0">
-            {/* Editor panel */}
-            <div className="flex h-full w-1/2 flex-col border-r border-gray-800">
-              {/* Checkpoint panel */}
-              {isCheckpointActive && playback.activeCheckpoint && (
-                <CheckpointPanel
-                  checkpoint={playback.activeCheckpoint}
-                  status={playback.checkpointStatus}
-                  onSubmit={playback.submitCheckpoint}
-                  onDismiss={playback.dismissCheckpoint}
-                  onSkip={playback.skipCheckpoint}
-                  previewIframeRef={previewIframeRef}
-                />
-              )}
-              {/* Interactive mode banner (only for manual interactive, not checkpoint) */}
-              {playback.isInteractive && !isCheckpointActive && (
-                <div className="flex items-center justify-between border-b border-amber-500/20 bg-amber-500/5 px-4 py-2">
-                  <span className="text-xs text-amber-300">
-                    Interactive mode — edit the code freely
-                  </span>
-                  <button
-                    type="button"
-                    onClick={playback.exitInteractive}
-                    className="text-xs text-amber-400 underline hover:text-amber-300"
-                  >
-                    Resume playback
-                  </button>
-                </div>
-              )}
-              <EditorPanel
-                key={playback.isInteractive ? `interactive-${id}` : `playback-${id}-v${playback.seekVersion}`}
-                initialFiles={playback.currentFiles}
-                controlledActiveFile={!playback.isInteractive ? playback.activeFileName : undefined}
-                readOnly={!playback.isInteractive}
-                onFilesChange={playback.isInteractive ? playback.updateFiles : undefined}
+      <PanelGroup direction="horizontal" className="flex-1 min-h-0">
+        {/* Editor panel */}
+        <Panel defaultSize={40} minSize={20} id="editor">
+          <div className="flex h-full flex-col border-r border-gray-800">
+            {/* Checkpoint panel */}
+            {isCheckpointActive && playback.activeCheckpoint && (
+              <CheckpointPanel
+                checkpoint={playback.activeCheckpoint}
+                status={playback.checkpointStatus}
+                onSubmit={playback.submitCheckpoint}
+                onDismiss={playback.dismissCheckpoint}
+                onSkip={playback.skipCheckpoint}
+                previewIframeRef={previewIframeRef}
               />
-            </div>
-
-            {/* Live preview */}
-            <div className="flex h-full w-1/2 flex-col">
-              <div className="flex h-10 shrink-0 items-center border-b border-gray-800 bg-[#252526] px-4">
-                <div className="flex items-center gap-2">
-                  <svg
-                    className="h-4 w-4 text-gray-500"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
-                    <path
-                      fillRule="evenodd"
-                      d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span className="text-xs font-medium text-gray-400">
-                    Preview
-                  </span>
-                </div>
-              </div>
-              <div className="flex-1 min-h-0">
-                <LivePreview ref={previewIframeRef} html={html} css={css} javascript={javascript} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Video + Controls + Info */}
-        <div className="flex w-80 shrink-0 flex-col border-l border-gray-800 bg-gray-900/30">
-          {/* Video area */}
-          <div className="border-b border-gray-800 bg-black">
-            {playback.videoUrl ? (
-              <video
-                ref={playback.videoRef}
-                src={playback.videoUrl}
-                className="aspect-video w-full"
-                playsInline
-                preload="metadata"
-              />
-            ) : (
-              <div className="flex aspect-video items-center justify-center">
-                <div className="text-center">
-                  <svg
-                    className="mx-auto h-10 w-10 text-gray-700"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                    aria-hidden="true"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"
-                    />
-                  </svg>
-                  <p className="mt-2 text-xs text-gray-600">
-                    No video recorded
-                  </p>
-                </div>
-              </div>
             )}
-          </div>
-
-          {/* Playback controls */}
-          <div className="border-b border-gray-800 p-4">
-            {/* Progress bar */}
-            <div
-              ref={progressRef}
-              className="relative mb-3 h-1.5 w-full cursor-pointer overflow-visible rounded-full bg-gray-800 transition-all hover:h-2"
-              onClick={handleProgressClick}
-              role="slider"
-              aria-label="Playback progress"
-              aria-valuemin={0}
-              aria-valuemax={playback.durationMs}
-              aria-valuenow={playback.currentTimeMs}
-              tabIndex={0}
-            >
-              <div
-                className="h-full rounded-full bg-brand-500"
-                style={{ width: `${progressFraction * 100}%` }}
-              />
-              {/* Checkpoint markers on progress bar */}
-              {playback.durationMs > 0 && playback.checkpoints.map((cp) => {
-                // Compute global position: find the segment this checkpoint belongs to,
-                // then offset by the segment's start position in the global timeline
-                let globalOffset = 0;
-                for (const seg of playback.segments) {
-                  if (seg.id === cp.segment_id) {
-                    // checkpoint timestamp_ms is segment-local (relative to trim start)
-                    globalOffset += cp.timestamp_ms - seg.trim_start_ms;
-                    break;
-                  }
-                  globalOffset += segmentEffectiveDuration(seg);
-                }
-                const fraction = globalOffset / playback.durationMs;
-                return (
-                  <div
-                    key={cp.id}
-                    className="absolute top-1/2 -translate-y-1/2 h-3 w-1.5 rounded-sm bg-blue-400/80 pointer-events-none"
-                    style={{
-                      left: `${fraction * 100}%`,
-                    }}
-                    title={cp.title}
-                  />
-                );
-              })}
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {/* Play/Pause button */}
+            {/* Interactive mode banner */}
+            {playback.isInteractive && !isCheckpointActive && (
+              <div className="flex items-center justify-between border-b border-amber-500/20 bg-amber-500/5 px-4 py-2">
+                <span className="text-xs text-amber-300">
+                  Interactive mode — edit the code freely
+                </span>
                 <button
                   type="button"
-                  onClick={handlePlayPause}
-                  className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
-                  aria-label={playback.isPlaying ? "Pause" : "Play"}
+                  onClick={playback.exitInteractive}
+                  className="text-xs text-amber-400 underline hover:text-amber-300"
                 >
-                  {playback.isPlaying ? (
-                    <svg
-                      className="h-5 w-5"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      aria-hidden="true"
-                    >
-                      <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="h-5 w-5"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      aria-hidden="true"
-                    >
-                      <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                    </svg>
-                  )}
+                  Resume playback
                 </button>
-
-                {/* Time display */}
-                <span className="font-mono text-xs text-gray-500">
-                  {formatTime(playback.currentTimeMs)} /{" "}
-                  {formatTime(playback.durationMs)}
-                </span>
               </div>
-
-              {/* Speed button */}
-              <button
-                type="button"
-                onClick={handleSpeedCycle}
-                className="rounded-lg px-2 py-1 font-mono text-xs text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
-                aria-label="Playback speed"
-              >
-                {playback.playbackRate}x
-              </button>
-            </div>
-          </div>
-
-          {/* Lesson info */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <h2 className="text-sm font-semibold text-white">
-              {playback.lesson.title}
-            </h2>
-            {playback.lesson.description && (
-              <p className="mt-2 text-xs leading-relaxed text-gray-500">
-                {playback.lesson.description}
-              </p>
             )}
+            <EditorPanel
+              key={playback.isInteractive ? `interactive-${id}` : `playback-${id}-v${playback.seekVersion}`}
+              initialFiles={playback.currentFiles}
+              controlledActiveFile={!playback.isInteractive ? playback.activeFileName : undefined}
+              readOnly={!playback.isInteractive}
+              onFilesChange={playback.isInteractive ? playback.updateFiles : undefined}
+            />
+          </div>
+        </Panel>
 
-            <div className="mt-4 space-y-2 text-xs text-gray-600">
-              <div className="flex justify-between">
-                <span>Duration</span>
-                <span className="text-gray-400">
-                  {formatTime(playback.durationMs)}
+        <PanelHandle />
+
+        {/* Preview panel */}
+        <Panel defaultSize={videoPanelVisible ? 40 : 60} minSize={20} id="preview">
+          <div className="flex h-full flex-col">
+            <div className="flex h-10 shrink-0 items-center justify-between border-b border-gray-800 bg-[#252526] px-4">
+              <div className="flex items-center gap-2">
+                <svg
+                  className="h-4 w-4 text-gray-500"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+                  <path
+                    fillRule="evenodd"
+                    d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <span className="text-xs font-medium text-gray-400">
+                  {playback.activeSlide ? "Slide" : "Preview"}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span>Language</span>
-                <span className="text-gray-400">
-                  {playback.lesson.language}
+              {/* Slide indicator badge */}
+              {playback.activeSlide && (
+                <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400 ring-1 ring-purple-500/20">
+                  {playback.activeSlide.type === "markdown" ? "Markdown" : playback.activeSlide.type === "image" ? "Image" : "Code"}
                 </span>
+              )}
+            </div>
+            <div className="flex-1 min-h-0">
+              {playback.activeSlide && playback.activeSlideSegmentId ? (
+                <SlideViewer
+                  slide={playback.activeSlide}
+                  lessonId={id}
+                  segmentId={playback.activeSlideSegmentId}
+                />
+              ) : (
+                <LivePreview ref={previewIframeRef} html={html} css={css} javascript={javascript} />
+              )}
+            </div>
+          </div>
+        </Panel>
+
+        <PanelHandle />
+
+        {/* Video + Controls + Info panel (collapsible) */}
+        <Panel
+          ref={videoPanelRef}
+          defaultSize={videoPanelVisible ? 20 : 0}
+          minSize={0}
+          maxSize={35}
+          collapsible
+          collapsedSize={0}
+          onCollapse={() => {
+            setVideoPanelVisible(false);
+            localStorage.setItem("player-video-visible", "false");
+          }}
+          onExpand={() => {
+            setVideoPanelVisible(true);
+            localStorage.setItem("player-video-visible", "true");
+          }}
+          id="video"
+        >
+          <div className="flex h-full flex-col border-l border-gray-800 bg-gray-900/30">
+            {/* Video area */}
+            <div className="border-b border-gray-800 bg-black">
+              {playback.videoUrl ? (
+                <video
+                  ref={playback.videoRef}
+                  src={playback.videoUrl}
+                  className="aspect-video w-full"
+                  playsInline
+                  preload="metadata"
+                />
+              ) : (
+                <div className="flex aspect-video items-center justify-center">
+                  <div className="text-center">
+                    <svg
+                      className="mx-auto h-10 w-10 text-gray-700"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"
+                      />
+                    </svg>
+                    <p className="mt-2 text-xs text-gray-600">
+                      No video recorded
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Playback controls */}
+            <div className="border-b border-gray-800 p-4">
+              {/* Progress bar */}
+              <div
+                ref={progressRef}
+                className="relative mb-3 h-1.5 w-full cursor-pointer overflow-visible rounded-full bg-gray-800 transition-all hover:h-2"
+                onClick={handleProgressClick}
+                role="slider"
+                aria-label="Playback progress"
+                aria-valuemin={0}
+                aria-valuemax={playback.durationMs}
+                aria-valuenow={playback.currentTimeMs}
+                tabIndex={0}
+              >
+                <div
+                  className="h-full rounded-full bg-brand-500"
+                  style={{ width: `${progressFraction * 100}%` }}
+                />
+                {/* Scrubber thumb */}
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-brand-400 opacity-0 hover:opacity-100 shadow-lg transition-opacity pointer-events-none"
+                  style={{ left: `${progressFraction * 100}%` }}
+                />
+                {/* Checkpoint markers on progress bar */}
+                {playback.durationMs > 0 && playback.checkpoints.map((cp) => {
+                  let globalOffset = 0;
+                  for (const seg of playback.segments) {
+                    if (seg.id === cp.segment_id) {
+                      globalOffset += cp.timestamp_ms - seg.trim_start_ms;
+                      break;
+                    }
+                    globalOffset += segmentEffectiveDuration(seg);
+                  }
+                  const fraction = globalOffset / playback.durationMs;
+                  return (
+                    <div
+                      key={cp.id}
+                      className="absolute top-1/2 -translate-y-1/2 h-3 w-1.5 rounded-sm bg-blue-400/80 pointer-events-none"
+                      style={{
+                        left: `${fraction * 100}%`,
+                      }}
+                      title={cp.title}
+                    />
+                  );
+                })}
+                {/* Segment boundary markers */}
+                {playback.durationMs > 0 && playback.segments.length > 1 && (() => {
+                  let offset = 0;
+                  return playback.segments.slice(0, -1).map((seg) => {
+                    offset += segmentEffectiveDuration(seg);
+                    const fraction = offset / playback.durationMs;
+                    return (
+                      <div
+                        key={`seg-marker-${seg.id}`}
+                        className="absolute top-0 h-full w-px bg-gray-600/50 pointer-events-none"
+                        style={{ left: `${fraction * 100}%` }}
+                      />
+                    );
+                  });
+                })()}
+                {/* Slide markers on progress bar */}
+                {playback.durationMs > 0 && playback.slides.length > 0 && playback.slides.map((slide) => {
+                  let globalOffset = 0;
+                  for (const seg of playback.segments) {
+                    if (seg.id === slide.segment_id) {
+                      globalOffset += slide.timestamp_ms - seg.trim_start_ms;
+                      break;
+                    }
+                    globalOffset += segmentEffectiveDuration(seg);
+                  }
+                  const fraction = globalOffset / playback.durationMs;
+                  return (
+                    <div
+                      key={`slide-${slide.id}`}
+                      className="absolute top-1/2 -translate-y-1/2 h-2.5 w-1 rounded-sm bg-purple-400/60 pointer-events-none"
+                      style={{ left: `${fraction * 100}%` }}
+                      title={slide.title ?? `Slide (${slide.type})`}
+                    />
+                  );
+                })}
               </div>
-              <div className="flex justify-between">
-                <span>Events</span>
-                <span className="text-gray-400">
-                  {playback.lesson.code_events.length}
-                </span>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {/* Play/Pause button */}
+                  <button
+                    type="button"
+                    onClick={handlePlayPause}
+                    className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                    aria-label={playback.isPlaying ? "Pause" : "Play"}
+                  >
+                    {playback.isPlaying ? (
+                      <svg
+                        className="h-5 w-5"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="h-5 w-5"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                      </svg>
+                    )}
+                  </button>
+
+                  {/* Time display */}
+                  <span className="font-mono text-xs text-gray-500">
+                    {formatTime(playback.currentTimeMs)} /{" "}
+                    {formatTime(playback.durationMs)}
+                  </span>
+                </div>
+
+                {/* Speed button */}
+                <button
+                  type="button"
+                  onClick={handleSpeedCycle}
+                  className="rounded-lg px-2 py-1 font-mono text-xs text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                  aria-label="Playback speed"
+                >
+                  {playback.playbackRate}x
+                </button>
               </div>
             </div>
 
-            <div className="mt-6 space-y-2.5">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-gray-600">
-                Keyboard shortcuts
-              </p>
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>Play / Pause</span>
-                <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
-                  Space
-                </kbd>
-              </div>
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>Seek ±5s</span>
-                <div className="flex gap-1">
-                  <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
-                    ←
-                  </kbd>
-                  <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
-                    →
-                  </kbd>
+            {/* Lesson info */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <h2 className="text-sm font-semibold text-white">
+                {playback.lesson.title}
+              </h2>
+              {playback.lesson.description && (
+                <p className="mt-2 text-xs leading-relaxed text-gray-500">
+                  {playback.lesson.description}
+                </p>
+              )}
+
+              <div className="mt-4 space-y-2 text-xs text-gray-600">
+                <div className="flex justify-between">
+                  <span>Duration</span>
+                  <span className="text-gray-400">
+                    {formatTime(playback.durationMs)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Language</span>
+                  <span className="text-gray-400">
+                    {playback.lesson.language}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Events</span>
+                  <span className="text-gray-400">
+                    {playback.lesson.code_events.length}
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>Seek ±10s</span>
-                <div className="flex gap-1">
+
+              <div className="mt-6 space-y-2.5">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-gray-600">
+                  Keyboard shortcuts
+                </p>
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>Play / Pause</span>
                   <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
-                    Shift
+                    Space
                   </kbd>
-                  <span className="text-gray-600">+</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>Seek ±5s</span>
+                  <div className="flex gap-1">
+                    <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+                      ←
+                    </kbd>
+                    <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+                      →
+                    </kbd>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>Seek ±10s</span>
+                  <div className="flex gap-1">
+                    <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+                      Shift
+                    </kbd>
+                    <span className="text-gray-600">+</span>
+                    <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+                      ←→
+                    </kbd>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>Toggle video</span>
                   <kbd className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
-                    ←→
+                    V
                   </kbd>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </Panel>
+      </PanelGroup>
     </div>
   );
 }

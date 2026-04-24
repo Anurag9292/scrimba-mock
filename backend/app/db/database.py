@@ -7,6 +7,7 @@ from app.config import settings
 import app.models.lesson  # noqa: F401
 import app.models.segment  # noqa: F401
 import app.models.checkpoint  # noqa: F401
+import app.models.slide  # noqa: F401
 import app.models.user  # noqa: F401
 import app.models.course_path  # noqa: F401
 import app.models.course  # noqa: F401
@@ -53,7 +54,8 @@ def _run_alembic_migrations(connection) -> None:
         has_checkpoints = "checkpoints" in tables
         has_users = "users" in tables
         has_course_paths = "course_paths" in tables
-        if "status" in columns and has_checkpoints and has_users and has_course_paths:
+        has_slides = "slide_contents" in tables
+        if "status" in columns and has_checkpoints and has_users and has_course_paths and has_slides:
             # All tables/columns already exist (e.g. fresh create_all), just stamp head
             command.stamp(alembic_cfg, "head")
         else:

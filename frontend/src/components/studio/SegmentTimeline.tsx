@@ -20,6 +20,7 @@ interface SegmentTimelineProps {
   onDelete: (segmentId: string) => void;
   onPreview?: (segment: LessonSegment) => void;
   onCheckpoints?: (segment: LessonSegment) => void;
+  onSlides?: (segment: LessonSegment) => void;
 }
 
 export default function SegmentTimeline({
@@ -30,6 +31,7 @@ export default function SegmentTimeline({
   onDelete,
   onPreview,
   onCheckpoints,
+  onSlides,
 }: SegmentTimelineProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -269,6 +271,29 @@ export default function SegmentTimeline({
                         <path
                           fillRule="evenodd"
                           d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                  )}
+
+                  {/* Slides */}
+                  {onSlides && (
+                    <button
+                      type="button"
+                      onClick={() => onSlides(segment)}
+                      className="rounded p-1 text-gray-500 transition-colors hover:bg-purple-500/10 hover:text-purple-400"
+                      title="Slides"
+                    >
+                      <svg
+                        className="h-3.5 w-3.5"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M1 2.75A.75.75 0 011.75 2h16.5a.75.75 0 010 1.5H18v8.75A2.75 2.75 0 0115.25 15h-1.072l.798 3.06a.75.75 0 01-1.452.38L13.41 18H6.59l-.114.44a.75.75 0 01-1.452-.38L5.822 15H4.75A2.75 2.75 0 012 12.25V3.5h-.25A.75.75 0 011 2.75zM7.373 15l-.391 1.5h6.037l-.392-1.5H7.373zm.529-3h4.196a.75.75 0 000-1.5H7.902a.75.75 0 000 1.5zM6.152 7.25a.75.75 0 01.75-.75h6.196a.75.75 0 010 1.5H6.902a.75.75 0 01-.75-.75z"
                           clipRule="evenodd"
                         />
                       </svg>

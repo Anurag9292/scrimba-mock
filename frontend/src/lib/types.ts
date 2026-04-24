@@ -122,6 +122,24 @@ export interface Checkpoint {
   updated_at: string;
 }
 
+/** Slide content types */
+export type SlideType = "markdown" | "image" | "code_snippet";
+
+/** A slide/content item within a segment */
+export interface SlideContent {
+  id: string;
+  segment_id: string;
+  order: number;
+  type: SlideType;
+  title: string | null;
+  content: string;
+  language: string | null;
+  image_filename: string | null;
+  timestamp_ms: number;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Status of a checkpoint during playback */
 export type CheckpointStatus = "idle" | "active" | "validating" | "passed" | "failed";
 

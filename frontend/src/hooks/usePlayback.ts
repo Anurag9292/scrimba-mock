@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { Lesson, LessonSegment, CodeEvent, FileMap, Checkpoint, CheckpointStatus } from "@/lib/types";
-import { fetchLesson, fetchSegments, fetchLessonCheckpoints, getVideoUrl, getSegmentVideoUrl } from "@/lib/api";
+import type { Lesson, LessonSegment, CodeEvent, FileMap, Checkpoint, CheckpointStatus, SlideContent } from "@/lib/types";
+import { fetchLesson, fetchSegments, fetchLessonCheckpoints, fetchLessonSlides, getVideoUrl, getSegmentVideoUrl } from "@/lib/api";
 import { positionToOffset, applyCodeEvent, replayEvents, findEventIndex, segmentEffectiveDuration, globalToSegmentTime, computeSegmentOffsets } from "@/lib/segments";
 
 export interface UsePlaybackReturn {
@@ -60,6 +60,12 @@ export interface UsePlaybackReturn {
   dismissCheckpoint: () => void;
   /** Skip a checkpoint without completing it */
   skipCheckpoint: () => void;
+  /** All slides for this lesson */
+  slides: SlideContent[];
+  /** Currently active slide based on playback position (null if no slide is showing) */
+  activeSlide: SlideContent | null;
+  /** The segment ID of the currently active slide's segment */
+  activeSlideSegmentId: string | null;
 }
 
 export function usePlayback(lessonId: string): UsePlaybackReturn {
@@ -80,6 +86,11 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
   const [checkpointStatus, setCheckpointStatus] = useState<CheckpointStatus>("idle");
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [loadedSegments, setLoadedSegments] = useState<LessonSegment[]>([]);
+
+  // Slide state
+  const [slides, setSlides] = useState<SlideContent[]>([]);
+  const [activeSlide, setActiveSlide] = useState<SlideContent | null>(null);
+  const [activeSlideSegmentId, setActiveSlideSegmentId] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null!) as React.RefObject<HTMLVideoElement>;
   const rafRef = useRef<number>(0);
@@ -112,6 +123,9 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
   const checkpointsRef = useRef<Map<string, Checkpoint[]>>(new Map()); // segment_id -> checkpoints[]
   const completedCheckpointsRef = useRef<Set<string>>(new Set()); // checkpoint IDs that have been passed/skipped
   const lastCheckTimeMsRef = useRef<number>(0); // last tick time used for checkpoint detection
+
+  // Slide refs
+  const slidesRef = useRef<Map<string, SlideContent[]>>(new Map()); // segment_id -> slides[]
 
   /** Set up internal state for a specific segment index */
   function loadSegmentState(segmentIndex: number) {
@@ -207,10 +221,11 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
       const s = result.data;
       setLesson(s);
 
-      // Try to load segments and checkpoints in parallel
-      const [segResult, cpResult] = await Promise.all([
+      // Try to load segments, checkpoints, and slides in parallel
+      const [segResult, cpResult, slideResult] = await Promise.all([
         fetchSegments(lessonId),
         fetchLessonCheckpoints(lessonId),
+        fetchLessonSlides(lessonId),
       ]);
       if (cancelled) return;
 
@@ -228,6 +243,22 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
         });
         checkpointsRef.current = cpMap;
         setCheckpoints(cpResult.data);
+      }
+
+      // Process slides — group by segment_id
+      if (slideResult.success && slideResult.data && slideResult.data.length > 0) {
+        const slideMap = new Map<string, SlideContent[]>();
+        for (const slide of slideResult.data) {
+          const existing = slideMap.get(slide.segment_id) ?? [];
+          existing.push(slide);
+          slideMap.set(slide.segment_id, existing);
+        }
+        // Sort each segment's slides by timestamp_ms
+        slideMap.forEach((slds) => {
+          slds.sort((a: SlideContent, b: SlideContent) => a.timestamp_ms - b.timestamp_ms);
+        });
+        slidesRef.current = slideMap;
+        setSlides(slideResult.data);
       }
 
       const segments =
@@ -409,6 +440,24 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
         }
       }
       lastCheckTimeMsRef.current = localTimeMs;
+
+      // Determine active slide at this local time
+      const segSlides = slidesRef.current.get(seg.id);
+      if (segSlides && segSlides.length > 0) {
+        // Find the latest slide whose timestamp_ms <= localTimeMs
+        let matchedSlide: SlideContent | null = null;
+        for (let i = segSlides.length - 1; i >= 0; i--) {
+          if (segSlides[i].timestamp_ms <= localTimeMs) {
+            matchedSlide = segSlides[i];
+            break;
+          }
+        }
+        setActiveSlide(matchedSlide);
+        setActiveSlideSegmentId(matchedSlide ? seg.id : null);
+      } else {
+        setActiveSlide(null);
+        setActiveSlideSegmentId(null);
+      }
 
       // Check if we've reached the end of this segment
       // Also check video.ended to handle cases where the video file is
@@ -807,5 +856,8 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
     submitCheckpoint,
     dismissCheckpoint,
     skipCheckpoint,
+    slides,
+    activeSlide,
+    activeSlideSegmentId,
   };
 }

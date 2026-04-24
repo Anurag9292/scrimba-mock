@@ -20,6 +20,7 @@ import SegmentTimeline from "@/components/studio/SegmentTimeline";
 import TrimEditor from "@/components/studio/TrimEditor";
 import SegmentPreview from "@/components/studio/SegmentPreview";
 import CheckpointEditor from "@/components/studio/CheckpointEditor";
+import SlideEditor from "@/components/studio/SlideEditor";
 import { segmentEffectiveDuration, computeFinalFiles } from "@/lib/segments";
 
 /** Format milliseconds to mm:ss display */
@@ -71,6 +72,7 @@ export default function StudioPage() {
   const [trimmingSegment, setTrimmingSegment] = useState<LessonSegment | null>(null);
   const [previewSegment, setPreviewSegment] = useState<LessonSegment | null>(null);
   const [checkpointSegment, setCheckpointSegment] = useState<LessonSegment | null>(null);
+  const [slideSegment, setSlideSegment] = useState<LessonSegment | null>(null);
 
   // If a lessonId is provided in the URL, load that lesson directly into segments view
   useEffect(() => {
@@ -256,6 +258,7 @@ export default function StudioPage() {
   const handlePreview = useCallback((segment: LessonSegment) => {
     setPreviewSegment(segment);
     setCheckpointSegment(null);
+    setSlideSegment(null);
   }, []);
 
   // --- Checkpoint handler ---
@@ -263,11 +266,21 @@ export default function StudioPage() {
     setCheckpointSegment(segment);
     setTrimmingSegment(null);
     setPreviewSegment(null);
+    setSlideSegment(null);
   }, []);
 
   // --- Trim handler ---
   const handleTrim = useCallback((segment: LessonSegment) => {
     setTrimmingSegment(segment);
+    setCheckpointSegment(null);
+    setSlideSegment(null);
+  }, []);
+
+  // --- Slides handler ---
+  const handleSlides = useCallback((segment: LessonSegment) => {
+    setSlideSegment(segment);
+    setTrimmingSegment(null);
+    setPreviewSegment(null);
     setCheckpointSegment(null);
   }, []);
 
@@ -514,6 +527,7 @@ export default function StudioPage() {
                 }
                 onPreview={handlePreview}
                 onCheckpoints={handleCheckpoints}
+                onSlides={handleSlides}
               />
 
               {trimmingSegment && (
@@ -537,6 +551,14 @@ export default function StudioPage() {
                   segment={checkpointSegment}
                   lessonId={view.lessonId}
                   onClose={() => setCheckpointSegment(null)}
+                />
+              )}
+
+              {slideSegment && !trimmingSegment && !checkpointSegment && !previewSegment && (
+                <SlideEditor
+                  segment={slideSegment}
+                  lessonId={view.lessonId}
+                  onClose={() => setSlideSegment(null)}
                 />
               )}
             </div>
