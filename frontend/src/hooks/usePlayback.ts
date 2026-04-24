@@ -70,6 +70,8 @@ export interface UsePlaybackReturn {
   courseSlides: CourseSlide[];
   /** The course ID (resolved from lesson → section → course) */
   courseId: string | null;
+  /** Active course slide ID (from slide_activate code events during playback) */
+  activeCourseSlideId: string | null;
 }
 
 export function usePlayback(lessonId: string): UsePlaybackReturn {
@@ -98,6 +100,8 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
   // Course-level slides
   const [courseSlides, setCourseSlides] = useState<CourseSlide[]>([]);
   const [courseId, setCourseId] = useState<string | null>(null);
+  // Active course slide ID (driven by slide_activate/slide_deactivate code events)
+  const [activeCourseSlideId, setActiveCourseSlideId] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null!) as React.RefObject<HTMLVideoElement>;
   const rafRef = useRef<number>(0);
@@ -148,6 +152,9 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
     // local time, causing all checkpoints in the new segment to be missed.
     lastCheckTimeMsRef.current = seg.trim_start_ms;
 
+    // Reset course slide on segment transition
+    setActiveCourseSlideId(null);
+
     // Set initial files and events for this segment
     initialFilesRef.current = seg.initial_files;
     const sorted = [...seg.code_events].sort(
@@ -192,7 +199,7 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
 
     if (targetIndex !== lastAppliedIndexRef.current) {
       // Always recompute from initial files for reliability
-      const { files, activeFileName: newActive } = replayEvents(
+      const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
         initialFilesRef.current,
         events,
         0,
@@ -205,6 +212,10 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
         setActiveFileName(newActive);
       }
       setCurrentFiles(files);
+      // Update course slide state on seek
+      if (newSlideId !== undefined) {
+        setActiveCourseSlideId(newSlideId);
+      }
     }
   }
 
@@ -426,7 +437,7 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
       const targetIndex = findEventIndex(events, localTimeMs);
 
       if (targetIndex > lastAppliedIndexRef.current) {
-        const { files, activeFileName: newActive } = replayEvents(
+        const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
           currentFilesRef.current,
           events,
           lastAppliedIndexRef.current,
@@ -439,6 +450,11 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
           setActiveFileName(newActive);
         }
         setCurrentFiles(files);
+
+        // Handle course-level slide activation from code events
+        if (newSlideId !== undefined) {
+          setActiveCourseSlideId(newSlideId);
+        }
       }
 
       // Check for checkpoints at this local time
@@ -886,5 +902,6 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
     activeSlideSegmentId,
     courseSlides,
     courseId,
+    activeCourseSlideId,
   };
 }

@@ -6,7 +6,7 @@ import EditorWithPreview from "@/components/editor/EditorWithPreview";
 import CameraPreview from "@/components/recording/CameraPreview";
 import { useSegmentRecorder } from "@/hooks/useSegmentRecorder";
 import type { RecordingStatus, FileMap, LessonSegment, CourseSlide } from "@/lib/types";
-import { fetchSegments } from "@/lib/api";
+import { fetchSegments, fetchComputedStartFiles } from "@/lib/api";
 import { computeFinalFiles } from "@/lib/segments";
 
 /** Format milliseconds to mm:ss display */
@@ -117,6 +117,15 @@ export default function SegmentRecorder({
         const lastSegment = result.data[result.data.length - 1];
         const finalFiles = computeFinalFiles(lastSegment);
         setInitialFiles(finalFiles);
+      } else {
+        // No segments yet — try to get computed start files from the course
+        const startResp = await fetchComputedStartFiles(lessonId!);
+        if (!cancelled && startResp.success && startResp.data) {
+          const files = startResp.data.files;
+          if (files && Object.keys(files).length > 0) {
+            setInitialFiles(files);
+          }
+        }
       }
       setIsLoadingFiles(false);
     }

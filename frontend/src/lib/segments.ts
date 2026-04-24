@@ -89,9 +89,10 @@ export function replayEvents(
   events: CodeEvent[],
   startIndex: number,
   endIndex: number
-): { files: FileMap; activeFileName: string | null } {
+): { files: FileMap; activeFileName: string | null; activeSlideId: string | null } {
   let current = files;
   let activeFileName: string | null = null;
+  let activeSlideId: string | null = null;
 
   for (let i = startIndex; i < endIndex && i < events.length; i++) {
     const event = events[i];
@@ -103,11 +104,15 @@ export function replayEvents(
       if (activeFileName === event.fileName) {
         activeFileName = event.newFileName;
       }
+    } else if (event.type === "slide_activate" && event.slideId) {
+      activeSlideId = event.slideId;
+    } else if (event.type === "slide_deactivate") {
+      activeSlideId = null;
     }
     current = applyCodeEvent(current, event);
   }
 
-  return { files: current, activeFileName };
+  return { files: current, activeFileName, activeSlideId };
 }
 
 /** Find the event index for a given timestamp using binary search */
