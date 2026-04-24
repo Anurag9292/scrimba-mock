@@ -2,16 +2,23 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Panel, PanelGroup } from "react-resizable-panels";
-import type { LessonSegment, FileMap, CodeEvent } from "@/lib/types";
+import type { LessonSegment, FileMap, CodeEvent, CourseSlide } from "@/lib/types";
 import { getSegmentVideoUrl } from "@/lib/api";
 import { replayEvents, findEventIndex } from "@/lib/segments";
 import EditorPanel from "@/components/editor/EditorPanel";
 import LivePreview from "@/components/editor/LivePreview";
+import SlideViewer from "@/components/player/SlideViewer";
 import PanelHandle from "@/components/ui/PanelHandle";
 
 interface SegmentPreviewProps {
   segment: LessonSegment;
   onClose: () => void;
+  /** Course slides available for this lesson */
+  courseSlides?: CourseSlide[];
+  /** Course ID (for slide image URLs) */
+  courseId?: string;
+  /** Slide offset for the current lesson */
+  slideOffset?: number;
 }
 
 /** Format milliseconds to mm:ss display */
@@ -22,7 +29,13 @@ function formatTime(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export default function SegmentPreview({ segment, onClose }: SegmentPreviewProps) {
+export default function SegmentPreview({
+  segment,
+  onClose,
+  courseSlides,
+  courseId,
+  slideOffset = 0,
+}: SegmentPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const rafRef = useRef<number>(0);
 
@@ -60,6 +73,13 @@ export default function SegmentPreview({ segment, onClose }: SegmentPreviewProps
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTimeMs, setCurrentTimeMs] = useState(trimStart);
   const [seekVersion, setSeekVersion] = useState(0);
+  const [activeCourseSlideId, setActiveCourseSlideId] = useState<string | null>(null);
+
+  // Compute available slides and find the active one
+  const availableSlides = (courseSlides || []).slice(slideOffset);
+  const activeSlide = activeCourseSlideId
+    ? availableSlides.find((s) => s.id === activeCourseSlideId) ?? null
+    : null;
 
   // Refs for RAF loop
   const currentFilesRef = useRef<FileMap>(precomputedInit.files);
@@ -97,7 +117,7 @@ export default function SegmentPreview({ segment, onClose }: SegmentPreviewProps
     const targetIndex = findEventIndex(events, localTimeMs);
 
     if (targetIndex > lastAppliedIndexRef.current) {
-      const { files, activeFileName: newActive } = replayEvents(
+      const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
         currentFilesRef.current,
         events,
         lastAppliedIndexRef.current,
@@ -110,9 +130,12 @@ export default function SegmentPreview({ segment, onClose }: SegmentPreviewProps
         activeFileRef.current = newActive;
         setActiveFileName(newActive);
       }
+      if (newSlideId !== undefined) {
+        setActiveCourseSlideId(newSlideId);
+      }
     } else if (targetIndex < lastAppliedIndexRef.current) {
       // Seeked backward — recompute from initial
-      const { files, activeFileName: newActive } = replayEvents(
+      const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
         segment.initial_files,
         events,
         0,
@@ -124,6 +147,9 @@ export default function SegmentPreview({ segment, onClose }: SegmentPreviewProps
       if (newActive) {
         activeFileRef.current = newActive;
         setActiveFileName(newActive);
+      }
+      if (newSlideId !== undefined) {
+        setActiveCourseSlideId(newSlideId);
       }
     }
 
@@ -155,7 +181,7 @@ export default function SegmentPreview({ segment, onClose }: SegmentPreviewProps
 
       const events = sortedEvents.current;
       const targetIndex = findEventIndex(events, localTimeMs);
-      const { files, activeFileName: newActive } = replayEvents(
+      const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
         segment.initial_files,
         events,
         0,
@@ -168,6 +194,9 @@ export default function SegmentPreview({ segment, onClose }: SegmentPreviewProps
       if (newActive) {
         activeFileRef.current = newActive;
         setActiveFileName(newActive);
+      }
+      if (newSlideId !== undefined) {
+        setActiveCourseSlideId(newSlideId);
       }
     };
 
@@ -257,6 +286,10 @@ export default function SegmentPreview({ segment, onClose }: SegmentPreviewProps
               initialFiles={currentFiles}
               controlledActiveFile={activeFileName}
               readOnly
+              courseSlides={courseSlides}
+              activeSlideId={activeCourseSlideId}
+              courseId={courseId}
+              slideOffset={slideOffset}
             />
           </div>
         </Panel>
@@ -265,11 +298,22 @@ export default function SegmentPreview({ segment, onClose }: SegmentPreviewProps
 
         <Panel defaultSize={40} minSize={20} id="seg-preview">
           <div className="flex h-full flex-col border-r border-gray-800">
-            <div className="flex h-8 shrink-0 items-center border-b border-gray-800 bg-[#252526] px-3">
-              <span className="text-[10px] font-medium text-gray-500">Preview</span>
+            <div className="flex h-8 shrink-0 items-center justify-between border-b border-gray-800 bg-[#252526] px-3">
+              <span className="text-[10px] font-medium text-gray-500">
+                {activeSlide ? "Slide" : "Preview"}
+              </span>
+              {activeSlide && (
+                <span className="rounded-full bg-purple-500/10 px-1.5 py-0.5 text-[9px] font-medium text-purple-400 ring-1 ring-purple-500/20">
+                  {activeSlide.type}
+                </span>
+              )}
             </div>
             <div className="flex-1 min-h-0">
-              <LivePreview html={html} css={css} javascript={javascript} />
+              {activeSlide && courseId ? (
+                <SlideViewer slide={activeSlide} courseId={courseId} />
+              ) : (
+                <LivePreview html={html} css={css} javascript={javascript} />
+              )}
             </div>
           </div>
         </Panel>

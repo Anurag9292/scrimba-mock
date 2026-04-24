@@ -152,9 +152,6 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
     // local time, causing all checkpoints in the new segment to be missed.
     lastCheckTimeMsRef.current = seg.trim_start_ms;
 
-    // Reset course slide on segment transition
-    setActiveCourseSlideId(null);
-
     // Set initial files and events for this segment
     initialFilesRef.current = seg.initial_files;
     const sorted = [...seg.code_events].sort(
@@ -166,7 +163,7 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
     // file state at the trim start point (not at time 0)
     if (seg.trim_start_ms > 0) {
       const targetIndex = findEventIndex(sorted, seg.trim_start_ms);
-      const { files, activeFileName: newActive } = replayEvents(
+      const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
         seg.initial_files,
         sorted,
         0,
@@ -179,9 +176,13 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
         setActiveFileName(newActive);
       }
       setCurrentFiles(files);
+      // Restore slide state from pre-applied events (or clear if no slide events)
+      setActiveCourseSlideId(newSlideId !== undefined ? newSlideId : null);
     } else {
       lastAppliedIndexRef.current = 0;
       currentFilesRef.current = { ...seg.initial_files };
+      // New segment starts with no slide active (unless events will set one)
+      setActiveCourseSlideId(null);
     }
 
     // Set the video URL for this segment
@@ -307,7 +308,7 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
         // Pre-apply events up to trim_start_ms for correct initial display
         if (firstSeg.trim_start_ms > 0) {
           const targetIndex = findEventIndex(sorted, firstSeg.trim_start_ms);
-          const { files: preApplied, activeFileName: preActive } = replayEvents(
+          const { files: preApplied, activeFileName: preActive, activeSlideId: preSlideId } = replayEvents(
             firstSeg.initial_files,
             sorted,
             0,
@@ -319,6 +320,9 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
           const firstName = preActive ?? Object.keys(preApplied)[0] ?? "index.html";
           activeFileRef.current = firstName;
           setActiveFileName(firstName);
+          if (preSlideId !== undefined) {
+            setActiveCourseSlideId(preSlideId);
+          }
         } else {
           currentFilesRef.current = { ...firstSeg.initial_files };
           lastAppliedIndexRef.current = 0;
