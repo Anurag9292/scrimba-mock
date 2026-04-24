@@ -7,6 +7,7 @@ import { Panel, PanelGroup } from "react-resizable-panels";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import PanelHandle from "@/components/ui/PanelHandle";
 import EditorPanel from "@/components/editor/EditorPanel";
+import FileExplorer from "@/components/editor/FileExplorer";
 import LivePreview from "@/components/editor/LivePreview";
 import CodeRunnerPreview from "@/components/editor/CodeRunnerPreview";
 import CheckpointPanel from "@/components/checkpoint/CheckpointPanel";
@@ -96,6 +97,20 @@ export default function PlayerPage() {
   const handleSlideDeactivate = useCallback(() => {
     setEditorActiveSlideId(null);
   }, []);
+
+  // File explorer handlers (interactive mode only)
+  const handleExplorerFileCreate = useCallback((filePath: string) => {
+    if (!playback.isInteractive) return;
+    const updated = { ...playback.currentFiles, [filePath]: "" };
+    playback.updateFiles(updated);
+  }, [playback]);
+
+  const handleExplorerFileDelete = useCallback((filePath: string) => {
+    if (!playback.isInteractive) return;
+    const updated = { ...playback.currentFiles };
+    delete updated[filePath];
+    playback.updateFiles(updated);
+  }, [playback]);
 
   // Auto-sync editor slide tab with playback's course slide events
   useEffect(() => {
@@ -340,19 +355,38 @@ export default function PlayerPage() {
                 </button>
               </div>
             )}
-            <EditorPanel
-              key={playback.isInteractive ? `interactive-${id}` : `playback-${id}-v${playback.seekVersion}`}
-              initialFiles={playback.currentFiles}
-              controlledActiveFile={!playback.isInteractive ? playback.activeFileName : undefined}
-              readOnly={!playback.isInteractive}
-              onFilesChange={playback.isInteractive ? playback.updateFiles : undefined}
-              courseSlides={courseSlides}
-              activeSlideId={editorActiveSlideId}
-              courseId={courseId}
-              slideOffset={slideOffset}
-              onSlideActivate={handleSlideActivate}
-              onSlideDeactivate={handleSlideDeactivate}
-            />
+            <div className="flex flex-1 min-h-0">
+              {/* File explorer sidebar — only in interactive mode */}
+              {playback.isInteractive && !isCheckpointActive && (
+                <div className="w-48 shrink-0">
+                  <FileExplorer
+                    files={playback.currentFiles}
+                    activeFile={playback.activeFileName}
+                    onFileSelect={(path) => {
+                      // The EditorPanel will handle the tab switch
+                      // We just need to set it as the active file
+                    }}
+                    onFileCreate={handleExplorerFileCreate}
+                    onFileDelete={handleExplorerFileDelete}
+                  />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <EditorPanel
+                  key={playback.isInteractive ? `interactive-${id}` : `playback-${id}-v${playback.seekVersion}`}
+                  initialFiles={playback.currentFiles}
+                  controlledActiveFile={!playback.isInteractive ? playback.activeFileName : undefined}
+                  readOnly={!playback.isInteractive}
+                  onFilesChange={playback.isInteractive ? playback.updateFiles : undefined}
+                  courseSlides={courseSlides}
+                  activeSlideId={editorActiveSlideId}
+                  courseId={courseId}
+                  slideOffset={slideOffset}
+                  onSlideActivate={handleSlideActivate}
+                  onSlideDeactivate={handleSlideDeactivate}
+                />
+              </div>
+            </div>
           </div>
         </Panel>
 

@@ -104,6 +104,9 @@ export default function SegmentRecorder({
     }
 
     if (!lessonId) {
+      // No lesson yet and no override — keep loading if we might get one later
+      // (the studio page auto-transitions only after course data is loaded,
+      // so in practice initialFilesOverride should already be set)
       setIsLoadingFiles(false);
       return;
     }

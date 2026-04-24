@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Panel, PanelGroup } from "react-resizable-panels";
 import { fetchCourseCodebase, updateCourseCodebase } from "@/lib/api";
-import EditorPanel, { DEFAULT_FILES } from "@/components/editor/EditorPanel";
+import EditorPanel from "@/components/editor/EditorPanel";
+import FileExplorer from "@/components/editor/FileExplorer";
+import PanelHandle from "@/components/ui/PanelHandle";
 import { useToast } from "@/components/ui/Toast";
 import type { FileMap } from "@/lib/types";
 
@@ -23,6 +26,7 @@ export default function CourseCodebaseEditor({ pathId, courseId }: CourseCodebas
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [activeFile, setActiveFile] = useState<string>("");
   const filesRef = useRef<FileMap>({});
 
   const loadCodebase = useCallback(async () => {
@@ -30,10 +34,13 @@ export default function CourseCodebaseEditor({ pathId, courseId }: CourseCodebas
     if (resp.success && resp.data) {
       const loadedFiles = resp.data.initial_files && Object.keys(resp.data.initial_files).length > 0
         ? resp.data.initial_files
-        : DEFAULT_FILES;
+        : {};
       setFiles(loadedFiles);
       filesRef.current = loadedFiles;
       setLanguage(resp.data.language || "html");
+      // Set active file to the first file
+      const firstFile = Object.keys(loadedFiles)[0];
+      if (firstFile) setActiveFile(firstFile);
     }
     setIsLoading(false);
   }, [pathId, courseId]);
@@ -44,8 +51,43 @@ export default function CourseCodebaseEditor({ pathId, courseId }: CourseCodebas
 
   const handleFilesChange = useCallback((updated: FileMap) => {
     filesRef.current = updated;
+    setFiles({ ...updated });
     setHasChanges(true);
   }, []);
+
+  const handleFileSelect = useCallback((filePath: string) => {
+    setActiveFile(filePath);
+  }, []);
+
+  const handleFileCreate = useCallback((filePath: string) => {
+    filesRef.current = { ...filesRef.current, [filePath]: "" };
+    setFiles({ ...filesRef.current });
+    setActiveFile(filePath);
+    setHasChanges(true);
+  }, []);
+
+  const handleFileDelete = useCallback((filePath: string) => {
+    const updated = { ...filesRef.current };
+    delete updated[filePath];
+    filesRef.current = updated;
+    setFiles(updated);
+    setHasChanges(true);
+    // If we deleted the active file, switch to another
+    if (filePath === activeFile) {
+      const remaining = Object.keys(updated);
+      setActiveFile(remaining[0] ?? "");
+    }
+  }, [activeFile]);
+
+  const handleFilesUpload = useCallback((newFiles: FileMap) => {
+    filesRef.current = { ...filesRef.current, ...newFiles };
+    setFiles({ ...filesRef.current });
+    setHasChanges(true);
+    // Select the first uploaded file
+    const firstKey = Object.keys(newFiles)[0];
+    if (firstKey) setActiveFile(firstKey);
+    toast(`${Object.keys(newFiles).length} file(s) uploaded`, "success");
+  }, [toast]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -76,7 +118,7 @@ export default function CourseCodebaseEditor({ pathId, courseId }: CourseCodebas
         <div>
           <h2 className="text-lg font-semibold text-white">Course Codebase</h2>
           <p className="text-sm text-gray-400">
-            Define the initial code files shared across all lessons. Lessons evolve this codebase sequentially.
+            Define the initial code files shared across all lessons. Use the file explorer to create files and folders.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -105,15 +147,46 @@ export default function CourseCodebaseEditor({ pathId, courseId }: CourseCodebas
         </div>
       </div>
 
-      {/* Full-height code editor */}
-      <div className="h-[500px] rounded-xl border border-gray-800 overflow-hidden">
-        {files && (
-          <EditorPanel
-            key={courseId}
-            initialFiles={files}
-            onFilesChange={handleFilesChange}
-          />
-        )}
+      {/* File explorer + editor in a resizable split */}
+      <div className="h-[550px] rounded-xl border border-gray-800 overflow-hidden">
+        <PanelGroup direction="horizontal">
+          {/* File explorer sidebar */}
+          <Panel defaultSize={22} minSize={15} maxSize={35} id="codebase-explorer">
+            <FileExplorer
+              files={filesRef.current}
+              activeFile={activeFile}
+              onFileSelect={handleFileSelect}
+              onFileCreate={handleFileCreate}
+              onFileDelete={handleFileDelete}
+              onFilesUpload={handleFilesUpload}
+              showUpload
+            />
+          </Panel>
+
+          <PanelHandle />
+
+          {/* Code editor */}
+          <Panel defaultSize={78} minSize={50} id="codebase-editor">
+            {files && Object.keys(files).length > 0 ? (
+              <EditorPanel
+                key={`${courseId}-${Object.keys(files).length}`}
+                initialFiles={files}
+                onFilesChange={handleFilesChange}
+                controlledActiveFile={activeFile}
+                onActiveFileChange={handleFileSelect}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center bg-[#1e1e1e]">
+                <div className="text-center">
+                  <p className="text-sm text-gray-500">No files yet</p>
+                  <p className="mt-1 text-xs text-gray-600">
+                    Use the file explorer to create files or upload existing ones
+                  </p>
+                </div>
+              </div>
+            )}
+          </Panel>
+        </PanelGroup>
       </div>
     </div>
   );
