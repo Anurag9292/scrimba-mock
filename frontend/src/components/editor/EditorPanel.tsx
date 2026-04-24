@@ -159,6 +159,10 @@ export default function EditorPanel({
   const [isCreating, setIsCreating] = useState(false);
   const [newFileName, setNewFileName] = useState("");
   const newFileInputRef = useRef<HTMLInputElement>(null);
+  // Track whether the component has completed its initial render cycle.
+  // Used to skip the first fire of notification effects, preventing
+  // a cascading setState loop between EditorPanel and its parent.
+  const didMountRef = useRef(false);
   // Whether the slides tab is currently selected
   const [isSlideTabActive, setIsSlideTabActive] = useState(false);
   // Currently displayed slide index (relative to offset)
@@ -180,22 +184,37 @@ export default function EditorPanel({
   const handleChange = useCallback(
     (value: string) => {
       setFiles((prev) => {
-        const updated = { ...prev, [activeFile]: value };
-        return updated;
+        // Bail out if the value is identical — avoids creating a new object
+        // reference that would trigger the onFilesChange notification effect.
+        if (prev[activeFile] === value) return prev;
+        return { ...prev, [activeFile]: value };
       });
     },
     [activeFile]
   );
 
-  // Notify parent of file changes
+  // Notify parent of file changes.
+  // Skip the initial mount to prevent a cascading render loop:
+  // mount → onFilesChange → parent setFiles({...}) → parent re-render →
+  // new initialFiles ref → EditorPanel re-render → effect fires again …
   useEffect(() => {
-    onFilesChange?.(files);
-  }, [files, onFilesChange]);
+    if (didMountRef.current) {
+      onFilesChange?.(files);
+    }
+  }, [files]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Notify parent of the active file on mount and when it changes
+  // Notify parent of the active file when it changes (skip initial mount).
   useEffect(() => {
-    onActiveFileChange?.(activeFile);
-  }, [activeFile, onActiveFileChange]);
+    if (didMountRef.current) {
+      onActiveFileChange?.(activeFile);
+    }
+  }, [activeFile]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mark the component as mounted after the initial effects have run.
+  // This ref is checked by the notification effects above.
+  useEffect(() => {
+    didMountRef.current = true;
+  }, []);
 
   // In readOnly/playback mode, sync files from parent when they actually change
   useEffect(() => {
