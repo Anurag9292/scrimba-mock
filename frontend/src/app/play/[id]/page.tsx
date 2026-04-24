@@ -452,7 +452,7 @@ export default function PlayerPage() {
                 />
               ) : useCodeRunner ? (
                 <CodeRunnerPreview
-                  code={playback.currentFiles[effectiveActiveFile] ?? ""}
+                  code={playback.currentFiles[playback.activeFileName] ?? ""}
                   language={lessonLanguage as "python" | "javascript"}
                   autoRun={playback.isPlaying}
                   autoRunDebounce={1500}
