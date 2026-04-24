@@ -60,11 +60,8 @@ export function useCodeEventCapture(): CodeEventCapture {
         activeFileRef.current = activeFile;
       }
 
-      console.log("[EventCapture] startCapture called, activeFile:", activeFileRef.current, "editor:", !!editorInstance);
-
       // Listen for content changes (typing, pasting, deleting)
       const contentDisposable = editorInstance.onDidChangeModelContent((e) => {
-        console.log("[EventCapture] content change:", e.changes.length, "changes, total events:", eventsRef.current.length + e.changes.length);
         for (const change of e.changes) {
           let type: CodeEvent["type"] = "insert";
           if (change.text === "" && change.rangeLength > 0) {
@@ -153,7 +150,6 @@ export function useCodeEventCapture(): CodeEventCapture {
   const stopCapture = useCallback((): CodeEvent[] => {
     disposeListeners();
     const events = [...eventsRef.current];
-    console.log("[EventCapture] stopCapture — returning", events.length, "events");
     return events;
   }, [disposeListeners]);
 
