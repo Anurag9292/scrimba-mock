@@ -678,7 +678,9 @@ export default function PlayerPage() {
                 <div className="flex justify-between">
                   <span>Events</span>
                   <span className="text-gray-400">
-                    {playback.lesson.code_events.length}
+                    {playback.segments.length > 0
+                      ? playback.segments.reduce((sum, s) => sum + s.code_events.length, 0)
+                      : playback.lesson.code_events.length}
                   </span>
                 </div>
               </div>

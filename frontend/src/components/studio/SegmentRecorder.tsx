@@ -82,6 +82,7 @@ export default function SegmentRecorder({
   const recorder = useSegmentRecorder({ sectionId, language });
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const filesRef = useRef<Record<string, string>>({});
+  const activeFileRef = useRef<string>("index.html");
   const [isInitialized, setIsInitialized] = useState(false);
   const [initialFiles, setInitialFiles] = useState<FileMap | null>(null);
   const [isLoadingFiles, setIsLoadingFiles] = useState(!!lessonId || !!sectionId);
@@ -186,6 +187,7 @@ export default function SegmentRecorder({
 
   const handleActiveFileChange = useCallback(
     (fileName: string) => {
+      activeFileRef.current = fileName;
       if (recorder.status === "recording") {
         recorder.recordFileSwitch(fileName);
       }
@@ -256,7 +258,7 @@ export default function SegmentRecorder({
 
       if (!editorRef.current) return;
 
-      recorder.startRecording(editorRef.current, filesRef.current);
+      recorder.startRecording(editorRef.current, filesRef.current, activeFileRef.current);
     } else if (recorder.status === "recording") {
       // Stop recording
       const result = await recorder.stopRecording(filesRef.current);

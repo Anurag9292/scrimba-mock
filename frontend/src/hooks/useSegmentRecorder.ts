@@ -36,7 +36,8 @@ interface UseSegmentRecorderReturn extends SegmentRecorderState {
   /** Start recording a new segment */
   startRecording: (
     editorInstance: editor.IStandaloneCodeEditor,
-    files: FileMap
+    files: FileMap,
+    activeFile?: string
   ) => void;
   /** Stop recording and save segment to backend. Returns { segmentId, lessonId } or null. */
   stopRecording: (files: FileMap) => Promise<{ segmentId: string; lessonId: string } | null>;
@@ -101,14 +102,14 @@ export function useSegmentRecorder(options?: { sectionId?: string | null; langua
   }, [media]);
 
   const startRecording = useCallback(
-    (editorInstance: editor.IStandaloneCodeEditor, files: FileMap) => {
+    (editorInstance: editor.IStandaloneCodeEditor, files: FileMap, activeFile?: string) => {
       // Snapshot initial files for this segment
       initialFilesRef.current = { ...files };
 
       // Start all systems
       clock.start();
       media.start();
-      capture.startCapture(editorInstance);
+      capture.startCapture(editorInstance, activeFile);
 
       setStatus("recording");
       setError(null);
