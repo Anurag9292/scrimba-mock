@@ -60,6 +60,7 @@ export default function EditorWithPreview({
   onSlideActivate,
   onSlideDeactivate,
 }: EditorWithPreviewProps) {
+  console.log("[EditorWithPreview] mounting with initialFiles:", initialFiles ? Object.keys(initialFiles) : "undefined/null → DEFAULT_FILES");
   const [files, setFiles] = useState<Record<string, string>>(initialFiles ?? DEFAULT_FILES);
   const [activeSlideId, setActiveSlideId] = useState<string | null>(null);
   const [activeFile, setActiveFile] = useState(Object.keys(initialFiles ?? DEFAULT_FILES)[0] ?? "index.html");
