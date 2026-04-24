@@ -113,7 +113,9 @@ export default function FileTab({
           className="w-24 rounded border border-brand-500/50 bg-gray-800 px-1 py-0 text-sm text-white outline-none"
         />
       ) : (
-        <span className="whitespace-nowrap">{filename}</span>
+        <span className="whitespace-nowrap" title={filename.includes("/") ? filename : undefined}>
+          {filename.includes("/") ? filename.split("/").pop() : filename}
+        </span>
       )}
 
       {/* Close button */}

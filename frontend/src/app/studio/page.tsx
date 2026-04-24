@@ -85,11 +85,17 @@ export default function StudioPage() {
   const [pathId, setPathId] = useState<string | null>(null);
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
   const [courseInitialFiles, setCourseInitialFiles] = useState<FileMap | null>(null);
+  // True while we're resolving course data from sectionId — blocks recording start
+  const [isCourseDataLoading, setIsCourseDataLoading] = useState(!!sectionId);
 
   // Resolve course data from sectionId (for fresh recordings from a course section)
   useEffect(() => {
-    if (!sectionId) return;
+    if (!sectionId) {
+      setIsCourseDataLoading(false);
+      return;
+    }
     let cancelled = false;
+    setIsCourseDataLoading(true);
 
     async function resolveCourseFromSection() {
       // Look up section to get course_id
@@ -127,6 +133,9 @@ export default function StudioPage() {
         }
       } catch {
         // Non-critical
+      }
+      if (!cancelled) {
+        setIsCourseDataLoading(false);
       }
     }
 
@@ -221,6 +230,14 @@ export default function StudioPage() {
       })();
     }
   }, [view, loadDrafts, loadSegments, lessonIdParam]);
+
+  // Auto-transition to recording when arriving from "Add lesson to this section"
+  // (sectionId is set, no lessonId, course data finished loading)
+  useEffect(() => {
+    if (sectionId && !lessonIdParam && !isCourseDataLoading && view.type === "drafts") {
+      setView({ type: "recording", lessonId: null, lessonTitle: "New Lesson" });
+    }
+  }, [sectionId, lessonIdParam, isCourseDataLoading, view.type]);
 
   const handleNewRecording = useCallback(() => {
     setView({ type: "recording", lessonId: null, lessonTitle: "New Lesson" });
