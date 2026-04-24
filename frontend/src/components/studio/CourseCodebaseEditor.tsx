@@ -150,8 +150,8 @@ export default function CourseCodebaseEditor({ pathId, courseId }: CourseCodebas
       {/* File explorer + editor in a resizable split */}
       <div className="h-[550px] rounded-xl border border-gray-800 overflow-hidden">
         <PanelGroup direction="horizontal">
-          {/* File explorer sidebar */}
-          <Panel defaultSize={22} minSize={15} maxSize={35} id="codebase-explorer">
+          {/* File explorer sidebar — collapsible */}
+          <Panel defaultSize={22} minSize={0} maxSize={35} collapsible collapsedSize={0} id="codebase-explorer">
             <FileExplorer
               files={filesRef.current}
               activeFile={activeFile}

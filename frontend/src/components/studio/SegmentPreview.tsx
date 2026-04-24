@@ -288,7 +288,7 @@ export default function SegmentPreview({
 
       {/* Main content: File Explorer + Editor + Preview + Video */}
       <PanelGroup direction="horizontal" className="h-[420px]">
-        <Panel defaultSize={12} minSize={8} maxSize={20} id="seg-files">
+        <Panel defaultSize={12} minSize={0} maxSize={20} collapsible collapsedSize={0} id="seg-files">
           <FileExplorer
             files={currentFiles}
             activeFile={activeFileName}

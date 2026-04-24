@@ -227,6 +227,7 @@ export default function FileExplorer({
   const [newItemName, setNewItemName] = useState("");
   const newItemRef = useRef<HTMLInputElement>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
+  const folderUploadRef = useRef<HTMLInputElement>(null);
 
   const tree = useMemo(() => buildTree(files), [files]);
 
@@ -307,15 +308,31 @@ export default function FileExplorer({
       const newFiles: FileMap = {};
       const readPromises: Promise<void>[] = [];
 
+      // Skip binary/non-text files
+      const textExtensions = new Set([
+        "py", "js", "ts", "tsx", "jsx", "html", "css", "scss", "json", "md",
+        "txt", "yml", "yaml", "toml", "cfg", "ini", "env", "sh", "bash",
+        "rs", "go", "java", "c", "cpp", "h", "hpp", "rb", "php", "sql",
+        "xml", "svg", "gitignore", "gitkeep", "dockerfile", "makefile",
+      ]);
+
       for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
+        // Skip directories, hidden files, and binary files
+        if (file.size === 0 && file.type === "") continue;
+        const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+        const nameLC = file.name.toLowerCase();
+        if (!textExtensions.has(ext) && !textExtensions.has(nameLC)) continue;
+
         // Use webkitRelativePath for folder uploads, or just the name
-        const path = (file as unknown as { webkitRelativePath?: string }).webkitRelativePath || file.name;
+        const relativePath = file.webkitRelativePath || file.name;
         readPromises.push(
           new Promise<void>((resolve) => {
             const reader = new FileReader();
             reader.onload = () => {
-              newFiles[path] = reader.result as string;
+              if (typeof reader.result === "string") {
+                newFiles[relativePath] = reader.result;
+              }
               resolve();
             };
             reader.onerror = () => resolve();
@@ -325,7 +342,9 @@ export default function FileExplorer({
       }
 
       await Promise.all(readPromises);
-      onFilesUpload?.(newFiles);
+      if (Object.keys(newFiles).length > 0) {
+        onFilesUpload?.(newFiles);
+      }
       e.target.value = "";
     },
     [onFilesUpload]
@@ -373,7 +392,7 @@ export default function FileExplorer({
                 <path d="M9.25 9.75a.75.75 0 011.5 0v1h1a.75.75 0 010 1.5h-1v1a.75.75 0 01-1.5 0v-1h-1a.75.75 0 010-1.5h1v-1z" fill="rgba(0,0,0,0.3)" />
               </svg>
             </button>
-            {/* Upload */}
+            {/* Upload files */}
             {showUpload && (
               <>
                 <button
@@ -387,12 +406,30 @@ export default function FileExplorer({
                     <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
                   </svg>
                 </button>
+                {/* Upload folder */}
+                <button
+                  type="button"
+                  onClick={() => folderUploadRef.current?.click()}
+                  className="rounded p-1 text-gray-500 transition-colors hover:bg-gray-700 hover:text-gray-300"
+                  title="Upload Folder"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                  </svg>
+                </button>
                 <input
                   ref={uploadRef}
                   type="file"
                   multiple
                   className="hidden"
                   onChange={handleUpload}
+                />
+                <input
+                  ref={folderUploadRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleUpload}
+                  {...{ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>}
                 />
               </>
             )}
