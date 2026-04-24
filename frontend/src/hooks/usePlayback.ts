@@ -449,7 +449,7 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
       const targetIndex = findEventIndex(events, localTimeMs);
 
       if (targetIndex > lastAppliedIndexRef.current) {
-        const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
+        const { files, activeFileName: newActive, activeSlideId: newSlideId, codeRunCount } = replayEvents(
           currentFilesRef.current,
           events,
           lastAppliedIndexRef.current,
@@ -466,6 +466,10 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
         // Handle course-level slide activation from code events
         if (newSlideId !== undefined) {
           setActiveCourseSlideId(newSlideId);
+        }
+        // Trigger terminal execution for any code_run events in this batch
+        if (codeRunCount > 0) {
+          setCodeRunTrigger((prev) => prev + codeRunCount);
         }
       }
 
@@ -574,7 +578,7 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
       const targetIndex = findEventIndex(events, timeMs);
 
       if (targetIndex > lastAppliedIndexRef.current) {
-        const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
+        const { files, activeFileName: newActive, activeSlideId: newSlideId, codeRunCount } = replayEvents(
           currentFilesRef.current,
           events,
           lastAppliedIndexRef.current,
@@ -589,6 +593,9 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
         setCurrentFiles(files);
         if (newSlideId !== undefined) {
           setActiveCourseSlideId(newSlideId);
+        }
+        if (codeRunCount > 0) {
+          setCodeRunTrigger((prev) => prev + codeRunCount);
         }
       } else if (targetIndex < lastAppliedIndexRef.current) {
         const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
