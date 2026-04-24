@@ -40,6 +40,8 @@ export default function PlayerPage() {
     return true;
   });
 
+  const [fileExplorerVisible, setFileExplorerVisible] = useState(true);
+
   const videoPanelRef = useRef<ImperativePanelHandle>(null);
   const previewPanelRef = useRef<ImperativePanelHandle>(null);
 
@@ -356,19 +358,32 @@ export default function PlayerPage() {
               </div>
             )}
             <div className="flex flex-1 min-h-0">
-              {/* File explorer sidebar — always visible, editing only in interactive mode */}
-              <div className="w-48 shrink-0">
-                <FileExplorer
-                  files={playback.currentFiles}
-                  activeFile={playback.activeFileName}
-                  onFileSelect={(path) => {
-                    // The EditorPanel will handle the tab switch
-                  }}
-                  onFileCreate={playback.isInteractive ? handleExplorerFileCreate : undefined}
-                  onFileDelete={playback.isInteractive ? handleExplorerFileDelete : undefined}
-                  readOnly={!playback.isInteractive}
-                />
+              {/* File explorer sidebar — collapsible */}
+              <div className={`shrink-0 transition-all duration-200 overflow-hidden ${fileExplorerVisible ? "w-48" : "w-0"}`}>
+                <div className="w-48 h-full">
+                  <FileExplorer
+                    files={playback.currentFiles}
+                    activeFile={playback.activeFileName}
+                    onFileSelect={(path) => {
+                      // The EditorPanel will handle the tab switch
+                    }}
+                    onFileCreate={playback.isInteractive ? handleExplorerFileCreate : undefined}
+                    onFileDelete={playback.isInteractive ? handleExplorerFileDelete : undefined}
+                    readOnly={!playback.isInteractive}
+                  />
+                </div>
               </div>
+              {/* Toggle button for file explorer */}
+              <button
+                type="button"
+                onClick={() => setFileExplorerVisible((v) => !v)}
+                className="flex w-5 shrink-0 items-center justify-center border-r border-gray-800 bg-[#1e1e1e] text-gray-600 transition-colors hover:bg-gray-800 hover:text-gray-400"
+                title={fileExplorerVisible ? "Hide files" : "Show files"}
+              >
+                <svg className={`h-3 w-3 transition-transform ${fileExplorerVisible ? "" : "rotate-180"}`} viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                </svg>
+              </button>
               <div className="flex-1 min-w-0">
                 <EditorPanel
                   key={playback.isInteractive ? `interactive-${id}` : `playback-${id}-v${playback.seekVersion}`}

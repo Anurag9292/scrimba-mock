@@ -118,16 +118,26 @@ export default function EditorWithPreview({
     }
   }, [files, activeFile, externalOnFilesChange, onFileDelete]);
 
+  const handleExplorerFilesUpload = useCallback((newFiles: Record<string, string>) => {
+    const updated = { ...files, ...newFiles };
+    setFiles(updated);
+    externalOnFilesChange?.(updated);
+    const firstKey = Object.keys(newFiles)[0];
+    if (firstKey) setActiveFile(firstKey);
+  }, [files, externalOnFilesChange]);
+
   return (
     <PanelGroup direction="horizontal" className="h-full">
-      {/* File explorer sidebar */}
-      <Panel defaultSize={15} minSize={10} maxSize={25} id="file-explorer">
+      {/* File explorer sidebar — collapsible */}
+      <Panel defaultSize={15} minSize={0} maxSize={25} collapsible collapsedSize={0} id="file-explorer">
         <FileExplorer
           files={files}
           activeFile={activeFile}
           onFileSelect={handleActiveFileChange}
           onFileCreate={readOnly ? undefined : handleExplorerFileCreate}
           onFileDelete={readOnly ? undefined : handleExplorerFileDelete}
+          onFilesUpload={readOnly ? undefined : handleExplorerFilesUpload}
+          showUpload={!readOnly}
           readOnly={readOnly}
         />
       </Panel>
