@@ -28,6 +28,8 @@ interface SegmentRecorderState {
   savedSegmentId: string | null;
   /** Whether the recording is being saved */
   isSaving: boolean;
+  /** Current captured event count (for debug display) */
+  eventCount: number;
 }
 
 interface UseSegmentRecorderReturn extends SegmentRecorderState {
@@ -255,6 +257,7 @@ export function useSegmentRecorder(options?: { sectionId?: string | null; langua
     lessonId,
     savedSegmentId,
     isSaving,
+    eventCount: capture.getEventCount(),
     initialize,
     startRecording,
     stopRecording,
