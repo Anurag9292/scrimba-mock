@@ -6,7 +6,7 @@ import type { CodeEvent } from "@/lib/types";
 
 interface CodeEventCapture {
   /** Start capturing events, recording timestamp offsets from this moment */
-  startCapture: (editorInstance: editor.IStandaloneCodeEditor) => void;
+  startCapture: (editorInstance: editor.IStandaloneCodeEditor, activeFile?: string) => void;
   /** Stop capturing and return all captured events */
   stopCapture: () => CodeEvent[];
   /** Get events captured so far (without stopping) */
@@ -45,12 +45,18 @@ export function useCodeEventCapture(): CodeEventCapture {
   }, []);
 
   const startCapture = useCallback(
-    (editorInstance: editor.IStandaloneCodeEditor) => {
+    (editorInstance: editor.IStandaloneCodeEditor, activeFile?: string) => {
       // Clean up any existing listeners
       disposeListeners();
 
       startTimeRef.current = Date.now();
       eventsRef.current = [];
+      // Sync the active file so events are tagged with the correct filename.
+      // Without this, events would be tagged as "index.html" if the user
+      // switched to a different file before clicking Record.
+      if (activeFile) {
+        activeFileRef.current = activeFile;
+      }
 
       // Listen for content changes (typing, pasting, deleting)
       const contentDisposable = editorInstance.onDidChangeModelContent((e) => {
