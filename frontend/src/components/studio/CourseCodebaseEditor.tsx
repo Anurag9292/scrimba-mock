@@ -172,7 +172,7 @@ export default function CourseCodebaseEditor({ pathId, courseId }: CourseCodebas
           <Panel defaultSize={78} minSize={50} id="codebase-editor">
             {files && Object.keys(files).length > 0 ? (
               <EditorPanel
-                key={`${courseId}-${Object.keys(files).length}`}
+                key={courseId}
                 initialFiles={files}
                 onFilesChange={handleFilesChange}
                 controlledActiveFile={activeFile}
