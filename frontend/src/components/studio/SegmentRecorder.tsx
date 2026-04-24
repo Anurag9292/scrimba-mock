@@ -84,7 +84,7 @@ export default function SegmentRecorder({
   const filesRef = useRef<Record<string, string>>({});
   const [isInitialized, setIsInitialized] = useState(false);
   const [initialFiles, setInitialFiles] = useState<FileMap | null>(null);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(!!lessonId);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(!!lessonId || !!sectionId);
 
   // Set the lesson ID if we have one
   useEffect(() => {
@@ -270,7 +270,7 @@ export default function SegmentRecorder({
         <div className="flex flex-col items-center gap-3">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-600 border-t-gray-300" />
           <span className="text-sm text-gray-500">
-            Loading previous segment state...
+            Loading course codebase...
           </span>
         </div>
       </div>
