@@ -223,6 +223,41 @@ export default function EditorPanel({
     }
   }, [readOnly, initialFiles]);
 
+  // In edit mode, merge external file additions/removals (e.g. from FileExplorer)
+  // without losing local content edits. This replaces the old behaviour where the
+  // parent changed the `key` prop to force a full remount on every file count change.
+  useEffect(() => {
+    if (readOnly || !initialFiles || !didMountRef.current) return;
+
+    setFiles((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(initialFiles);
+
+      // Quick check: if keys are identical, nothing to merge
+      if (
+        prevKeys.length === nextKeys.length &&
+        prevKeys.every((k) => k in initialFiles)
+      ) {
+        return prev;
+      }
+
+      // Merge: keep local content for existing files, add new files, drop removed ones
+      const merged: Record<string, string> = {};
+      for (const key of nextKeys) {
+        merged[key] = key in prev ? prev[key] : initialFiles[key];
+      }
+      return merged;
+    });
+
+    // If the active file was removed externally, switch to the first available file
+    setActiveFile((prev) => {
+      if (initialFiles && !(prev in initialFiles)) {
+        return Object.keys(initialFiles)[0] ?? prev;
+      }
+      return prev;
+    });
+  }, [readOnly, initialFiles]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Sync active file from parent when controlledActiveFile changes
   useEffect(() => {
     if (controlledActiveFile) {
