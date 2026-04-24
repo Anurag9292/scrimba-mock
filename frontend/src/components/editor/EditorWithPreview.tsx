@@ -5,10 +5,11 @@ import type { OnMount } from "@monaco-editor/react";
 import { Panel, PanelGroup } from "react-resizable-panels";
 import PanelHandle from "@/components/ui/PanelHandle";
 import EditorPanel, { DEFAULT_FILES } from "./EditorPanel";
+import FileExplorer from "./FileExplorer";
 import LivePreview from "./LivePreview";
 import CodeRunnerPreview from "./CodeRunnerPreview";
 import SlideViewer from "../player/SlideViewer";
-import type { CourseSlide } from "@/lib/types";
+import type { CourseSlide, FileMap } from "@/lib/types";
 
 /** Languages that use the terminal/code-runner preview instead of the browser preview */
 const CODE_RUNNER_LANGUAGES = new Set(["python", "javascript"]);
@@ -97,10 +98,44 @@ export default function EditorWithPreview({
     ? availableSlides.find((s) => s.id === activeSlideId) ?? null
     : null;
 
+  const handleExplorerFileCreate = useCallback((filePath: string) => {
+    const updated = { ...files, [filePath]: "" };
+    setFiles(updated);
+    setActiveFile(filePath);
+    externalOnFilesChange?.(updated);
+    onFileCreate?.(filePath);
+  }, [files, externalOnFilesChange, onFileCreate]);
+
+  const handleExplorerFileDelete = useCallback((filePath: string) => {
+    const updated = { ...files };
+    delete updated[filePath];
+    setFiles(updated);
+    externalOnFilesChange?.(updated);
+    onFileDelete?.(filePath);
+    if (filePath === activeFile) {
+      const remaining = Object.keys(updated);
+      setActiveFile(remaining[0] ?? "");
+    }
+  }, [files, activeFile, externalOnFilesChange, onFileDelete]);
+
   return (
     <PanelGroup direction="horizontal" className="h-full">
-      {/* Editor panel - left */}
-      <Panel defaultSize={50} minSize={25} id="editor">
+      {/* File explorer sidebar */}
+      <Panel defaultSize={15} minSize={10} maxSize={25} id="file-explorer">
+        <FileExplorer
+          files={files}
+          activeFile={activeFile}
+          onFileSelect={handleActiveFileChange}
+          onFileCreate={readOnly ? undefined : handleExplorerFileCreate}
+          onFileDelete={readOnly ? undefined : handleExplorerFileDelete}
+          readOnly={readOnly}
+        />
+      </Panel>
+
+      <PanelHandle />
+
+      {/* Editor panel */}
+      <Panel defaultSize={45} minSize={20} id="editor">
         <div className="flex h-full flex-col border-r border-gray-800">
           <EditorPanel
             initialFiles={initialFiles}
