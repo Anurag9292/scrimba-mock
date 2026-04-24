@@ -133,6 +133,8 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
   const shouldBePlayingRef = useRef(false);
   const pendingSeekTimeRef = useRef<number | null>(null);
   const playbackRateRef = useRef(1);
+  // Track preloaded video URLs so we only preload each once
+  const preloadedVideosRef = useRef<Set<string>>(new Set());
 
   // Checkpoint refs
   const checkpointsRef = useRef<Map<string, Checkpoint[]>>(new Map()); // segment_id -> checkpoints[]
@@ -516,10 +518,31 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
         setActiveSlideSegmentId(null);
       }
 
+      // Preload next segment's video when approaching end of current segment.
+      // This warms the browser cache so the transition is near-instant.
+      const segEnd = seg.trim_end_ms ?? seg.duration_ms;
+      const timeToEnd = segEnd - localTimeMs;
+      if (timeToEnd < 3000 && timeToEnd > 0) {
+        const nextIdx2 = segIdx + 1;
+        if (nextIdx2 < segments.length) {
+          const nextSeg2 = segments[nextIdx2];
+          if (nextSeg2.video_filename) {
+            const nextUrl = getSegmentVideoUrl(nextSeg2.id);
+            if (!preloadedVideosRef.current.has(nextUrl)) {
+              preloadedVideosRef.current.add(nextUrl);
+              const link = document.createElement("link");
+              link.rel = "preload";
+              link.as = "video";
+              link.href = nextUrl;
+              document.head.appendChild(link);
+            }
+          }
+        }
+      }
+
       // Check if we've reached the end of this segment
       // Also check video.ended to handle cases where the video file is
       // slightly shorter than seg.duration_ms (common with MediaRecorder)
-      const segEnd = seg.trim_end_ms ?? seg.duration_ms;
       const videoEnded = video ? video.ended : false;
       if (localTimeMs >= segEnd || (videoEnded && !transitioningRef.current)) {
         // Move to next segment
@@ -533,6 +556,13 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
           }
 
           loadSegmentState(nextIdx);
+
+          // Immediately push the new segment's file state to React so the
+          // editor doesn't flash stale content during the video load gap.
+          setCurrentFiles(currentFilesRef.current);
+          if (activeFileRef.current) {
+            setActiveFileName(activeFileRef.current);
+          }
 
           // Set pending seek for when the new video loads
           const nextSeg = segments[nextIdx];
