@@ -86,14 +86,26 @@ async function apiFetch<T>(
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => null);
+      let errorMessage: string;
+      if (typeof errorBody?.detail === "string") {
+        errorMessage = errorBody.detail;
+      } else if (Array.isArray(errorBody?.detail)) {
+        // Pydantic validation errors are arrays of {type, loc, msg, input}
+        errorMessage = errorBody.detail
+          .map((e: { msg?: string; loc?: unknown[] }) =>
+            e.msg ? `${e.msg}${e.loc ? ` (${e.loc.join(" → ")})` : ""}` : JSON.stringify(e)
+          )
+          .join("; ");
+      } else if (typeof errorBody?.message === "string") {
+        errorMessage = errorBody.message;
+      } else {
+        errorMessage = `Request failed with status ${response.status}`;
+      }
       return {
         success: false,
         error: {
           code: `HTTP_${response.status}`,
-          message:
-            errorBody?.detail ??
-            errorBody?.message ??
-            `Request failed with status ${response.status}`,
+          message: errorMessage,
         },
       };
     }
