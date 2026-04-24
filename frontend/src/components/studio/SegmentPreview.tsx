@@ -7,6 +7,7 @@ import { getSegmentVideoUrl } from "@/lib/api";
 import { replayEvents, findEventIndex } from "@/lib/segments";
 import EditorPanel from "@/components/editor/EditorPanel";
 import LivePreview from "@/components/editor/LivePreview";
+import CodeRunnerPreview from "@/components/editor/CodeRunnerPreview";
 import SlideViewer from "@/components/player/SlideViewer";
 import PanelHandle from "@/components/ui/PanelHandle";
 
@@ -19,6 +20,8 @@ interface SegmentPreviewProps {
   courseId?: string;
   /** Slide offset for the current lesson */
   slideOffset?: number;
+  /** Language for the preview (html=browser, python/javascript=terminal) */
+  language?: string;
 }
 
 /** Format milliseconds to mm:ss display */
@@ -35,7 +38,9 @@ export default function SegmentPreview({
   courseSlides,
   courseId,
   slideOffset = 0,
+  language = "html",
 }: SegmentPreviewProps) {
+  const useCodeRunner = language === "python" || language === "javascript";
   const videoRef = useRef<HTMLVideoElement>(null);
   const rafRef = useRef<number>(0);
 
@@ -305,7 +310,7 @@ export default function SegmentPreview({
           <div className="flex h-full flex-col border-r border-gray-800">
             <div className="flex h-8 shrink-0 items-center justify-between border-b border-gray-800 bg-[#252526] px-3">
               <span className="text-[10px] font-medium text-gray-500">
-                {activeSlide ? "Slide" : "Preview"}
+                {activeSlide ? "Slide" : useCodeRunner ? "Output" : "Preview"}
               </span>
               {activeSlide && (
                 <span className="rounded-full bg-purple-500/10 px-1.5 py-0.5 text-[9px] font-medium text-purple-400 ring-1 ring-purple-500/20">
@@ -316,6 +321,11 @@ export default function SegmentPreview({
             <div className="flex-1 min-h-0">
               {activeSlide && courseId ? (
                 <SlideViewer slide={activeSlide} courseId={courseId} />
+              ) : useCodeRunner ? (
+                <CodeRunnerPreview
+                  code={currentFiles[activeFileName] ?? ""}
+                  language={language as "python" | "javascript"}
+                />
               ) : (
                 <LivePreview html={html} css={css} javascript={javascript} />
               )}

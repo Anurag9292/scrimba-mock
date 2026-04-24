@@ -64,6 +64,8 @@ interface SegmentRecorderProps {
   courseId?: string;
   /** Slide offset for the current lesson */
   slideOffset?: number;
+  /** Language for the preview panel (html=browser, python/javascript=terminal) */
+  language?: string;
 }
 
 export default function SegmentRecorder({
@@ -75,8 +77,9 @@ export default function SegmentRecorder({
   courseSlides,
   courseId,
   slideOffset = 0,
+  language = "html",
 }: SegmentRecorderProps) {
-  const recorder = useSegmentRecorder({ sectionId });
+  const recorder = useSegmentRecorder({ sectionId, language });
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const filesRef = useRef<Record<string, string>>({});
   const [isInitialized, setIsInitialized] = useState(false);
@@ -406,6 +409,7 @@ export default function SegmentRecorder({
           onFileDelete={handleFileDelete}
           onFileRename={handleFileRename}
           initialFiles={initialFiles ?? undefined}
+          language={language}
           courseSlides={courseSlides}
           courseId={courseId}
           slideOffset={slideOffset}

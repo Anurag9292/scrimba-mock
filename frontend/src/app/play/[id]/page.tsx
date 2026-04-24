@@ -8,6 +8,7 @@ import type { ImperativePanelHandle } from "react-resizable-panels";
 import PanelHandle from "@/components/ui/PanelHandle";
 import EditorPanel from "@/components/editor/EditorPanel";
 import LivePreview from "@/components/editor/LivePreview";
+import CodeRunnerPreview from "@/components/editor/CodeRunnerPreview";
 import CheckpointPanel from "@/components/checkpoint/CheckpointPanel";
 import SlideViewer from "@/components/player/SlideViewer";
 import { usePlayback } from "@/hooks/usePlayback";
@@ -164,6 +165,10 @@ export default function PlayerPage() {
     playback.durationMs > 0
       ? Math.min(1, playback.currentTimeMs / playback.durationMs)
       : 0;
+
+  // Determine preview type from lesson language
+  const lessonLanguage = playback.lesson?.language ?? "html";
+  const useCodeRunner = lessonLanguage === "python" || lessonLanguage === "javascript";
 
   // Extract HTML/CSS/JS from current files for live preview
   const html = playback.currentFiles["index.html"] ?? "";
@@ -372,7 +377,7 @@ export default function PlayerPage() {
                   />
                 </svg>
                 <span className="text-xs font-medium text-gray-400">
-                  {activeEditorSlide ? "Slide" : "Preview"}
+                  {activeEditorSlide ? "Slide" : useCodeRunner ? "Output" : "Preview"}
                 </span>
               </div>
               {/* Slide indicator badge */}
@@ -387,6 +392,13 @@ export default function PlayerPage() {
                 <SlideViewer
                   slide={activeEditorSlide}
                   courseId={courseId}
+                />
+              ) : useCodeRunner ? (
+                <CodeRunnerPreview
+                  code={playback.currentFiles[playback.activeFileName] ?? ""}
+                  language={lessonLanguage as "python" | "javascript"}
+                  autoRun={playback.isPlaying}
+                  autoRunDebounce={1500}
                 />
               ) : (
                 <LivePreview ref={previewIframeRef} html={html} css={css} javascript={javascript} />
