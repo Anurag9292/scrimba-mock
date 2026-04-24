@@ -355,13 +355,16 @@ export default function StudioPage() {
         lessonId: view.lessonId,
         lessonTitle: view.lessonTitle,
       });
-    } else if (lessonIdParam) {
-      // Came from creator dashboard via ?lessonId=... — go back in history
+    } else if (sectionId || lessonIdParam) {
+      // Arrived from a course section or creator dashboard — go back in
+      // browser history. Using setView("drafts") would cause an infinite
+      // loop because the auto-transition effect pushes right back to
+      // recording when sectionId is present.
       router.back();
     } else {
       setView({ type: "drafts" });
     }
-  }, [view, lessonIdParam, router]);
+  }, [view, sectionId, lessonIdParam, router]);
 
   // --- Reorder handler ---
   const handleReorder = useCallback(
