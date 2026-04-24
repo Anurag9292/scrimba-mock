@@ -35,8 +35,7 @@ class SlideContent(SQLModel, table=True):
 
 
 class SlideContentCreate(BaseModel):
-    segment_id: uuid.UUID
-    order: int = 0
+    order: int | None = None
     type: str = "markdown"
     title: str | None = None
     content: str = ""
