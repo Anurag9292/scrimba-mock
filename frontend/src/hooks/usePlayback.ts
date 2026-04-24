@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { Lesson, LessonSegment, CodeEvent, FileMap, Checkpoint, CheckpointStatus, SlideContent } from "@/lib/types";
-import { fetchLesson, fetchSegments, fetchLessonCheckpoints, fetchLessonSlides, getVideoUrl, getSegmentVideoUrl } from "@/lib/api";
+import type { Lesson, LessonSegment, CodeEvent, FileMap, Checkpoint, CheckpointStatus, SlideContent, CourseSlide } from "@/lib/types";
+import { fetchLesson, fetchSegments, fetchLessonCheckpoints, fetchLessonSlides, getVideoUrl, getSegmentVideoUrl, fetchCourseSlides, fetchLessonCourseInfo } from "@/lib/api";
 import { positionToOffset, applyCodeEvent, replayEvents, findEventIndex, segmentEffectiveDuration, globalToSegmentTime, computeSegmentOffsets } from "@/lib/segments";
 
 export interface UsePlaybackReturn {
@@ -66,6 +66,10 @@ export interface UsePlaybackReturn {
   activeSlide: SlideContent | null;
   /** The segment ID of the currently active slide's segment */
   activeSlideSegmentId: string | null;
+  /** Course-level slides (inherited by all lessons in the course) */
+  courseSlides: CourseSlide[];
+  /** The course ID (resolved from lesson → section → course) */
+  courseId: string | null;
 }
 
 export function usePlayback(lessonId: string): UsePlaybackReturn {
@@ -91,6 +95,9 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
   const [slides, setSlides] = useState<SlideContent[]>([]);
   const [activeSlide, setActiveSlide] = useState<SlideContent | null>(null);
   const [activeSlideSegmentId, setActiveSlideSegmentId] = useState<string | null>(null);
+  // Course-level slides
+  const [courseSlides, setCourseSlides] = useState<CourseSlide[]>([]);
+  const [courseId, setCourseId] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null!) as React.RefObject<HTMLVideoElement>;
   const rafRef = useRef<number>(0);
@@ -339,6 +346,24 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
 
         if (s.video_filename) {
           setVideoUrl(getVideoUrl(lessonId));
+        }
+      }
+
+      // Resolve course info and fetch course-level slides
+      if (s.section_id) {
+        try {
+          const courseInfoResult = await fetchLessonCourseInfo(lessonId);
+          if (!cancelled && courseInfoResult.success && courseInfoResult.data?.course_id) {
+            const resolvedCourseId = courseInfoResult.data.course_id;
+            setCourseId(resolvedCourseId);
+
+            const courseSlidesResult = await fetchCourseSlides(resolvedCourseId);
+            if (!cancelled && courseSlidesResult.success && courseSlidesResult.data) {
+              setCourseSlides(courseSlidesResult.data);
+            }
+          }
+        } catch {
+          // Course slide loading is non-critical; silently ignore
         }
       }
 
@@ -859,5 +884,7 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
     slides,
     activeSlide,
     activeSlideSegmentId,
+    courseSlides,
+    courseId,
   };
 }

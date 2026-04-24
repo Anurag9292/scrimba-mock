@@ -52,6 +52,10 @@ interface UseSegmentRecorderReturn extends SegmentRecorderState {
   recordFileDelete: (fileName: string) => void;
   /** Record a file rename event */
   recordFileRename: (oldName: string, newName: string) => void;
+  /** Record a slide activation event */
+  recordSlideActivate: (slideId: string) => void;
+  /** Record a slide deactivation event */
+  recordSlideDeactivate: () => void;
   /** Clean up all resources */
   cleanup: () => void;
   /** Set the lesson ID to record segments for (use for existing drafts) */
@@ -256,6 +260,8 @@ export function useSegmentRecorder(options?: { sectionId?: string | null }): Use
     recordFileCreate,
     recordFileDelete,
     recordFileRename,
+    recordSlideActivate: capture.recordSlideActivate,
+    recordSlideDeactivate: capture.recordSlideDeactivate,
     cleanup,
     setLessonId,
   };

@@ -1,12 +1,17 @@
 "use client";
 
-import type { SlideContent } from "@/lib/types";
-import { getSlideImageUrl } from "@/lib/api";
+import type { SlideContent, CourseSlide } from "@/lib/types";
+import { getSlideImageUrl, getCourseSlideImageUrl } from "@/lib/api";
 
 interface SlideViewerProps {
-  slide: SlideContent;
-  lessonId: string;
-  segmentId: string;
+  /** The slide to display — can be a segment-level SlideContent or a course-level CourseSlide */
+  slide: SlideContent | CourseSlide;
+  /** Lesson ID (for segment-level slide images) */
+  lessonId?: string;
+  /** Segment ID (for segment-level slide images) */
+  segmentId?: string;
+  /** Course ID (for course-level slide images) */
+  courseId?: string;
 }
 
 function simpleMarkdownToHtml(md: string): string {
@@ -61,7 +66,17 @@ export default function SlideViewer({
   slide,
   lessonId,
   segmentId,
+  courseId,
 }: SlideViewerProps) {
+  // Determine image URL based on whether this is a course slide or segment slide
+  const imageUrl = slide.type === "image"
+    ? (courseId
+        ? getCourseSlideImageUrl(courseId, slide.id)
+        : lessonId && segmentId
+          ? getSlideImageUrl(lessonId, segmentId, slide.id)
+          : "")
+    : "";
+
   return (
     <div className="h-full w-full bg-[#1e1e1e] overflow-y-auto">
       <div className="p-6">
@@ -82,7 +97,7 @@ export default function SlideViewer({
         {slide.type === "image" && (
           <div className="flex items-center justify-center h-full">
             <img
-              src={getSlideImageUrl(lessonId, segmentId, slide.id)}
+              src={imageUrl}
               alt={slide.title || "Slide image"}
               className="max-w-full max-h-full object-contain"
             />

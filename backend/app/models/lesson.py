@@ -19,6 +19,10 @@ class Lesson(SQLModel, table=True):
     language: str = Field(default="html")
     files: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     status: str = Field(default="published")  # "draft" | "published"
+    # Which course files are visible for this lesson (null = all files)
+    visible_files: list | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    # Slide offset: which slide number in the course deck this lesson starts from
+    slide_offset: int = Field(default=0)
     section_id: uuid.UUID | None = Field(
         default=None,
         sa_column=Column(
@@ -55,6 +59,8 @@ class LessonCreate(BaseModel):
     files: dict | None = None
     section_id: str | None = None  # UUID as string
     status: str = "published"  # "draft" | "published"
+    visible_files: list | None = None
+    slide_offset: int = 0
 
 
 class LessonUpdate(BaseModel):
@@ -67,6 +73,8 @@ class LessonUpdate(BaseModel):
     files: dict | None = None
     section_id: str | None = None
     status: str | None = None
+    visible_files: list | None = None
+    slide_offset: int | None = None
 
 
 class LessonRead(BaseModel):
@@ -80,6 +88,8 @@ class LessonRead(BaseModel):
     language: str
     files: dict | None
     status: str
+    visible_files: list | None
+    slide_offset: int
     section_id: uuid.UUID | None
     created_by: uuid.UUID | None
     created_at: datetime

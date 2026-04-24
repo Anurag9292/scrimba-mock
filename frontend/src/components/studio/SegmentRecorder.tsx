@@ -5,7 +5,7 @@ import type { editor } from "monaco-editor";
 import EditorWithPreview from "@/components/editor/EditorWithPreview";
 import CameraPreview from "@/components/recording/CameraPreview";
 import { useSegmentRecorder } from "@/hooks/useSegmentRecorder";
-import type { RecordingStatus, FileMap, LessonSegment } from "@/lib/types";
+import type { RecordingStatus, FileMap, LessonSegment, CourseSlide } from "@/lib/types";
 import { fetchSegments } from "@/lib/api";
 import { computeFinalFiles } from "@/lib/segments";
 
@@ -58,6 +58,12 @@ interface SegmentRecorderProps {
   initialFilesOverride?: FileMap;
   /** Optional section ID to associate with a newly created lesson */
   sectionId?: string | null;
+  /** Course slides available for recording */
+  courseSlides?: CourseSlide[];
+  /** Course ID for slide image URLs */
+  courseId?: string;
+  /** Slide offset for the current lesson */
+  slideOffset?: number;
 }
 
 export default function SegmentRecorder({
@@ -66,6 +72,9 @@ export default function SegmentRecorder({
   onSegmentSaved,
   initialFilesOverride,
   sectionId,
+  courseSlides,
+  courseId,
+  slideOffset = 0,
 }: SegmentRecorderProps) {
   const recorder = useSegmentRecorder({ sectionId });
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -175,6 +184,21 @@ export default function SegmentRecorder({
     },
     [recorder]
   );
+
+  const handleSlideActivate = useCallback(
+    (slideId: string) => {
+      if (recorder.status === "recording") {
+        recorder.recordSlideActivate(slideId);
+      }
+    },
+    [recorder]
+  );
+
+  const handleSlideDeactivate = useCallback(() => {
+    if (recorder.status === "recording") {
+      recorder.recordSlideDeactivate();
+    }
+  }, [recorder]);
 
   const handleRecord = useCallback(async () => {
     if (recorder.status === "idle" || recorder.status === "stopped") {
@@ -373,6 +397,11 @@ export default function SegmentRecorder({
           onFileDelete={handleFileDelete}
           onFileRename={handleFileRename}
           initialFiles={initialFiles ?? undefined}
+          courseSlides={courseSlides}
+          courseId={courseId}
+          slideOffset={slideOffset}
+          onSlideActivate={handleSlideActivate}
+          onSlideDeactivate={handleSlideDeactivate}
         />
 
         <CameraPreview

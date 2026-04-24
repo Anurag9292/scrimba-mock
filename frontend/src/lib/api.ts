@@ -1,4 +1,4 @@
-import type { Lesson, LessonSegment, Checkpoint, SlideContent, ApiResponse, User, TokenResponse, CoursePath, Course, Section } from "./types";
+import type { Lesson, LessonSegment, Checkpoint, SlideContent, CourseSlide, ApiResponse, User, TokenResponse, CoursePath, Course, Section, FileMap } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -62,6 +62,8 @@ export interface LessonUpdate {
   language?: string;
   code_events?: Array<Record<string, unknown>>;
   files?: Record<string, string>;
+  visible_files?: string[] | null;
+  slide_offset?: number;
 }
 
 /** Generic fetch wrapper with error handling */
@@ -844,4 +846,188 @@ export async function fetchSectionLessons(
   return apiFetch<Lesson[]>(
     `/api/courses/${courseId}/sections/${sectionId}/lessons`
   );
+}
+
+// --- Course Codebase API ---
+
+/** Get the course's initial codebase files */
+export async function fetchCourseCodebase(
+  pathId: string,
+  courseId: string
+): Promise<ApiResponse<{ initial_files: FileMap; language: string }>> {
+  return apiFetch<{ initial_files: FileMap; language: string }>(
+    `/api/paths/${pathId}/courses/${courseId}/codebase`
+  );
+}
+
+/** Update the course's initial codebase files */
+export async function updateCourseCodebase(
+  pathId: string,
+  courseId: string,
+  data: { initial_files?: FileMap; language?: string }
+): Promise<ApiResponse<{ initial_files: FileMap; language: string }>> {
+  return apiFetch<{ initial_files: FileMap; language: string }>(
+    `/api/paths/${pathId}/courses/${courseId}/codebase`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+/** Resolve the course info for a lesson (course_id, path_id, section_id) */
+export async function fetchLessonCourseInfo(
+  lessonId: string
+): Promise<ApiResponse<{ course_id: string | null; path_id: string | null; section_id: string | null }>> {
+  return apiFetch<{ course_id: string | null; path_id: string | null; section_id: string | null }>(
+    `/api/lessons/${lessonId}/course-info`
+  );
+}
+
+/** Get the computed starting file state for a lesson (based on course progression) */
+export async function fetchComputedStartFiles(
+  lessonId: string
+): Promise<ApiResponse<{ files: FileMap }>> {
+  return apiFetch<{ files: FileMap }>(
+    `/api/lessons/${lessonId}/computed-start-files`
+  );
+}
+
+// --- Course Slide API ---
+
+/** Data required to create a new course slide */
+export interface CourseSlideCreate {
+  order?: number;
+  type?: string;
+  title?: string;
+  content?: string;
+  language?: string;
+}
+
+/** Data for updating a course slide */
+export interface CourseSlideUpdate {
+  order?: number;
+  type?: string;
+  title?: string;
+  content?: string;
+  language?: string;
+}
+
+/** Fetch all slides for a course */
+export async function fetchCourseSlides(
+  courseId: string
+): Promise<ApiResponse<CourseSlide[]>> {
+  return apiFetch<CourseSlide[]>(`/api/courses/${courseId}/slides/`);
+}
+
+/** Get a single course slide */
+export async function fetchCourseSlide(
+  courseId: string,
+  slideId: string
+): Promise<ApiResponse<CourseSlide>> {
+  return apiFetch<CourseSlide>(`/api/courses/${courseId}/slides/${slideId}`);
+}
+
+/** Create a new course slide */
+export async function createCourseSlide(
+  courseId: string,
+  data: CourseSlideCreate
+): Promise<ApiResponse<CourseSlide>> {
+  return apiFetch<CourseSlide>(`/api/courses/${courseId}/slides/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/** Update an existing course slide */
+export async function updateCourseSlide(
+  courseId: string,
+  slideId: string,
+  data: CourseSlideUpdate
+): Promise<ApiResponse<CourseSlide>> {
+  return apiFetch<CourseSlide>(`/api/courses/${courseId}/slides/${slideId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+/** Delete a course slide */
+export async function deleteCourseSlide(
+  courseId: string,
+  slideId: string
+): Promise<ApiResponse<void>> {
+  return apiFetch<void>(`/api/courses/${courseId}/slides/${slideId}`, {
+    method: "DELETE",
+  });
+}
+
+/** Reorder a course slide */
+export async function reorderCourseSlide(
+  courseId: string,
+  slideId: string,
+  newOrder: number
+): Promise<ApiResponse<CourseSlide>> {
+  return apiFetch<CourseSlide>(
+    `/api/courses/${courseId}/slides/${slideId}/reorder?new_order=${newOrder}`,
+    { method: "PUT" }
+  );
+}
+
+/** Upload an image for a course slide */
+export async function uploadCourseSlideImage(
+  courseId: string,
+  slideId: string,
+  imageFile: File
+): Promise<ApiResponse<{ filename: string }>> {
+  const url = `${API_URL}/api/courses/${courseId}/slides/${slideId}/image`;
+  const formData = new FormData();
+  formData.append("file", imageFile);
+
+  try {
+    const headers: Record<string, string> = {};
+    const token = getAuthToken();
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      body: formData,
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      return {
+        success: false,
+        error: {
+          code: `HTTP_${response.status}`,
+          message:
+            errorBody?.detail ??
+            errorBody?.message ??
+            `Upload failed with status ${response.status}`,
+        },
+      };
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (err) {
+    return {
+      success: false,
+      error: {
+        code: "NETWORK_ERROR",
+        message:
+          err instanceof Error ? err.message : "Upload failed unexpectedly",
+      },
+    };
+  }
+}
+
+/** Get the URL for a course slide's image */
+export function getCourseSlideImageUrl(
+  courseId: string,
+  slideId: string
+): string {
+  return `${API_URL}/api/courses/${courseId}/slides/${slideId}/image`;
 }

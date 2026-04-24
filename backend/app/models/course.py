@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from pydantic import BaseModel
-from sqlalchemy import Column, DateTime, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, JSON
 from sqlmodel import SQLModel, Field
 
 
@@ -22,6 +22,10 @@ class Course(SQLModel, table=True):
     slug: str = Field(max_length=200)
     order: int = Field(default=0)
     status: str = Field(default="draft")  # "draft" | "published"
+    # Course-level codebase: the initial code files shared across all lessons
+    initial_files: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    # Primary language for the course (html, python, etc.)
+    language: str = Field(default="html", max_length=50)
     created_by: uuid.UUID = Field(
         sa_column=Column(
             "created_by",
@@ -44,6 +48,8 @@ class CourseCreate(BaseModel):
     description: str | None = None
     slug: str | None = None  # Auto-generated if not provided
     status: str = "draft"
+    initial_files: dict | None = None
+    language: str = "html"
 
 
 class CourseUpdate(BaseModel):
@@ -51,6 +57,8 @@ class CourseUpdate(BaseModel):
     description: str | None = None
     slug: str | None = None
     status: str | None = None
+    initial_files: dict | None = None
+    language: str | None = None
 
 
 class CourseRead(BaseModel):
@@ -61,6 +69,8 @@ class CourseRead(BaseModel):
     slug: str
     order: int
     status: str
+    initial_files: dict | None
+    language: str
     created_by: uuid.UUID
     created_at: datetime
     updated_at: datetime

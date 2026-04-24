@@ -19,6 +19,10 @@ interface CodeEventCapture {
   recordFileDelete: (fileName: string) => void;
   /** Record a file rename event */
   recordFileRename: (oldName: string, newName: string) => void;
+  /** Record a slide activation event (creator toggled a slide on) */
+  recordSlideActivate: (slideId: string) => void;
+  /** Record a slide deactivation event (creator switched back to code) */
+  recordSlideDeactivate: () => void;
   /** Clear all captured events */
   clear: () => void;
 }
@@ -198,6 +202,30 @@ export function useCodeEventCapture(): CodeEventCapture {
     [getTimestamp]
   );
 
+  const recordSlideActivate = useCallback(
+    (slideId: string) => {
+      if (!startTimeRef.current) return;
+      const event: CodeEvent = {
+        type: "slide_activate",
+        timestamp: getTimestamp(),
+        fileName: activeFileRef.current,
+        slideId,
+      };
+      eventsRef.current.push(event);
+    },
+    [getTimestamp]
+  );
+
+  const recordSlideDeactivate = useCallback(() => {
+    if (!startTimeRef.current) return;
+    const event: CodeEvent = {
+      type: "slide_deactivate",
+      timestamp: getTimestamp(),
+      fileName: activeFileRef.current,
+    };
+    eventsRef.current.push(event);
+  }, [getTimestamp]);
+
   const clear = useCallback(() => {
     eventsRef.current = [];
   }, []);
@@ -210,6 +238,8 @@ export function useCodeEventCapture(): CodeEventCapture {
     recordFileCreate,
     recordFileDelete,
     recordFileRename,
+    recordSlideActivate,
+    recordSlideDeactivate,
     clear,
   };
 }

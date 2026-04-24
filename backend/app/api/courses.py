@@ -225,6 +225,60 @@ async def reorder_course(
     return course
 
 
+@router.get("/{course_id}/codebase")
+async def get_course_codebase(
+    path_id: uuid.UUID,
+    course_id: uuid.UUID,
+    user: User | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Get the course's initial codebase files."""
+    await _get_path_or_404(path_id, session)
+
+    course = await session.get(Course, course_id)
+    if course is None or course.path_id != path_id:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    return {
+        "initial_files": course.initial_files or {},
+        "language": course.language,
+    }
+
+
+@router.put("/{course_id}/codebase")
+async def update_course_codebase(
+    path_id: uuid.UUID,
+    course_id: uuid.UUID,
+    data: dict,
+    user: User = Depends(require_role("creator", "admin")),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Update the course's initial codebase files."""
+    path = await _get_path_or_404(path_id, session)
+
+    if user.role != "admin" and path.created_by != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this course")
+
+    course = await session.get(Course, course_id)
+    if course is None or course.path_id != path_id:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    if "initial_files" in data:
+        course.initial_files = data["initial_files"]
+    if "language" in data:
+        course.language = data["language"]
+    course.updated_at = datetime.now(timezone.utc)
+
+    session.add(course)
+    await session.commit()
+    await session.refresh(course)
+
+    return {
+        "initial_files": course.initial_files or {},
+        "language": course.language,
+    }
+
+
 @course_lookup_router.get("/{course_id}", response_model=CourseRead)
 async def get_course_by_id(
     course_id: uuid.UUID,

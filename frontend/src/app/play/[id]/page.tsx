@@ -12,6 +12,7 @@ import CheckpointPanel from "@/components/checkpoint/CheckpointPanel";
 import SlideViewer from "@/components/player/SlideViewer";
 import { usePlayback } from "@/hooks/usePlayback";
 import { segmentEffectiveDuration } from "@/lib/segments";
+import type { CourseSlide } from "@/lib/types";
 
 /** Format milliseconds to m:ss display */
 function formatTime(ms: number): string {
@@ -38,6 +39,21 @@ export default function PlayerPage() {
   });
 
   const videoPanelRef = useRef<ImperativePanelHandle>(null);
+  const previewPanelRef = useRef<ImperativePanelHandle>(null);
+
+  // Track which slide is currently shown in the editor's Slide tab
+  const [editorActiveSlideId, setEditorActiveSlideId] = useState<string | null>(null);
+
+  // Find the active course slide for the preview panel
+  const courseSlides = playback.courseSlides ?? [];
+  const slideOffset = playback.lesson?.slide_offset ?? 0;
+  const availableSlides = courseSlides.slice(slideOffset);
+  const activeEditorSlide = editorActiveSlideId
+    ? availableSlides.find((s: CourseSlide) => s.id === editorActiveSlideId) ?? null
+    : null;
+
+  // Resolve the course ID from the lesson's section hierarchy
+  const courseId = playback.courseId ?? undefined;
 
   const isCheckpointActive = playback.activeCheckpoint !== null;
 
@@ -68,6 +84,27 @@ export default function PlayerPage() {
     const nextIndex = (currentIndex + 1) % SPEED_OPTIONS.length;
     playback.setPlaybackRate(SPEED_OPTIONS[nextIndex]);
   }, [playback]);
+
+  // When a slide is activated in the editor tab, show it in preview too
+  const handleSlideActivate = useCallback((slideId: string) => {
+    setEditorActiveSlideId(slideId);
+    // Collapse preview panel to show slide in full editor view
+    // Actually, user wants preview to show the slide too, so keep it visible
+  }, []);
+
+  const handleSlideDeactivate = useCallback(() => {
+    setEditorActiveSlideId(null);
+  }, []);
+
+  // Auto-sync with playback slide events
+  useEffect(() => {
+    if (playback.activeSlide) {
+      setEditorActiveSlideId(playback.activeSlide.id);
+    } else if (playback.activeSlideSegmentId === null && !playback.activeSlide) {
+      // Only auto-deactivate if there's no active segment slide either
+      // Check if it was a course-level slide that was deactivated
+    }
+  }, [playback.activeSlide, playback.activeSlideSegmentId]);
 
   const toggleVideoPanel = useCallback(() => {
     setVideoPanelVisible((prev) => {
@@ -308,6 +345,12 @@ export default function PlayerPage() {
               controlledActiveFile={!playback.isInteractive ? playback.activeFileName : undefined}
               readOnly={!playback.isInteractive}
               onFilesChange={playback.isInteractive ? playback.updateFiles : undefined}
+              courseSlides={courseSlides}
+              activeSlideId={editorActiveSlideId}
+              courseId={courseId}
+              slideOffset={slideOffset}
+              onSlideActivate={handleSlideActivate}
+              onSlideDeactivate={handleSlideDeactivate}
             />
           </div>
         </Panel>
@@ -315,7 +358,7 @@ export default function PlayerPage() {
         <PanelHandle />
 
         {/* Preview panel */}
-        <Panel defaultSize={videoPanelVisible ? 40 : 60} minSize={20} id="preview">
+        <Panel ref={previewPanelRef} defaultSize={videoPanelVisible ? 40 : 60} minSize={20} id="preview">
           <div className="flex h-full flex-col">
             <div className="flex h-10 shrink-0 items-center justify-between border-b border-gray-800 bg-[#252526] px-4">
               <div className="flex items-center gap-2">
@@ -333,22 +376,21 @@ export default function PlayerPage() {
                   />
                 </svg>
                 <span className="text-xs font-medium text-gray-400">
-                  {playback.activeSlide ? "Slide" : "Preview"}
+                  {activeEditorSlide ? "Slide" : "Preview"}
                 </span>
               </div>
               {/* Slide indicator badge */}
-              {playback.activeSlide && (
+              {activeEditorSlide && (
                 <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400 ring-1 ring-purple-500/20">
-                  {playback.activeSlide.type === "markdown" ? "Markdown" : playback.activeSlide.type === "image" ? "Image" : "Code"}
+                  {activeEditorSlide.type === "markdown" ? "Markdown" : activeEditorSlide.type === "image" ? "Image" : "Code"}
                 </span>
               )}
             </div>
             <div className="flex-1 min-h-0">
-              {playback.activeSlide && playback.activeSlideSegmentId ? (
+              {activeEditorSlide && courseId ? (
                 <SlideViewer
-                  slide={playback.activeSlide}
-                  lessonId={id}
-                  segmentId={playback.activeSlideSegmentId}
+                  slide={activeEditorSlide}
+                  courseId={courseId}
                 />
               ) : (
                 <LivePreview ref={previewIframeRef} html={html} css={css} javascript={javascript} />

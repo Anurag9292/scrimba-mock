@@ -4,6 +4,8 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import type { OnMount } from "@monaco-editor/react";
 import CodeEditor from "./CodeEditor";
 import FileTab from "./FileTab";
+import type { CourseSlide } from "@/lib/types";
+import SlideViewer from "../player/SlideViewer";
 
 /** Map file extensions to Monaco language identifiers */
 function getLanguage(filename: string): string {
@@ -95,6 +97,9 @@ function filesEqual(a: Record<string, string>, b: Record<string, string>): boole
   return true;
 }
 
+/** Special tab identifier for the slides view */
+const SLIDE_TAB_ID = "__slides__";
+
 interface EditorPanelProps {
   /** Optional initial files to load instead of defaults */
   initialFiles?: Record<string, string>;
@@ -114,6 +119,18 @@ interface EditorPanelProps {
   onFileRename?: (oldName: string, newName: string) => void;
   /** Externally controlled active file (used during playback) */
   controlledActiveFile?: string;
+  /** Course slides available for this lesson (from the course level) */
+  courseSlides?: CourseSlide[];
+  /** The currently active slide ID (controlled externally during playback) */
+  activeSlideId?: string | null;
+  /** Course ID (needed for slide image URLs) */
+  courseId?: string;
+  /** Slide offset — which slide number in the course deck to start from */
+  slideOffset?: number;
+  /** Called when user clicks the slides tab or picks a slide */
+  onSlideActivate?: (slideId: string) => void;
+  /** Called when user clicks back to a code tab from slides */
+  onSlideDeactivate?: () => void;
 }
 
 export default function EditorPanel({
@@ -126,6 +143,12 @@ export default function EditorPanel({
   onFileDelete,
   onFileRename,
   controlledActiveFile,
+  courseSlides,
+  activeSlideId,
+  courseId,
+  slideOffset = 0,
+  onSlideActivate,
+  onSlideDeactivate,
 }: EditorPanelProps) {
   const [files, setFiles] = useState<Record<string, string>>(
     initialFiles ?? DEFAULT_FILES
@@ -136,6 +159,17 @@ export default function EditorPanel({
   const [isCreating, setIsCreating] = useState(false);
   const [newFileName, setNewFileName] = useState("");
   const newFileInputRef = useRef<HTMLInputElement>(null);
+  // Whether the slides tab is currently selected
+  const [isSlideTabActive, setIsSlideTabActive] = useState(false);
+  // Currently displayed slide index (relative to offset)
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  // Track the last code file tab before switching to slides (to restore later)
+  const lastCodeFileRef = useRef<string>(activeFile);
+
+  // Compute the available slides for this lesson (from slideOffset onward)
+  const availableSlides = (courseSlides || []).slice(slideOffset);
+  const currentSlide = availableSlides[currentSlideIndex] ?? null;
+  const hasSlides = availableSlides.length > 0;
 
   useEffect(() => {
     if (isCreating) {
@@ -178,6 +212,24 @@ export default function EditorPanel({
       );
     }
   }, [readOnly, controlledActiveFile]);
+
+  // Externally controlled slide activation (during playback)
+  useEffect(() => {
+    if (activeSlideId && availableSlides.length > 0) {
+      const idx = availableSlides.findIndex((s) => s.id === activeSlideId);
+      if (idx >= 0) {
+        if (!isSlideTabActive) {
+          lastCodeFileRef.current = activeFile;
+        }
+        setIsSlideTabActive(true);
+        setCurrentSlideIndex(idx);
+      }
+    } else if (activeSlideId === null && isSlideTabActive) {
+      // Slide deactivated externally
+      setIsSlideTabActive(false);
+      setActiveFile(lastCodeFileRef.current);
+    }
+  }, [activeSlideId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreateFile = useCallback(() => {
     const trimmed = newFileName.trim();
@@ -246,6 +298,45 @@ export default function EditorPanel({
     [files, activeFile, onFileRename]
   );
 
+  // Handle clicking the slides tab
+  const handleSlideTabClick = useCallback(() => {
+    if (!isSlideTabActive) {
+      lastCodeFileRef.current = activeFile;
+      setIsSlideTabActive(true);
+      if (availableSlides.length > 0) {
+        onSlideActivate?.(availableSlides[currentSlideIndex]?.id ?? availableSlides[0].id);
+      }
+    }
+  }, [isSlideTabActive, activeFile, availableSlides, currentSlideIndex, onSlideActivate]);
+
+  // Handle clicking a code file tab (deactivates slides)
+  const handleCodeTabClick = useCallback(
+    (name: string) => {
+      if (isSlideTabActive) {
+        setIsSlideTabActive(false);
+        onSlideDeactivate?.();
+      }
+      setActiveFile(name);
+    },
+    [isSlideTabActive, onSlideDeactivate]
+  );
+
+  // Navigate to next/previous slide within the available slides
+  const handleSlideNav = useCallback(
+    (direction: "prev" | "next") => {
+      setCurrentSlideIndex((prev) => {
+        const next = direction === "next"
+          ? Math.min(prev + 1, availableSlides.length - 1)
+          : Math.max(prev - 1, 0);
+        if (availableSlides[next]) {
+          onSlideActivate?.(availableSlides[next].id);
+        }
+        return next;
+      });
+    },
+    [availableSlides, onSlideActivate]
+  );
+
   const filenames = Object.keys(files);
 
   return (
@@ -256,14 +347,42 @@ export default function EditorPanel({
           <FileTab
             key={name}
             filename={name}
-            isActive={name === activeFile}
-            onClick={() => setActiveFile(name)}
+            isActive={!isSlideTabActive && name === activeFile}
+            onClick={() => handleCodeTabClick(name)}
             closable={filenames.length > 1}
             onClose={() => handleDeleteFile(name)}
             onRename={(newName) => handleRenameFile(name, newName)}
             readOnly={readOnly}
           />
         ))}
+
+        {/* Slides tab — shown when course has slides */}
+        {hasSlides && (
+          <button
+            type="button"
+            onClick={handleSlideTabClick}
+            className={`
+              group relative flex h-full items-center gap-2 border-r border-gray-800/60 px-3 text-sm
+              transition-colors duration-150 select-none
+              ${
+                isSlideTabActive
+                  ? "bg-[#1e1e1e] text-white"
+                  : "bg-gray-900/40 text-gray-500 hover:bg-gray-800/50 hover:text-gray-300"
+              }
+            `}
+          >
+            {isSlideTabActive && (
+              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-purple-500" />
+            )}
+            <span className="h-2.5 w-2.5 rounded-full bg-purple-400" />
+            <span className="whitespace-nowrap">Slides</span>
+            {isSlideTabActive && availableSlides.length > 1 && (
+              <span className="ml-1 text-[10px] text-purple-400">
+                {currentSlideIndex + 1}/{availableSlides.length}
+              </span>
+            )}
+          </button>
+        )}
 
         {/* New file input */}
         {isCreating && (
@@ -302,16 +421,51 @@ export default function EditorPanel({
         )}
       </div>
 
-      {/* Editor area */}
+      {/* Content area: either Code Editor or Slide Viewer */}
       <div className="flex-1 min-h-0">
-        <CodeEditor
-          path={activeFile}
-          value={files[activeFile] ?? ""}
-          language={getLanguage(activeFile)}
-          onChange={handleChange}
-          readOnly={readOnly}
-          onMount={onEditorMount}
-        />
+        {isSlideTabActive && currentSlide ? (
+          <div className="h-full flex flex-col">
+            {/* Slide navigation bar */}
+            {availableSlides.length > 1 && (
+              <div className="flex items-center justify-between border-b border-gray-800 bg-[#252526] px-4 py-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleSlideNav("prev")}
+                  disabled={currentSlideIndex === 0}
+                  className="rounded px-2 py-0.5 text-xs text-gray-400 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Prev
+                </button>
+                <span className="text-xs text-gray-400">
+                  {currentSlide.title || `Slide ${currentSlideIndex + 1}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleSlideNav("next")}
+                  disabled={currentSlideIndex === availableSlides.length - 1}
+                  className="rounded px-2 py-0.5 text-xs text-gray-400 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+            <div className="flex-1 min-h-0">
+              <SlideViewer
+                slide={currentSlide}
+                courseId={courseId}
+              />
+            </div>
+          </div>
+        ) : (
+          <CodeEditor
+            path={activeFile}
+            value={files[activeFile] ?? ""}
+            language={getLanguage(activeFile)}
+            onChange={handleChange}
+            readOnly={readOnly}
+            onMount={onEditorMount}
+          />
+        )}
       </div>
     </div>
   );
