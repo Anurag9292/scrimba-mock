@@ -356,21 +356,19 @@ export default function PlayerPage() {
               </div>
             )}
             <div className="flex flex-1 min-h-0">
-              {/* File explorer sidebar — only in interactive mode */}
-              {playback.isInteractive && !isCheckpointActive && (
-                <div className="w-48 shrink-0">
-                  <FileExplorer
-                    files={playback.currentFiles}
-                    activeFile={playback.activeFileName}
-                    onFileSelect={(path) => {
-                      // The EditorPanel will handle the tab switch
-                      // We just need to set it as the active file
-                    }}
-                    onFileCreate={handleExplorerFileCreate}
-                    onFileDelete={handleExplorerFileDelete}
-                  />
-                </div>
-              )}
+              {/* File explorer sidebar — always visible, editing only in interactive mode */}
+              <div className="w-48 shrink-0">
+                <FileExplorer
+                  files={playback.currentFiles}
+                  activeFile={playback.activeFileName}
+                  onFileSelect={(path) => {
+                    // The EditorPanel will handle the tab switch
+                  }}
+                  onFileCreate={playback.isInteractive ? handleExplorerFileCreate : undefined}
+                  onFileDelete={playback.isInteractive ? handleExplorerFileDelete : undefined}
+                  readOnly={!playback.isInteractive}
+                />
+              </div>
               <div className="flex-1 min-w-0">
                 <EditorPanel
                   key={playback.isInteractive ? `interactive-${id}` : `playback-${id}-v${playback.seekVersion}`}
