@@ -839,6 +839,13 @@ export async function deleteSection(
   });
 }
 
+/** Look up a section by ID (without needing courseId) */
+export async function fetchSectionById(
+  sectionId: string
+): Promise<ApiResponse<Section>> {
+  return apiFetch<Section>(`/api/sections/${sectionId}`);
+}
+
 export async function fetchSectionLessons(
   courseId: string,
   sectionId: string

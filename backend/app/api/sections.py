@@ -13,6 +13,7 @@ from app.models.user import User
 from app.api.auth_deps import get_current_user, get_optional_user, require_role
 
 router = APIRouter(prefix="/api/courses/{course_id}/sections", tags=["sections"])
+section_lookup_router = APIRouter(prefix="/api/sections", tags=["sections"])
 
 
 async def _get_course_or_404(course_id: uuid.UUID, session: AsyncSession) -> Course:
@@ -201,3 +202,19 @@ async def list_section_lessons(
         select(Lesson).where(Lesson.section_id == section_id).order_by(Lesson.created_at.asc())
     )
     return list(result.scalars().all())
+
+
+# --- Standalone section lookup by ID (no course_id needed) ---
+
+
+@section_lookup_router.get("/{section_id}", response_model=SectionRead)
+async def get_section_by_id(
+    section_id: uuid.UUID,
+    user: User | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_session),
+) -> Section:
+    """Look up a section by ID without requiring the course_id in the URL."""
+    section = await session.get(Section, section_id)
+    if section is None:
+        raise HTTPException(status_code=404, detail="Section not found")
+    return section

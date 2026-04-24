@@ -96,15 +96,11 @@ export default function PlayerPage() {
     setEditorActiveSlideId(null);
   }, []);
 
-  // Auto-sync with playback slide events
+  // Auto-sync editor slide tab with playback's course slide events
   useEffect(() => {
-    if (playback.activeSlide) {
-      setEditorActiveSlideId(playback.activeSlide.id);
-    } else if (playback.activeSlideSegmentId === null && !playback.activeSlide) {
-      // Only auto-deactivate if there's no active segment slide either
-      // Check if it was a course-level slide that was deactivated
-    }
-  }, [playback.activeSlide, playback.activeSlideSegmentId]);
+    // activeCourseSlideId is driven by slide_activate/slide_deactivate code events
+    setEditorActiveSlideId(playback.activeCourseSlideId);
+  }, [playback.activeCourseSlideId]);
 
   const toggleVideoPanel = useCallback(() => {
     setVideoPanelVisible((prev) => {

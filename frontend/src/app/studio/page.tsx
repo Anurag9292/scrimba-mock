@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Lesson, LessonSegment, CourseSlide } from "@/lib/types";
+import type { Lesson, LessonSegment, CourseSlide, FileMap } from "@/lib/types";
 import {
   fetchLessons,
   fetchLesson,
@@ -15,6 +15,9 @@ import {
   reorderSegment,
   fetchLessonCourseInfo,
   fetchCourseSlides,
+  fetchSectionById,
+  fetchCourseCodebase,
+  fetchComputedStartFiles,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import SegmentRecorder from "@/components/studio/SegmentRecorder";
@@ -75,10 +78,59 @@ export default function StudioPage() {
   const [previewSegment, setPreviewSegment] = useState<LessonSegment | null>(null);
   const [checkpointSegment, setCheckpointSegment] = useState<LessonSegment | null>(null);
   const [slideSegment, setSlideSegment] = useState<LessonSegment | null>(null);
-  // Course-level data for slides
+  // Course-level data for slides and codebase
   const [courseSlides, setCourseSlides] = useState<CourseSlide[]>([]);
   const [courseId, setCourseId] = useState<string | null>(null);
+  const [pathId, setPathId] = useState<string | null>(null);
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
+  const [courseInitialFiles, setCourseInitialFiles] = useState<FileMap | null>(null);
+
+  // Resolve course data from sectionId (for fresh recordings from a course section)
+  useEffect(() => {
+    if (!sectionId) return;
+    let cancelled = false;
+
+    async function resolveCourseFromSection() {
+      // Look up section to get course_id
+      const sectionResp = await fetchSectionById(sectionId!);
+      if (cancelled || !sectionResp.success || !sectionResp.data) return;
+
+      const resolvedCourseId = sectionResp.data.course_id;
+      setCourseId(resolvedCourseId);
+
+      // Fetch course slides
+      const slidesResp = await fetchCourseSlides(resolvedCourseId);
+      if (!cancelled && slidesResp.success && slidesResp.data) {
+        setCourseSlides(slidesResp.data);
+      }
+
+      // Fetch course codebase (initial_files) — need pathId for the endpoint
+      // Use the course lookup to get path_id
+      try {
+        const courseResp = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/courses/${resolvedCourseId}`
+        );
+        if (!cancelled && courseResp.ok) {
+          const courseData = await courseResp.json();
+          if (courseData.path_id) {
+            setPathId(courseData.path_id);
+            const codebaseResp = await fetchCourseCodebase(courseData.path_id, resolvedCourseId);
+            if (!cancelled && codebaseResp.success && codebaseResp.data) {
+              const files = codebaseResp.data.initial_files;
+              if (files && Object.keys(files).length > 0) {
+                setCourseInitialFiles(files);
+              }
+            }
+          }
+        }
+      } catch {
+        // Non-critical
+      }
+    }
+
+    resolveCourseFromSection();
+    return () => { cancelled = true; };
+  }, [sectionId]);
 
   // If a lessonId is provided in the URL, load that lesson directly into segments view
   useEffect(() => {
@@ -131,7 +183,7 @@ export default function StudioPage() {
     } else if (view.type === "segments") {
       loadSegments(view.lessonId);
 
-      // Load course info and slides for this lesson
+      // Load course info, slides, and codebase for this lesson
       (async () => {
         const lessonResp = await fetchLesson(view.lessonId);
         if (lessonResp.success && lessonResp.data) {
@@ -140,10 +192,28 @@ export default function StudioPage() {
 
         const courseInfoResp = await fetchLessonCourseInfo(view.lessonId);
         if (courseInfoResp.success && courseInfoResp.data?.course_id) {
-          setCourseId(courseInfoResp.data.course_id);
-          const slidesResp = await fetchCourseSlides(courseInfoResp.data.course_id);
+          const resolvedCourseId = courseInfoResp.data.course_id;
+          setCourseId(resolvedCourseId);
+          if (courseInfoResp.data.path_id) {
+            setPathId(courseInfoResp.data.path_id);
+          }
+
+          const slidesResp = await fetchCourseSlides(resolvedCourseId);
           if (slidesResp.success && slidesResp.data) {
             setCourseSlides(slidesResp.data);
+          }
+
+          // Load course codebase for use when starting new segments
+          if (courseInfoResp.data.path_id) {
+            const codebaseResp = await fetchCourseCodebase(
+              courseInfoResp.data.path_id, resolvedCourseId
+            );
+            if (codebaseResp.success && codebaseResp.data) {
+              const files = codebaseResp.data.initial_files;
+              if (files && Object.keys(files).length > 0) {
+                setCourseInitialFiles(files);
+              }
+            }
           }
         }
       })();
@@ -337,7 +407,7 @@ export default function StudioPage() {
     // Compute initial files for the segment being re-recorded
     const rerecordInitialFiles =
       view.segmentIndex === 0
-        ? segments[0]?.initial_files ?? {}
+        ? (courseInitialFiles ?? segments[0]?.initial_files ?? {})
         : computeFinalFiles(segments[view.segmentIndex - 1]);
 
     return (
@@ -379,11 +449,21 @@ export default function StudioPage() {
 
   // --- Recording view ---
   if (view.type === "recording") {
+    // Use course codebase as initial files when:
+    // - No lesson exists yet (brand new), OR
+    // - Lesson exists but has no segments (first segment)
+    // The SegmentRecorder handles the case where lessonId exists and has segments
+    // (it loads the final state of the last segment internally)
+    const useCourseCodbase = courseInitialFiles && (
+      view.lessonId === null || segments.length === 0
+    );
+
     return (
       <SegmentRecorder
         lessonId={view.lessonId}
         onBack={handleBack}
         sectionId={sectionId}
+        initialFilesOverride={useCourseCodbase ? courseInitialFiles : undefined}
         courseSlides={courseSlides}
         courseId={courseId ?? undefined}
         slideOffset={currentLesson?.slide_offset ?? 0}
