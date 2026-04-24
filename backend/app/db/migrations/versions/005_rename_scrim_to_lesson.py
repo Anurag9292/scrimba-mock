@@ -39,20 +39,23 @@ def upgrade() -> None:
     # drop the empty ones so we can rename the old ones (which contain data).
     # If old tables don't exist at all, the rename was already done — skip.
 
-    # 1. Rename table scrims -> lessons
-    if _table_exists("scrims"):
-        if _table_exists("lessons"):
-            # create_all made an empty 'lessons' table; drop it so rename works
-            op.drop_table("lessons")
-        op.rename_table("scrims", "lessons")
+    has_old_scrims = _table_exists("scrims")
+    has_old_segments = _table_exists("scrim_segments")
 
-    # 2. Rename table scrim_segments -> lesson_segments
-    if _table_exists("scrim_segments"):
-        if _table_exists("lesson_segments"):
-            op.drop_table("lesson_segments")
+    # Drop empty create_all tables in FK-safe order: lesson_segments first
+    # (it has a FK referencing lessons), then lessons.
+    if has_old_segments and _table_exists("lesson_segments"):
+        op.drop_table("lesson_segments")
+    if has_old_scrims and _table_exists("lessons"):
+        op.drop_table("lessons")
+
+    # Rename old tables to new names
+    if has_old_scrims:
+        op.rename_table("scrims", "lessons")
+    if has_old_segments:
         op.rename_table("scrim_segments", "lesson_segments")
 
-    # 3. Rename column scrim_id -> lesson_id in lesson_segments (after table rename)
+    # Rename column scrim_id -> lesson_id in lesson_segments (after table rename)
     if _table_exists("lesson_segments") and _column_exists("lesson_segments", "scrim_id"):
         op.alter_column("lesson_segments", "scrim_id", new_column_name="lesson_id")
 
