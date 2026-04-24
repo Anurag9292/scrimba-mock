@@ -48,22 +48,17 @@ export default function SegmentPreview({
   const trimEnd = segment.trim_end_ms ?? segment.duration_ms;
   const effectiveDuration = trimEnd - trimStart;
 
-  // Pre-apply events up to trim_start for initial file state
-  const initialState = useRef(() => {
-    if (trimStart > 0) {
-      const idx = findEventIndex(sortedEvents.current, trimStart);
-      return replayEvents(segment.initial_files, sortedEvents.current, 0, idx);
-    }
-    return { files: { ...segment.initial_files }, activeFileName: null };
-  });
-
-  // Actually compute it (useRef with a factory doesn't auto-call)
+  // Pre-apply events up to trim_start for initial file state (including slide state)
   const [precomputedInit] = useState(() => {
     if (trimStart > 0) {
       const idx = findEventIndex(sortedEvents.current, trimStart);
       return replayEvents(segment.initial_files, sortedEvents.current, 0, idx);
     }
-    return { files: { ...segment.initial_files } as FileMap, activeFileName: null as string | null };
+    return {
+      files: { ...segment.initial_files } as FileMap,
+      activeFileName: null as string | null,
+      activeSlideId: undefined as string | null | undefined,
+    };
   });
 
   const [currentFiles, setCurrentFiles] = useState<FileMap>(precomputedInit.files);
@@ -73,7 +68,10 @@ export default function SegmentPreview({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTimeMs, setCurrentTimeMs] = useState(trimStart);
   const [seekVersion, setSeekVersion] = useState(0);
-  const [activeCourseSlideId, setActiveCourseSlideId] = useState<string | null>(null);
+  // Initialize from pre-applied events (captures slide state before trim_start)
+  const [activeCourseSlideId, setActiveCourseSlideId] = useState<string | null>(
+    precomputedInit.activeSlideId !== undefined ? precomputedInit.activeSlideId : null
+  );
 
   // Compute available slides and find the active one
   const availableSlides = (courseSlides || []).slice(slideOffset);
@@ -222,18 +220,23 @@ export default function SegmentPreview({
     } else {
       if (video.currentTime * 1000 >= trimEnd) {
         video.currentTime = trimStart / 1000;
-        // Reset file state
+        // Reset file + slide state
         const idx = trimStart > 0 ? findEventIndex(sortedEvents.current, trimStart) : 0;
-        const { files, activeFileName: newActive } = trimStart > 0
+        const result = trimStart > 0
           ? replayEvents(segment.initial_files, sortedEvents.current, 0, idx)
-          : { files: { ...segment.initial_files }, activeFileName: null };
-        currentFilesRef.current = files;
+          : { files: { ...segment.initial_files } as FileMap, activeFileName: null as string | null, activeSlideId: undefined as string | null | undefined };
+        currentFilesRef.current = result.files;
         lastAppliedIndexRef.current = idx;
-        setCurrentFiles(files);
+        setCurrentFiles(result.files);
         setSeekVersion((v) => v + 1);
-        if (newActive) {
-          activeFileRef.current = newActive;
-          setActiveFileName(newActive);
+        if (result.activeFileName) {
+          activeFileRef.current = result.activeFileName;
+          setActiveFileName(result.activeFileName);
+        }
+        if (result.activeSlideId !== undefined) {
+          setActiveCourseSlideId(result.activeSlideId);
+        } else {
+          setActiveCourseSlideId(null);
         }
       }
       video.play();
@@ -290,6 +293,8 @@ export default function SegmentPreview({
               activeSlideId={activeCourseSlideId}
               courseId={courseId}
               slideOffset={slideOffset}
+              onSlideActivate={(slideId) => setActiveCourseSlideId(slideId)}
+              onSlideDeactivate={() => setActiveCourseSlideId(null)}
             />
           </div>
         </Panel>
