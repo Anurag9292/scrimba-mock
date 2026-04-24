@@ -86,13 +86,6 @@ export default function SegmentRecorder({
   const [initialFiles, setInitialFiles] = useState<FileMap | null>(null);
   const [isLoadingFiles, setIsLoadingFiles] = useState(!!lessonId || !!sectionId);
 
-  // DEBUG: log initial state
-  console.log("[SegmentRecorder] mount/render", {
-    lessonId, sectionId, initialFilesOverride: !!initialFilesOverride,
-    isLoadingFiles: !!lessonId || !!sectionId,
-    initialFiles,
-  });
-
   // Set the lesson ID if we have one
   useEffect(() => {
     if (lessonId) {
@@ -113,29 +106,21 @@ export default function SegmentRecorder({
     if (!lessonId) {
       // No lesson yet and no override — try to resolve from sectionId
       if (sectionId) {
-        console.log("[SegmentRecorder] resolving course codebase from sectionId:", sectionId);
         (async () => {
           setIsLoadingFiles(true);
           try {
             const sectionResp = await fetchSectionById(sectionId);
-            console.log("[SegmentRecorder] section response:", sectionResp.success, sectionResp.data);
             if (sectionResp.success && sectionResp.data) {
               const courseResp = await fetchCourseById(sectionResp.data.course_id);
-              console.log("[SegmentRecorder] course response:", courseResp.success, courseResp.data?.initial_files ? Object.keys(courseResp.data.initial_files) : "null/empty");
               if (courseResp.success && courseResp.data?.initial_files) {
                 const files = courseResp.data.initial_files;
                 if (Object.keys(files).length > 0) {
-                  console.log("[SegmentRecorder] Setting initialFiles:", Object.keys(files));
                   setInitialFiles(files);
-                } else {
-                  console.log("[SegmentRecorder] Course initial_files is empty object");
                 }
-              } else {
-                console.log("[SegmentRecorder] Course has no initial_files or fetch failed");
               }
             }
-          } catch (err) {
-            console.error("[SegmentRecorder] Error resolving course codebase:", err);
+          } catch {
+            // Non-critical — fall back to defaults
           }
           setIsLoadingFiles(false);
         })();
