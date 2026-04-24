@@ -71,6 +71,8 @@ async def create_course(
         slug=slug,
         order=order,
         status=data.status,
+        initial_files=data.initial_files,
+        language=data.language,
         created_by=user.id,
     )
     session.add(course)

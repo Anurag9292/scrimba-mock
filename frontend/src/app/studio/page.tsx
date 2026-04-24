@@ -16,6 +16,7 @@ import {
   fetchLessonCourseInfo,
   fetchCourseSlides,
   fetchSectionById,
+  fetchCourseById,
   fetchCourseCodebase,
   fetchComputedStartFiles,
 } from "@/lib/api";
@@ -105,16 +106,17 @@ export default function StudioPage() {
       }
 
       // Fetch course codebase (initial_files) — need pathId for the endpoint
-      // Use the course lookup to get path_id
       try {
-        const courseResp = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/courses/${resolvedCourseId}`
-        );
-        if (!cancelled && courseResp.ok) {
-          const courseData = await courseResp.json();
-          if (courseData.path_id) {
-            setPathId(courseData.path_id);
-            const codebaseResp = await fetchCourseCodebase(courseData.path_id, resolvedCourseId);
+        const courseResp = await fetchCourseById(resolvedCourseId);
+        if (!cancelled && courseResp.success && courseResp.data?.path_id) {
+          const resolvedPathId = courseResp.data.path_id;
+          setPathId(resolvedPathId);
+          // Use course initial_files directly if available
+          if (courseResp.data.initial_files && Object.keys(courseResp.data.initial_files).length > 0) {
+            setCourseInitialFiles(courseResp.data.initial_files);
+          } else {
+            // Fallback to codebase endpoint
+            const codebaseResp = await fetchCourseCodebase(resolvedPathId, resolvedCourseId);
             if (!cancelled && codebaseResp.success && codebaseResp.data) {
               const files = codebaseResp.data.initial_files;
               if (files && Object.keys(files).length > 0) {

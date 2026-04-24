@@ -33,6 +33,8 @@ export interface LessonCreate {
   duration_ms?: number;
   status?: "draft" | "published";
   section_id?: string;
+  visible_files?: string[] | null;
+  slide_offset?: number;
 }
 
 /** Data required to create a new segment */
@@ -745,6 +747,13 @@ export async function fetchCourse(
   courseId: string
 ): Promise<ApiResponse<Course>> {
   return apiFetch<Course>(`/api/paths/${pathId}/courses/${courseId}`);
+}
+
+/** Fetch a course by ID (without needing pathId) */
+export async function fetchCourseById(
+  courseId: string
+): Promise<ApiResponse<Course>> {
+  return apiFetch<Course>(`/api/courses/${courseId}`);
 }
 
 export async function createCourse(

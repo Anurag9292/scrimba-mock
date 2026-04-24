@@ -42,7 +42,6 @@ class CourseSlideCreate(BaseModel):
 
 
 class CourseSlideUpdate(BaseModel):
-    order: int | None = None
     type: str | None = None
     title: str | None = None
     content: str | None = None
