@@ -51,7 +51,10 @@ export default function CourseCodebaseEditor({ pathId, courseId }: CourseCodebas
 
   const handleFilesChange = useCallback((updated: FileMap) => {
     filesRef.current = updated;
-    setFiles({ ...updated });
+    // Use the object directly — it's already a new reference from EditorPanel's
+    // setFiles. Spreading here would create yet another object, causing
+    // unnecessary re-renders (new initialFiles ref every time).
+    setFiles(updated);
     setHasChanges(true);
   }, []);
 
