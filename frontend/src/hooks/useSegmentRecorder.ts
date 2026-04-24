@@ -80,6 +80,15 @@ export function useSegmentRecorder(options?: { sectionId?: string | null; langua
   const sectionIdRef = useRef<string | null | undefined>(options?.sectionId);
   const languageRef = useRef<string>(options?.language ?? "html");
 
+  // Keep refs in sync when the caller's props change (e.g. course data loads
+  // asynchronously after the hook is first initialised).
+  if (options?.language && options.language !== languageRef.current) {
+    languageRef.current = options.language;
+  }
+  if (options?.sectionId !== undefined && options.sectionId !== sectionIdRef.current) {
+    sectionIdRef.current = options.sectionId;
+  }
+
   const clock = useRecordingClock();
   const media = useMediaRecorder();
   const capture = useCodeEventCapture();

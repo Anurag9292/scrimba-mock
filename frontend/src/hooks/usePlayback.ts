@@ -72,6 +72,8 @@ export interface UsePlaybackReturn {
   courseId: string | null;
   /** Active course slide ID (from slide_activate code events during playback) */
   activeCourseSlideId: string | null;
+  /** The course language (resolved from course-info endpoint), used as fallback for lesson language */
+  courseLanguage: string | null;
 }
 
 export function usePlayback(lessonId: string): UsePlaybackReturn {
@@ -102,6 +104,8 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
   const [courseId, setCourseId] = useState<string | null>(null);
   // Active course slide ID (driven by slide_activate/slide_deactivate code events)
   const [activeCourseSlideId, setActiveCourseSlideId] = useState<string | null>(null);
+  // Course language (resolved from course-info endpoint)
+  const [courseLanguage, setCourseLanguage] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null!) as React.RefObject<HTMLVideoElement>;
   const rafRef = useRef<number>(0);
@@ -371,6 +375,12 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
           if (!cancelled && courseInfoResult.success && courseInfoResult.data?.course_id) {
             const resolvedCourseId = courseInfoResult.data.course_id;
             setCourseId(resolvedCourseId);
+
+            // Store the course language so the player can fall back to it
+            // when the lesson's own language field is missing or defaulted.
+            if (courseInfoResult.data.language) {
+              setCourseLanguage(courseInfoResult.data.language);
+            }
 
             const courseSlidesResult = await fetchCourseSlides(resolvedCourseId);
             if (!cancelled && courseSlidesResult.success && courseSlidesResult.data) {
@@ -916,5 +926,6 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
     courseSlides,
     courseId,
     activeCourseSlideId,
+    courseLanguage,
   };
 }
