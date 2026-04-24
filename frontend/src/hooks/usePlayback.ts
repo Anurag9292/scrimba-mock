@@ -185,6 +185,13 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
     } else {
       lastAppliedIndexRef.current = 0;
       currentFilesRef.current = { ...seg.initial_files };
+      // Immediately update React state so the editor shows the new segment's
+      // files without waiting for the first code event to fire. Without this,
+      // there's a visible blank/stale flash between segments.
+      setCurrentFiles(seg.initial_files);
+      const firstName = Object.keys(seg.initial_files)[0] ?? "index.html";
+      activeFileRef.current = firstName;
+      setActiveFileName(firstName);
       // New segment starts with no slide active (unless events will set one)
       setActiveCourseSlideId(null);
     }
