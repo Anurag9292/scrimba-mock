@@ -228,7 +228,7 @@ export default function CourseSectionsPage() {
             const isExpanded = expandedSections.has(section.id);
 
             return (
-              <div key={section.id} className="card overflow-hidden">
+              <div key={section.id} className="card overflow-visible">
                 {/* Section header */}
                 <div
                   className="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-gray-800/30"
@@ -359,7 +359,7 @@ export default function CourseSectionsPage() {
                                       onClick={() => setVisibleFilesDropdown(null)}
                                     />
                                     <div
-                                      className="absolute right-0 top-full z-10 mt-1 w-56 rounded-lg border border-gray-700 bg-gray-900 p-2 shadow-xl"
+                                      className="absolute right-0 bottom-full z-10 mb-1 w-56 rounded-lg border border-gray-700 bg-gray-900 p-2 shadow-xl"
                                     >
                                       <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-gray-500">
                                         Visible Files
