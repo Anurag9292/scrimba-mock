@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -35,20 +35,6 @@ export default function CourseSectionsPage() {
   const [pathId, setPathId] = useState<string | null>(null);
   const [courseFiles, setCourseFiles] = useState<string[]>([]);
   const [visibleFilesDropdown, setVisibleFilesDropdown] = useState<string | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close visible files dropdown when clicking outside
-  useEffect(() => {
-    if (!visibleFilesDropdown) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setVisibleFilesDropdown(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [visibleFilesDropdown]);
-
   // Resolve pathId from the course
   useEffect(() => {
     async function resolvePath() {
@@ -352,7 +338,7 @@ export default function CourseSectionsPage() {
                                 Edit
                               </Link>
                               {/* Visible files dropdown */}
-                              <div className="relative" ref={visibleFilesDropdown === lesson.id ? dropdownRef : undefined}>
+                              <div className="relative">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -366,35 +352,41 @@ export default function CourseSectionsPage() {
                                   Files
                                 </button>
                                 {visibleFilesDropdown === lesson.id && courseFiles.length > 0 && (
-                                  <div
-                                    className="absolute right-0 top-full z-10 mt-1 w-56 rounded-lg border border-gray-700 bg-gray-900 p-2 shadow-xl"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-gray-500">
-                                      Visible Files
+                                  <>
+                                    {/* Invisible backdrop to close dropdown on click outside */}
+                                    <div
+                                      className="fixed inset-0 z-[9]"
+                                      onClick={() => setVisibleFilesDropdown(null)}
+                                    />
+                                    <div
+                                      className="absolute right-0 top-full z-10 mt-1 w-56 rounded-lg border border-gray-700 bg-gray-900 p-2 shadow-xl"
+                                    >
+                                      <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-gray-500">
+                                        Visible Files
+                                      </div>
+                                      <div className="max-h-48 space-y-0.5 overflow-y-auto">
+                                        {courseFiles.map((file) => {
+                                          const selected = lesson.visible_files
+                                            ? lesson.visible_files.includes(file)
+                                            : true;
+                                          return (
+                                            <label
+                                              key={file}
+                                              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-xs text-gray-300 hover:bg-gray-800"
+                                            >
+                                              <input
+                                                type="checkbox"
+                                                checked={selected}
+                                                onChange={() => handleToggleVisibleFile(lesson, file)}
+                                                className="rounded border-gray-600"
+                                              />
+                                              <span className="truncate">{file}</span>
+                                            </label>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
-                                    <div className="max-h-48 space-y-0.5 overflow-y-auto">
-                                      {courseFiles.map((file) => {
-                                        const selected = lesson.visible_files
-                                          ? lesson.visible_files.includes(file)
-                                          : true;
-                                        return (
-                                          <label
-                                            key={file}
-                                            className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-xs text-gray-300 hover:bg-gray-800"
-                                          >
-                                            <input
-                                              type="checkbox"
-                                              checked={selected}
-                                              onChange={() => handleToggleVisibleFile(lesson, file)}
-                                              className="rounded border-gray-600"
-                                            />
-                                            <span className="truncate">{file}</span>
-                                          </label>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
+                                  </>
                                 )}
                               </div>
                               <button
