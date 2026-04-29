@@ -11,7 +11,7 @@ function Navbar() {
             S
           </div>
           <span className="text-lg font-semibold tracking-tight text-white">
-            ScrimbaClone
+            CodeStudio
           </span>
         </Link>
 
@@ -208,7 +208,7 @@ export default function HomePage() {
         <FeatureCards />
       </main>
       <footer className="border-t border-gray-800/60 py-8 text-center text-sm text-gray-600">
-        ScrimbaClone &mdash; Interactive code screencasts
+        CodeStudio &mdash; Interactive code screencasts
       </footer>
     </div>
   );

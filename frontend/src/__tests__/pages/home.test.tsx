@@ -31,15 +31,15 @@ vi.mock("@/components/auth/AuthNav", () => ({
 import HomePage from "@/app/page";
 
 describe("HomePage", () => {
-  it("renders the ScrimbaClone heading", () => {
+  it("renders the CodeStudio heading", () => {
     render(<HomePage />);
-    expect(screen.getByText("ScrimbaClone")).toBeInTheDocument();
+    expect(screen.getByText("CodeStudio")).toBeInTheDocument();
   });
 
   it("has navigation links", () => {
     render(<HomePage />);
-    // Navbar should have the ScrimbaClone brand link and AuthNav
-    expect(screen.getByText("ScrimbaClone")).toBeInTheDocument();
+    // Navbar should have the CodeStudio brand link and AuthNav
+    expect(screen.getByText("CodeStudio")).toBeInTheDocument();
     expect(screen.getByTestId("auth-nav")).toBeInTheDocument();
   });
 
@@ -79,7 +79,7 @@ describe("HomePage", () => {
     render(<HomePage />);
     // The footer uses &mdash; which renders as an em dash
     expect(
-      screen.getByText(/ScrimbaClone.*Interactive code screencasts/)
+      screen.getByText(/CodeStudio.*Interactive code screencasts/)
     ).toBeInTheDocument();
   });
 });

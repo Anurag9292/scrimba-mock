@@ -42,7 +42,7 @@ export default function CreatorLayout({
                 S
               </div>
               <span className="text-base font-semibold text-white">
-                ScrimbaClone
+                CodeStudio
               </span>
             </Link>
             <div className="h-5 w-px bg-gray-800" />

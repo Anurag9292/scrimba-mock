@@ -68,7 +68,7 @@ export default function CourseDetailPage() {
               S
             </div>
             <span className="text-lg font-semibold tracking-tight text-white">
-              ScrimbaClone
+              CodeStudio
             </span>
           </Link>
           <div className="flex items-center gap-3">
