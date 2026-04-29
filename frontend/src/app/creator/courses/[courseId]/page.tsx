@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -35,6 +35,19 @@ export default function CourseSectionsPage() {
   const [pathId, setPathId] = useState<string | null>(null);
   const [courseFiles, setCourseFiles] = useState<string[]>([]);
   const [visibleFilesDropdown, setVisibleFilesDropdown] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close visible files dropdown when clicking outside
+  useEffect(() => {
+    if (!visibleFilesDropdown) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setVisibleFilesDropdown(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [visibleFilesDropdown]);
 
   // Resolve pathId from the course
   useEffect(() => {
@@ -339,7 +352,7 @@ export default function CourseSectionsPage() {
                                 Edit
                               </Link>
                               {/* Visible files dropdown */}
-                              <div className="relative">
+                              <div className="relative" ref={visibleFilesDropdown === lesson.id ? dropdownRef : undefined}>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
