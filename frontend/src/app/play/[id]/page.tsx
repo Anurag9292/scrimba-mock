@@ -25,8 +25,7 @@ function formatTime(ms: number): string {
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-type VideoSize = "mini" | "medium" | "full" | "hidden";
-const VIDEO_SIZE_CYCLE: VideoSize[] = ["mini", "medium", "full", "hidden"];
+type VideoSize = "mini" | "medium" | "full";
 
 export default function PlayerPage() {
   const params = useParams<{ id: string }>();
@@ -94,11 +93,12 @@ export default function PlayerPage() {
     playback.setPlaybackRate(SPEED_OPTIONS[nextIndex]);
   }, [playback]);
 
-  const cycleVideoSize = useCallback(() => {
-    setVideoSize((prev) => {
-      const idx = VIDEO_SIZE_CYCLE.indexOf(prev);
-      return VIDEO_SIZE_CYCLE[(idx + 1) % VIDEO_SIZE_CYCLE.length];
-    });
+  const expandVideo = useCallback(() => {
+    setVideoSize((prev) => (prev === "mini" ? "medium" : "full"));
+  }, []);
+
+  const shrinkVideo = useCallback(() => {
+    setVideoSize((prev) => (prev === "full" ? "medium" : "mini"));
   }, []);
 
   const handleSlideActivate = useCallback((slideId: string) => {
@@ -151,13 +151,13 @@ export default function PlayerPage() {
         case "v":
         case "V":
           e.preventDefault();
-          cycleVideoSize();
+          setVideoSize((prev) => (prev === "full" ? "mini" : "full"));
           break;
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [playback, cycleVideoSize]);
+  }, [playback]);
 
   const progressFraction =
     playback.durationMs > 0
@@ -367,27 +367,57 @@ export default function PlayerPage() {
 
             {/* Video FULL mode — fills the preview area */}
             {videoSize === "full" && (
-              <div
-                className="flex flex-1 min-h-0 items-center justify-center bg-black cursor-pointer"
-                onClick={cycleVideoSize}
-                title="Click to minimize"
-              >
+              <div className="relative flex flex-1 min-h-0 items-center justify-center bg-black">
                 {videoElement ?? (
                   <span className="text-xs text-gray-600">No video</span>
                 )}
+                {/* Shrink button */}
+                <button
+                  type="button"
+                  onClick={shrinkVideo}
+                  className="absolute top-2 right-2 rounded bg-black/60 p-1.5 text-white/70 backdrop-blur-sm transition-colors hover:bg-black/80 hover:text-white"
+                  title="Shrink video"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h12.5a.75.75 0 010 1.5H3.75A.75.75 0 013 10z" clipRule="evenodd" />
+                  </svg>
+                </button>
               </div>
             )}
 
             {/* Floating video overlay — mini / medium */}
-            {videoSize !== "full" && videoSize !== "hidden" && videoElement && (
+            {videoSize !== "full" && videoElement && (
               <div
-                onClick={cycleVideoSize}
-                title="Click to resize (V)"
-                className={`absolute bottom-3 right-3 z-10 cursor-pointer overflow-hidden rounded-lg bg-black shadow-2xl ring-1 ring-white/10 transition-all duration-300 hover:ring-white/25 ${
+                className={`group absolute bottom-3 right-3 z-10 overflow-hidden rounded-lg bg-black shadow-2xl ring-1 ring-white/10 transition-all duration-300 hover:ring-white/25 ${
                   videoSize === "mini" ? "w-40" : "w-80"
                 }`}
               >
                 {videoElement}
+                {/* Expand / Shrink buttons */}
+                <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  {videoSize !== "mini" && (
+                    <button
+                      type="button"
+                      onClick={shrinkVideo}
+                      className="rounded bg-black/60 p-1 text-white/70 backdrop-blur-sm transition-colors hover:bg-black/80 hover:text-white"
+                      title="Shrink"
+                    >
+                      <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h12.5a.75.75 0 010 1.5H3.75A.75.75 0 013 10z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={expandVideo}
+                    className="rounded bg-black/60 p-1 text-white/70 backdrop-blur-sm transition-colors hover:bg-black/80 hover:text-white"
+                    title="Expand"
+                  >
+                    <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -475,9 +505,9 @@ export default function PlayerPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Video size toggle */}
-            <button type="button" onClick={cycleVideoSize}
-              className={`rounded p-1 transition-colors ${videoSize !== "hidden" ? "text-gray-400 hover:bg-gray-800 hover:text-white" : "text-gray-600 hover:bg-gray-800 hover:text-gray-400"}`}
+            {/* Video size toggle (V key = mini↔full) */}
+            <button type="button" onClick={() => setVideoSize((prev) => (prev === "full" ? "mini" : "full"))}
+              className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
               title={`Video: ${videoSize} (V)`}>
               <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
