@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/codestudio_db"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/scrimba_db"
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500 MB

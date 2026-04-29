@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: codestudio_db
+      POSTGRES_DB: scrimba_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,7 +21,7 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/codestudio_db
+      DATABASE_URL: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/scrimba_db
       CORS_ORIGINS: '["${FRONTEND_URL:-http://localhost:3000}"]'
       UPLOAD_DIR: /app/uploads
     volumes:
