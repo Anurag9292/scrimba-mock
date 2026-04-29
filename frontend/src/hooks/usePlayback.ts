@@ -548,8 +548,8 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
             const nextUrl = getSegmentVideoUrl(nextSeg2.id);
             if (!preloadedVideosRef.current.has(nextUrl)) {
               preloadedVideosRef.current.add(nextUrl);
-              // Use fetch to warm the browser cache (link preload doesn't support as="video")
-              fetch(nextUrl, { priority: "low" } as RequestInit).catch(() => {});
+              // Warm the browser cache for a smoother segment transition
+              fetch(nextUrl).catch(() => {});
             }
           }
         }
