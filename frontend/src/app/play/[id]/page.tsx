@@ -309,7 +309,6 @@ export default function PlayerPage() {
                   controlledActiveFile={effectiveActiveFile}
                   readOnly={!playback.isInteractive}
                   onFilesChange={playback.isInteractive ? playback.updateFiles : undefined}
-                  onActiveFileChange={(name) => setUserSelectedFile(name)}
                   courseSlides={courseSlides}
                   activeSlideId={editorActiveSlideId}
                   courseId={courseId}
