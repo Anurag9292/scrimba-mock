@@ -76,6 +76,16 @@ export interface UsePlaybackReturn {
   codeRunTrigger: number;
 }
 
+/** Filter a FileMap to only include visible files */
+function filterFiles(files: FileMap, visibleFiles: string[] | null): FileMap {
+  if (!visibleFiles) return files;
+  const filtered: FileMap = {};
+  for (const key of visibleFiles) {
+    if (key in files) filtered[key] = files[key];
+  }
+  return filtered;
+}
+
 export function usePlayback(lessonId: string): UsePlaybackReturn {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -118,6 +128,9 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
   const currentFilesRef = useRef<FileMap>({});
   const activeFileRef = useRef("index.html");
 
+  // Visible files ref (from lesson)
+  const visibleFilesRef = useRef<string[] | null>(null);
+
   // Segment-aware refs
   const segmentsRef = useRef<LessonSegment[]>([]);
   const isSegmentedRef = useRef(false);
@@ -159,7 +172,7 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
     lastCheckTimeMsRef.current = seg.trim_start_ms;
 
     // Set initial files and events for this segment
-    initialFilesRef.current = seg.initial_files;
+    initialFilesRef.current = filterFiles(seg.initial_files, visibleFilesRef.current);
     const sorted = [...seg.code_events].sort(
       (a, b) => a.timestamp - b.timestamp
     );
@@ -170,23 +183,24 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
     if (seg.trim_start_ms > 0) {
       const targetIndex = findEventIndex(sorted, seg.trim_start_ms);
       const { files, activeFileName: newActive, activeSlideId: newSlideId } = replayEvents(
-        seg.initial_files,
+        filterFiles(seg.initial_files, visibleFilesRef.current),
         sorted,
         0,
         targetIndex
       );
-      currentFilesRef.current = files;
+      const filteredFiles = filterFiles(files, visibleFilesRef.current);
+      currentFilesRef.current = filteredFiles;
       lastAppliedIndexRef.current = targetIndex;
       if (newActive) {
         activeFileRef.current = newActive;
         setActiveFileName(newActive);
       }
-      setCurrentFiles(files);
+      setCurrentFiles(filteredFiles);
       // Restore slide state from pre-applied events (or clear if no slide events)
       setActiveCourseSlideId(newSlideId !== undefined ? newSlideId : null);
     } else {
       lastAppliedIndexRef.current = 0;
-      currentFilesRef.current = { ...seg.initial_files };
+      currentFilesRef.current = { ...filterFiles(seg.initial_files, visibleFilesRef.current) };
       // New segment starts with no slide active (unless events will set one)
       setActiveCourseSlideId(null);
     }
@@ -249,6 +263,7 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
 
       const s = result.data;
       setLesson(s);
+      visibleFilesRef.current = s.visible_files ?? null;
 
       // Try to load segments, checkpoints, and slides in parallel
       const [segResult, cpResult, slideResult] = await Promise.all([
@@ -304,7 +319,7 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
 
         // Initialize with first segment
         const firstSeg = segments[0];
-        initialFilesRef.current = firstSeg.initial_files;
+        initialFilesRef.current = filterFiles(firstSeg.initial_files, visibleFilesRef.current);
 
         const sorted = [...firstSeg.code_events].sort(
           (a, b) => a.timestamp - b.timestamp
@@ -319,25 +334,27 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
         if (firstSeg.trim_start_ms > 0) {
           const targetIndex = findEventIndex(sorted, firstSeg.trim_start_ms);
           const { files: preApplied, activeFileName: preActive, activeSlideId: preSlideId } = replayEvents(
-            firstSeg.initial_files,
+            filterFiles(firstSeg.initial_files, visibleFilesRef.current),
             sorted,
             0,
             targetIndex
           );
-          currentFilesRef.current = preApplied;
+          const filteredPreApplied = filterFiles(preApplied, visibleFilesRef.current);
+          currentFilesRef.current = filteredPreApplied;
           lastAppliedIndexRef.current = targetIndex;
-          setCurrentFiles(preApplied);
-          const firstName = preActive ?? Object.keys(preApplied)[0] ?? "index.html";
+          setCurrentFiles(filteredPreApplied);
+          const firstName = preActive ?? Object.keys(filteredPreApplied)[0] ?? "index.html";
           activeFileRef.current = firstName;
           setActiveFileName(firstName);
           if (preSlideId !== undefined) {
             setActiveCourseSlideId(preSlideId);
           }
         } else {
-          currentFilesRef.current = { ...firstSeg.initial_files };
+          const filteredInitFiles = filterFiles(firstSeg.initial_files, visibleFilesRef.current);
+          currentFilesRef.current = { ...filteredInitFiles };
           lastAppliedIndexRef.current = 0;
-          setCurrentFiles(firstSeg.initial_files);
-          const firstName = Object.keys(firstSeg.initial_files)[0] ?? "index.html";
+          setCurrentFiles(filteredInitFiles);
+          const firstName = Object.keys(filteredInitFiles)[0] ?? "index.html";
           activeFileRef.current = firstName;
           setActiveFileName(firstName);
         }
@@ -354,7 +371,8 @@ export function usePlayback(lessonId: string): UsePlaybackReturn {
         // --- Legacy single-blob playback ---
         isSegmentedRef.current = false;
 
-        const initFiles = s.files ?? { "index.html": s.initial_code };
+        const rawInitFiles = s.files ?? { "index.html": s.initial_code };
+        const initFiles = filterFiles(rawInitFiles, visibleFilesRef.current);
         initialFilesRef.current = initFiles;
         currentFilesRef.current = initFiles;
         setCurrentFiles(initFiles);

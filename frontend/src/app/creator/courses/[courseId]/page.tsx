@@ -11,6 +11,8 @@ import {
   fetchSectionLessons,
   deleteLesson,
   fetchCourseById,
+  updateLesson,
+  fetchCourseCodebase,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import type { Section, Lesson } from "@/lib/types";
@@ -31,6 +33,8 @@ export default function CourseSectionsPage() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<CourseTab>("sections");
   const [pathId, setPathId] = useState<string | null>(null);
+  const [courseFiles, setCourseFiles] = useState<string[]>([]);
+  const [visibleFilesDropdown, setVisibleFilesDropdown] = useState<string | null>(null);
 
   // Resolve pathId from the course
   useEffect(() => {
@@ -42,6 +46,18 @@ export default function CourseSectionsPage() {
     }
     resolvePath();
   }, [courseId]);
+
+  // Load course codebase file keys when pathId is available
+  useEffect(() => {
+    if (!pathId) return;
+    async function loadCourseFiles() {
+      const resp = await fetchCourseCodebase(pathId!, courseId);
+      if (resp.success && resp.data?.initial_files) {
+        setCourseFiles(Object.keys(resp.data.initial_files));
+      }
+    }
+    loadCourseFiles();
+  }, [pathId, courseId]);
 
   const loadData = useCallback(async () => {
     const sectionsResp = await fetchSections(courseId);
@@ -75,6 +91,24 @@ export default function CourseSectionsPage() {
       loadData();
     } else {
       toast(resp.error?.message || "Failed to delete", "error");
+    }
+  };
+
+  const handleToggleVisibleFile = async (lesson: Lesson, file: string) => {
+    const current = lesson.visible_files ?? courseFiles;
+    let updated: string[];
+    if (current.includes(file)) {
+      updated = current.filter((f) => f !== file);
+    } else {
+      updated = [...current, file];
+    }
+    // If all files selected or none selected, set to null (all visible)
+    const newValue = updated.length === 0 || updated.length === courseFiles.length ? null : updated;
+    const resp = await updateLesson(lesson.id, { visible_files: newValue });
+    if (resp.success) {
+      loadData();
+    } else {
+      toast(resp.error?.message || "Failed to update visible files", "error");
     }
   };
 
@@ -286,6 +320,12 @@ export default function CourseSectionsPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
+                              {/* Visible files badge */}
+                              <span className="rounded-full bg-gray-800 px-2 py-0.5 text-[10px] text-gray-400">
+                                {lesson.visible_files
+                                  ? `${lesson.visible_files.length}/${courseFiles.length} files`
+                                  : "All files"}
+                              </span>
                               <Link
                                 href={`/play/${lesson.id}`}
                                 className="rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
@@ -298,6 +338,52 @@ export default function CourseSectionsPage() {
                               >
                                 Edit
                               </Link>
+                              {/* Visible files dropdown */}
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setVisibleFilesDropdown(
+                                      visibleFilesDropdown === lesson.id ? null : lesson.id
+                                    );
+                                  }}
+                                  className="rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
+                                  title="Visible files"
+                                >
+                                  Files
+                                </button>
+                                {visibleFilesDropdown === lesson.id && courseFiles.length > 0 && (
+                                  <div
+                                    className="absolute right-0 top-full z-10 mt-1 w-56 rounded-lg border border-gray-700 bg-gray-900 p-2 shadow-xl"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-gray-500">
+                                      Visible Files
+                                    </div>
+                                    <div className="max-h-48 space-y-0.5 overflow-y-auto">
+                                      {courseFiles.map((file) => {
+                                        const selected = lesson.visible_files
+                                          ? lesson.visible_files.includes(file)
+                                          : true;
+                                        return (
+                                          <label
+                                            key={file}
+                                            className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-xs text-gray-300 hover:bg-gray-800"
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={selected}
+                                              onChange={() => handleToggleVisibleFile(lesson, file)}
+                                              className="rounded border-gray-600"
+                                            />
+                                            <span className="truncate">{file}</span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();

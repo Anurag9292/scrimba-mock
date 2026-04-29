@@ -9,6 +9,16 @@ import type { RecordingStatus, FileMap, LessonSegment, CourseSlide } from "@/lib
 import { fetchSegments, fetchComputedStartFiles, fetchSectionById, fetchCourseById } from "@/lib/api";
 import { computeFinalFiles } from "@/lib/segments";
 
+/** Filter a FileMap to only include visible files */
+function filterByVisibleFiles(files: FileMap, visibleFiles: string[] | null): FileMap {
+  if (!visibleFiles) return files;
+  const filtered: FileMap = {};
+  for (const key of visibleFiles) {
+    if (key in files) filtered[key] = files[key];
+  }
+  return filtered;
+}
+
 /** Format milliseconds to mm:ss display */
 function formatTime(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
@@ -66,6 +76,8 @@ interface SegmentRecorderProps {
   slideOffset?: number;
   /** Language for the preview panel (html=browser, python/javascript=terminal) */
   language?: string;
+  /** If set, only these files are shown in the editor */
+  visibleFiles?: string[] | null;
 }
 
 export default function SegmentRecorder({
@@ -78,6 +90,7 @@ export default function SegmentRecorder({
   courseId,
   slideOffset = 0,
   language = "html",
+  visibleFiles,
 }: SegmentRecorderProps) {
   const recorder = useSegmentRecorder({ sectionId, language });
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -99,7 +112,7 @@ export default function SegmentRecorder({
   useEffect(() => {
     // If override is provided, use it directly
     if (initialFilesOverride) {
-      setInitialFiles(initialFilesOverride);
+      setInitialFiles(filterByVisibleFiles(initialFilesOverride, visibleFiles ?? null));
       setIsLoadingFiles(false);
       return;
     }
@@ -114,7 +127,7 @@ export default function SegmentRecorder({
             if (sectionResp.success && sectionResp.data) {
               const courseResp = await fetchCourseById(sectionResp.data.course_id);
               if (courseResp.success && courseResp.data?.initial_files) {
-                const files = courseResp.data.initial_files;
+                const files = filterByVisibleFiles(courseResp.data.initial_files, visibleFiles ?? null);
                 if (Object.keys(files).length > 0) {
                   setInitialFiles(files);
                 }
@@ -143,12 +156,12 @@ export default function SegmentRecorder({
         // Get the last segment and compute its final file state
         const lastSegment = result.data[result.data.length - 1];
         const finalFiles = computeFinalFiles(lastSegment);
-        setInitialFiles(finalFiles);
+        setInitialFiles(filterByVisibleFiles(finalFiles, visibleFiles ?? null));
       } else {
         // No segments yet — try to get computed start files from the course
         const startResp = await fetchComputedStartFiles(lessonId!);
         if (!cancelled && startResp.success && startResp.data) {
-          const files = startResp.data.files;
+          const files = filterByVisibleFiles(startResp.data.files, visibleFiles ?? null);
           if (files && Object.keys(files).length > 0) {
             setInitialFiles(files);
           }
@@ -161,7 +174,7 @@ export default function SegmentRecorder({
     return () => {
       cancelled = true;
     };
-  }, [lessonId, initialFilesOverride]);
+  }, [lessonId, initialFilesOverride, visibleFiles]);
 
   // Cleanup on unmount
   useEffect(() => {
