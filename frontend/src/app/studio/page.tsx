@@ -453,6 +453,7 @@ export default function StudioPage() {
         courseId={courseId ?? undefined}
         slideOffset={currentLesson?.slide_offset ?? 0}
         language={currentLesson?.language ?? courseLanguage}
+        visibleFiles={currentLesson?.visible_files ?? null}
         onSegmentSaved={async (lessonId) => {
           // Delete the old segment being replaced
           await deleteSegment(lessonId, view.segmentId);
@@ -502,6 +503,7 @@ export default function StudioPage() {
         courseId={courseId ?? undefined}
         slideOffset={currentLesson?.slide_offset ?? 0}
         language={currentLesson?.language ?? courseLanguage}
+        visibleFiles={currentLesson?.visible_files ?? null}
         onSegmentSaved={(lessonId) =>
           handleSegmentSaved(lessonId, view.lessonTitle)
         }
