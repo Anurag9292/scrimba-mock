@@ -197,16 +197,7 @@ export default function PlayerPage() {
     );
   }
 
-  // Video element (shared across all size states — same ref, same src)
-  const videoElement = playback.videoUrl ? (
-    <video
-      ref={playback.videoRef}
-      src={playback.videoUrl}
-      className={videoSize === "full" ? "max-h-full max-w-full" : "aspect-video w-full"}
-      playsInline
-      preload="metadata"
-    />
-  ) : null;
+  const hasVideo = !!playback.videoUrl;
 
   return (
     <div className="flex h-screen flex-col bg-[#1e1e1e]">
@@ -348,53 +339,45 @@ export default function PlayerPage() {
             </div>
 
             {/* Preview content — hidden when video is "full" */}
-            {videoSize !== "full" && (
-              <div className="flex-1 min-h-0">
-                {activeEditorSlide && courseId ? (
-                  <SlideViewer slide={activeEditorSlide} courseId={courseId} />
-                ) : useCodeRunner ? (
-                  <CodeRunnerPreview
-                    code={playback.currentFiles[effectiveActiveFile] ?? ""}
-                    language={lessonLanguage as "python" | "javascript"}
-                    runTrigger={playback.codeRunTrigger}
-                    readOnly={!playback.isInteractive}
-                  />
-                ) : (
-                  <LivePreview ref={previewIframeRef} html={html} css={css} javascript={javascript} />
-                )}
-              </div>
-            )}
+            <div className={`flex-1 min-h-0 ${videoSize === "full" ? "hidden" : ""}`}>
+              {activeEditorSlide && courseId ? (
+                <SlideViewer slide={activeEditorSlide} courseId={courseId} />
+              ) : useCodeRunner ? (
+                <CodeRunnerPreview
+                  code={playback.currentFiles[effectiveActiveFile] ?? ""}
+                  language={lessonLanguage as "python" | "javascript"}
+                  runTrigger={playback.codeRunTrigger}
+                  readOnly={!playback.isInteractive}
+                />
+              ) : (
+                <LivePreview ref={previewIframeRef} html={html} css={css} javascript={javascript} />
+              )}
+            </div>
 
-            {/* Video FULL mode — fills the preview area */}
-            {videoSize === "full" && (
-              <div className="relative flex flex-1 min-h-0 items-center justify-center bg-black">
-                {videoElement ?? (
-                  <span className="text-xs text-gray-600">No video</span>
-                )}
-                {/* Shrink button */}
-                <button
-                  type="button"
-                  onClick={shrinkVideo}
-                  className="absolute top-2 right-2 rounded bg-black/60 p-1.5 text-white/70 backdrop-blur-sm transition-colors hover:bg-black/80 hover:text-white"
-                  title="Shrink video"
-                >
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h12.5a.75.75 0 010 1.5H3.75A.75.75 0 013 10z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-            )}
-
-            {/* Floating video overlay — mini / medium */}
-            {videoSize !== "full" && videoElement && (
+            {/* Single video container — changes position/size via CSS only (never unmounts) */}
+            {hasVideo && (
               <div
-                className={`group absolute bottom-3 right-3 z-10 overflow-hidden rounded-lg bg-black shadow-2xl ring-1 ring-white/10 transition-all duration-300 hover:ring-white/25 ${
-                  videoSize === "mini" ? "w-40" : "w-80"
+                className={`group overflow-hidden bg-black transition-all duration-300 ${
+                  videoSize === "full"
+                    ? "flex flex-1 min-h-0 items-center justify-center"
+                    : `absolute bottom-3 right-3 z-10 rounded-lg shadow-2xl ring-1 ring-white/10 hover:ring-white/25 ${
+                        videoSize === "mini" ? "w-40" : "w-80"
+                      }`
                 }`}
               >
-                {videoElement}
+                <video
+                  ref={playback.videoRef}
+                  src={playback.videoUrl!}
+                  className={videoSize === "full" ? "max-h-full max-w-full" : "aspect-video w-full"}
+                  playsInline
+                  preload="metadata"
+                />
                 {/* Expand / Shrink buttons */}
-                <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className={`absolute flex items-center gap-1 transition-opacity ${
+                  videoSize === "full"
+                    ? "top-2 right-2 opacity-100"
+                    : "bottom-1.5 right-1.5 opacity-0 group-hover:opacity-100"
+                }`}>
                   {videoSize !== "mini" && (
                     <button
                       type="button"
@@ -407,16 +390,18 @@ export default function PlayerPage() {
                       </svg>
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={expandVideo}
-                    className="rounded bg-black/60 p-1 text-white/70 backdrop-blur-sm transition-colors hover:bg-black/80 hover:text-white"
-                    title="Expand"
-                  >
-                    <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-                    </svg>
-                  </button>
+                  {videoSize !== "full" && (
+                    <button
+                      type="button"
+                      onClick={expandVideo}
+                      className="rounded bg-black/60 p-1 text-white/70 backdrop-blur-sm transition-colors hover:bg-black/80 hover:text-white"
+                      title="Expand"
+                    >
+                      <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
