@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="A Scrimba-like interactive code editor and video recording tool API",
+    description="An interactive code editor and video recording tool API",
     version="0.1.0",
     lifespan=lifespan,
 )

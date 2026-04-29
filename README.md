@@ -1,2 +1,2 @@
-# scrimba-mock
-mock scrimba
+# CodeStudio
+Interactive code editor and video recording tool

@@ -55,7 +55,7 @@ export default function RegisterPage() {
               S
             </div>
             <span className="text-2xl font-semibold tracking-tight text-white">
-              ScrimbaClone
+              CodeStudio
             </span>
           </Link>
           <h1 className="mt-6 text-2xl font-bold text-white">

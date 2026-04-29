@@ -15,7 +15,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ScrimbaClone",
+  title: "CodeStudio",
   description:
     "Interactive code editor and video recording tool for creating coding screencasts",
 };
