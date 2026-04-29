@@ -35,6 +35,9 @@ export default function CourseSectionsPage() {
   const [pathId, setPathId] = useState<string | null>(null);
   const [courseFiles, setCourseFiles] = useState<string[]>([]);
   const [visibleFilesDropdown, setVisibleFilesDropdown] = useState<string | null>(null);
+  // Local draft of selected files while the dropdown is open (not yet saved)
+  const [draftVisibleFiles, setDraftVisibleFiles] = useState<string[]>([]);
+
   // Resolve pathId from the course
   useEffect(() => {
     async function resolvePath() {
@@ -93,18 +96,22 @@ export default function CourseSectionsPage() {
     }
   };
 
-  const handleToggleVisibleFile = async (lesson: Lesson, file: string) => {
-    const current = lesson.visible_files ?? courseFiles;
-    let updated: string[];
-    if (current.includes(file)) {
-      updated = current.filter((f) => f !== file);
-    } else {
-      updated = [...current, file];
-    }
+  const handleToggleDraftFile = (file: string) => {
+    setDraftVisibleFiles((prev) =>
+      prev.includes(file) ? prev.filter((f) => f !== file) : [...prev, file]
+    );
+  };
+
+  const handleSaveVisibleFiles = async (lessonId: string) => {
     // If all files selected or none selected, set to null (all visible)
-    const newValue = updated.length === 0 || updated.length === courseFiles.length ? null : updated;
-    const resp = await updateLesson(lesson.id, { visible_files: newValue });
+    const newValue =
+      draftVisibleFiles.length === 0 || draftVisibleFiles.length === courseFiles.length
+        ? null
+        : draftVisibleFiles;
+    const resp = await updateLesson(lessonId, { visible_files: newValue });
     if (resp.success) {
+      toast("Visible files saved", "success");
+      setVisibleFilesDropdown(null);
       loadData();
     } else {
       toast(resp.error?.message || "Failed to update visible files", "error");
@@ -342,9 +349,13 @@ export default function CourseSectionsPage() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setVisibleFilesDropdown(
-                                      visibleFilesDropdown === lesson.id ? null : lesson.id
-                                    );
+                                    if (visibleFilesDropdown === lesson.id) {
+                                      setVisibleFilesDropdown(null);
+                                    } else {
+                                      // Initialize draft from current lesson state
+                                      setDraftVisibleFiles(lesson.visible_files ?? [...courseFiles]);
+                                      setVisibleFilesDropdown(lesson.id);
+                                    }
                                   }}
                                   className="rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
                                   title="Visible files"
@@ -365,25 +376,32 @@ export default function CourseSectionsPage() {
                                         Visible Files
                                       </div>
                                       <div className="max-h-48 space-y-0.5 overflow-y-auto">
-                                        {courseFiles.map((file) => {
-                                          const selected = lesson.visible_files
-                                            ? lesson.visible_files.includes(file)
-                                            : true;
-                                          return (
-                                            <label
-                                              key={file}
-                                              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-xs text-gray-300 hover:bg-gray-800"
-                                            >
-                                              <input
-                                                type="checkbox"
-                                                checked={selected}
-                                                onChange={() => handleToggleVisibleFile(lesson, file)}
-                                                className="rounded border-gray-600"
-                                              />
-                                              <span className="truncate">{file}</span>
-                                            </label>
-                                          );
-                                        })}
+                                        {courseFiles.map((file) => (
+                                          <label
+                                            key={file}
+                                            className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-xs text-gray-300 hover:bg-gray-800"
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={draftVisibleFiles.includes(file)}
+                                              onChange={() => handleToggleDraftFile(file)}
+                                              className="rounded border-gray-600"
+                                            />
+                                            <span className="truncate">{file}</span>
+                                          </label>
+                                        ))}
+                                      </div>
+                                      <div className="mt-2 flex items-center justify-between border-t border-gray-800 pt-2">
+                                        <span className="text-[10px] text-gray-500">
+                                          {draftVisibleFiles.length}/{courseFiles.length} selected
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSaveVisibleFiles(lesson.id)}
+                                          className="rounded bg-brand-600 px-3 py-1 text-[11px] font-medium text-white transition-colors hover:bg-brand-500"
+                                        >
+                                          Save
+                                        </button>
                                       </div>
                                     </div>
                                   </>
