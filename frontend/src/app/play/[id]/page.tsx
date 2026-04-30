@@ -11,6 +11,7 @@ import LivePreview from "@/components/editor/LivePreview";
 import CodeRunnerPreview from "@/components/editor/CodeRunnerPreview";
 import CheckpointPanel from "@/components/checkpoint/CheckpointPanel";
 import SlideViewer from "@/components/player/SlideViewer";
+import CourseSidebar from "@/components/player/CourseSidebar";
 import CelebrationModal from "@/components/celebrations/CelebrationModal";
 import { XpToastContainer, useXpToast } from "@/components/celebrations/XpToast";
 import StreakXpBadge from "@/components/celebrations/StreakXpBadge";
@@ -45,6 +46,7 @@ export default function PlayerPage() {
 
   const [fileExplorerVisible, setFileExplorerVisible] = useState(true);
   const [videoSize, setVideoSize] = useState<VideoSize>("mini");
+  const [courseSidebarOpen, setCourseSidebarOpen] = useState(false);
   const lessonCompletedRef = useRef(false);
 
   // Track which slide is currently shown in the editor's Slide tab
@@ -557,6 +559,16 @@ export default function PlayerPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Course sidebar toggle */}
+            {courseId && (
+              <button type="button" onClick={() => setCourseSidebarOpen((v) => !v)}
+                className={`rounded p-1 transition-colors ${courseSidebarOpen ? "bg-brand-500/20 text-brand-400" : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}
+                title="Course content">
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z" clipRule="evenodd" />
+                </svg>
+              </button>
+            )}
             {/* Video size toggle (V key = mini↔full) */}
             <button type="button" onClick={() => setVideoSize((prev) => (prev === "full" ? "mini" : "full"))}
               className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
@@ -592,6 +604,16 @@ export default function PlayerPage() {
         achievements={celebration.achievements}
         confettiLevel={celebration.confettiLevel}
       />
+
+      {/* ─── Course navigation sidebar ─── */}
+      {courseId && (
+        <CourseSidebar
+          courseId={courseId}
+          currentLessonId={id}
+          isOpen={courseSidebarOpen}
+          onClose={() => setCourseSidebarOpen(false)}
+        />
+      )}
     </div>
   );
 }

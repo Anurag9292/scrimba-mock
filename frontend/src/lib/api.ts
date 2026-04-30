@@ -1100,3 +1100,28 @@ export async function resetPassword(email: string, newPassword: string): Promise
     body: JSON.stringify({ email, new_password: newPassword }),
   });
 }
+
+// ─── Course Outline ────────────────────────────────────────────
+
+export interface CourseOutlineLesson {
+  id: string;
+  title: string;
+  duration_ms: number;
+}
+
+export interface CourseOutlineSection {
+  id: string;
+  title: string;
+  order: number;
+  lessons: CourseOutlineLesson[];
+}
+
+export interface CourseOutline {
+  course: { id: string; title: string };
+  sections: CourseOutlineSection[];
+}
+
+/** Get full course outline (sections + nested lessons) for sidebar navigation */
+export async function fetchCourseOutline(courseId: string): Promise<ApiResponse<CourseOutline>> {
+  return apiFetch<CourseOutline>(`/api/courses/${courseId}/outline`);
+}
