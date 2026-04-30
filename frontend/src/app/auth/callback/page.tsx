@@ -1,39 +1,45 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { googleOAuthCallback } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase";
 
 function AuthCallbackContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  // Prevent React 18 Strict Mode double-execution (codes are single-use)
   const calledRef = useRef(false);
+  const supabase = createClient();
 
   useEffect(() => {
     if (calledRef.current) return;
     calledRef.current = true;
 
-    const code = searchParams.get("code");
-    if (!code) {
-      setError("No authorization code received");
-      return;
-    }
-
-    const redirectUri = `${window.location.origin}/auth/callback`;
-
-    googleOAuthCallback({ code, redirect_uri: redirectUri }).then((resp) => {
-      if (resp.success && resp.data) {
-        login(resp.data.access_token, resp.data.user);
-        router.push(resp.data.user.role === "user" ? "/" : "/creator");
+    // Supabase handles token exchange from URL hash automatically
+    // We just need to verify the session exists and redirect
+    supabase.auth.getSession().then(({ data: { session }, error: sessionError }) => {
+      if (sessionError) {
+        setError(sessionError.message);
+        return;
+      }
+      if (session) {
+        // Session is valid, redirect to home
+        // The AuthProvider's onAuthStateChange will pick up the session
+        router.push("/");
       } else {
-        setError(resp.error?.message || "OAuth authentication failed");
+        // No session yet — might still be exchanging the code
+        // Wait a moment and try again
+        setTimeout(() => {
+          supabase.auth.getSession().then(({ data: { session: retrySession } }) => {
+            if (retrySession) {
+              router.push("/");
+            } else {
+              setError("Authentication failed. Please try again.");
+            }
+          });
+        }, 1000);
       }
     });
-  }, [searchParams, login, router]);
+  }, [router, supabase]);
 
   if (error) {
     return (

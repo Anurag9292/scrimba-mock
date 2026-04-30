@@ -2,15 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { resetPassword } from "@/lib/api";
+import { createClient } from "@/lib/supabase";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,23 +19,20 @@ export default function ForgotPasswordPage() {
       setError("Email is required");
       return;
     }
-    if (newPassword.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
 
     setIsLoading(true);
-    const resp = await resetPassword(email.trim(), newPassword);
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+      email.trim(),
+      { redirectTo: `${window.location.origin}/auth/callback` }
+    );
+
     setIsLoading(false);
 
-    if (resp.success) {
-      setSuccess(true);
+    if (resetError) {
+      setError(resetError.message);
     } else {
-      setError(resp.error?.message || "Failed to reset password");
+      setSuccess(true);
     }
   };
 
@@ -49,15 +45,15 @@ export default function ForgotPasswordPage() {
               <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-white">Password Reset!</h2>
+          <h2 className="text-xl font-bold text-white">Check your email</h2>
           <p className="mt-2 text-sm text-gray-400">
-            Your password has been updated successfully.
+            We&apos;ve sent a password reset link to your email address.
           </p>
           <Link
             href="/login"
             className="mt-6 inline-block rounded-lg bg-brand-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-500"
           >
-            Go to Login
+            Back to Login
           </Link>
         </div>
       </div>
@@ -70,7 +66,7 @@ export default function ForgotPasswordPage() {
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-white">Reset Password</h1>
           <p className="mt-1 text-sm text-gray-400">
-            Enter your email and a new password
+            Enter your email and we&apos;ll send you a reset link
           </p>
         </div>
 
@@ -96,44 +92,12 @@ export default function ForgotPasswordPage() {
             />
           </div>
 
-          <div>
-            <label htmlFor="new-password" className="mb-1 block text-xs font-medium text-gray-400">
-              New Password
-            </label>
-            <input
-              id="new-password"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-              placeholder="At least 6 characters"
-              minLength={6}
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="confirm-password" className="mb-1 block text-xs font-medium text-gray-400">
-              Confirm Password
-            </label>
-            <input
-              id="confirm-password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-              placeholder="Repeat password"
-              minLength={6}
-              required
-            />
-          </div>
-
           <button
             type="submit"
             disabled={isLoading}
             className="w-full rounded-lg bg-brand-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Resetting..." : "Reset Password"}
+            {isLoading ? "Sending..." : "Send Reset Link"}
           </button>
         </form>
 

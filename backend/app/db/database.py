@@ -1,3 +1,5 @@
+import ssl as ssl_module
+
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlmodel import SQLModel
 
@@ -15,7 +17,14 @@ import app.models.course  # noqa: F401
 import app.models.section  # noqa: F401
 import app.models.progress  # noqa: F401
 
-engine = create_async_engine(settings.DATABASE_URL, echo=False)
+connect_args = {}
+if "supabase" in settings.DATABASE_URL:
+    ssl_context = ssl_module.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl_module.CERT_NONE
+    connect_args["ssl"] = ssl_context
+
+engine = create_async_engine(settings.DATABASE_URL, echo=False, connect_args=connect_args)
 
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 

@@ -1,25 +1,6 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: scrimba_db
-    ports:
-      - "5432:5432"
-    volumes:
-      # BIND MOUNT: data stored in ./data/postgres on your local filesystem.
-      # This is IMMUNE to "docker-compose down -v" — your data will never be
-      # accidentally deleted by any Docker command.
-      - ./data/postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: ./backend
@@ -29,15 +10,11 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/scrimba_db
       CORS_ORIGINS: '["http://localhost:3000"]'
       UPLOAD_DIR: /app/uploads
     volumes:
       - ./backend:/app
       - ./data/uploads:/app/uploads
-    depends_on:
-      db:
-        condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
@@ -48,6 +25,8 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_SUPABASE_URL: https://tphdrsbeqtpfmpyxovbn.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwaGRyc2JlcXRwZm1weXhvdmJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1MzQzMzEsImV4cCI6MjA5MzExMDMzMX0.Lx0PUbxjQ4ukOoJxSMgIrjf1oEtSZpUdWADZeXRE3KM
     volumes:
       - ./frontend:/app
       - /app/node_modules

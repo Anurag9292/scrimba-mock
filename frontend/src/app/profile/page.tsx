@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useProgress } from "@/lib/progress-context";
-import { updateMe, resetPassword } from "@/lib/api";
+import { updateMe } from "@/lib/api";
+import { createClient } from "@/lib/supabase";
 
 const ACHIEVEMENTS_MAP: Record<string, { title: string; icon: string }> = {
   first_lesson: { title: "First Step", icon: "\u{1F3AF}" },
@@ -77,13 +78,14 @@ export default function ProfilePage() {
       return;
     }
     setPasswordSaving(true);
-    const resp = await resetPassword(user.email, newPassword);
-    if (resp.success) {
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (!error) {
       setPasswordMsg({ type: "success", text: "Password changed successfully." });
       setNewPassword("");
       setConfirmPassword("");
     } else {
-      setPasswordMsg({ type: "error", text: resp.error?.message || "Failed to change password." });
+      setPasswordMsg({ type: "error", text: error.message || "Failed to change password." });
     }
     setPasswordSaving(false);
   }

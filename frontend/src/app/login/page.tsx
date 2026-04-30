@@ -3,42 +3,42 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { loginUser, getGoogleOAuthUrl } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
+import { createClient } from "@/lib/supabase";
 import { useToast } from "@/components/ui/Toast";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const resp = await loginUser({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (resp.success && resp.data) {
-      login(resp.data.access_token, resp.data.user);
-      toast("Logged in successfully", "success");
-      router.push(resp.data.user.role === "user" ? "/" : "/creator");
+    if (error) {
+      toast(error.message, "error");
     } else {
-      toast(resp.error?.message || "Login failed", "error");
+      toast("Logged in successfully", "success");
+      router.push("/");
     }
 
     setIsSubmitting(false);
   };
 
   const handleGoogleLogin = async () => {
-    const redirectUri = `${window.location.origin}/auth/callback`;
-    const resp = await getGoogleOAuthUrl(redirectUri);
-    if (resp.success && resp.data) {
-      window.location.href = resp.data.url;
-    } else {
-      toast(resp.error?.message || "Failed to start Google login", "error");
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    if (error) {
+      toast(error.message, "error");
     }
   };
 
