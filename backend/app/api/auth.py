@@ -1,6 +1,8 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 import httpx
@@ -96,8 +98,6 @@ async def update_me(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> User:
-    from datetime import datetime, timezone
-
     update_data = data.model_dump(exclude_unset=True)
 
     if "username" in update_data:
@@ -115,6 +115,38 @@ async def update_me(
     await session.commit()
     await session.refresh(user)
     return user
+
+
+# --- Password Reset ---
+
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    new_password: str
+
+
+@router.post("/reset-password")
+async def reset_password(
+    data: ResetPasswordRequest,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Reset password for a user by email. No authentication required."""
+    result = await session.execute(select(User).where(User.email == data.email))
+    user = result.scalars().first()
+
+    if user is None:
+        # Don't reveal whether the email exists
+        raise HTTPException(status_code=404, detail="No account found with that email")
+
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    user.password_hash = hash_password(data.new_password)
+    user.updated_at = datetime.now(timezone.utc)
+    session.add(user)
+    await session.commit()
+
+    return {"message": "Password reset successfully"}
 
 
 # --- Google OAuth ---
