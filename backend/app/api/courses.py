@@ -291,3 +291,60 @@ async def get_course_by_id(
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
     return course
+
+
+@course_lookup_router.get("/{course_id}/outline")
+async def get_course_outline(
+    course_id: uuid.UUID,
+    user: User | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Get full course outline: course info + sections with nested lessons (for sidebar navigation)."""
+    from app.models.section import Section
+    from app.models.lesson import Lesson
+
+    course = await session.get(Course, course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Get all sections ordered
+    result = await session.execute(
+        select(Section).where(Section.course_id == course_id).order_by(Section.order)
+    )
+    sections = result.scalars().all()
+
+    # Get all published lessons for this course's sections in one query
+    section_ids = [s.id for s in sections]
+    lessons_by_section: dict[uuid.UUID, list] = {sid: [] for sid in section_ids}
+
+    if section_ids:
+        result = await session.execute(
+            select(Lesson)
+            .where(Lesson.section_id.in_(section_ids), Lesson.status == "published")
+            .order_by(Lesson.created_at)
+        )
+        for lesson in result.scalars().all():
+            if lesson.section_id in lessons_by_section:
+                lessons_by_section[lesson.section_id].append({
+                    "id": str(lesson.id),
+                    "title": lesson.title,
+                    "duration_ms": lesson.duration_ms,
+                })
+
+    # Build response
+    outline_sections = []
+    for section in sections:
+        outline_sections.append({
+            "id": str(section.id),
+            "title": section.title,
+            "order": section.order,
+            "lessons": lessons_by_section.get(section.id, []),
+        })
+
+    return {
+        "course": {
+            "id": str(course.id),
+            "title": course.title,
+        },
+        "sections": outline_sections,
+    }
