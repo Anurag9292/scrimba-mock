@@ -1,5 +1,8 @@
 version: '3.8'
 
+# Production docker-compose (works on Linux servers, AWS, Railway, etc.)
+# For local Mac development, use: ./dev.sh
+
 services:
   backend:
     build:
@@ -12,13 +15,10 @@ services:
     environment:
       CORS_ORIGINS: '["http://localhost:3000"]'
       UPLOAD_DIR: /app/uploads
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
     volumes:
-      - ./backend:/app
       - ./data/uploads:/app/uploads
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   frontend:
     build:
@@ -30,10 +30,7 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:8000
       NEXT_PUBLIC_SUPABASE_URL: https://tphdrsbeqtpfmpyxovbn.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwaGRyc2JlcXRwZm1weXhvdmJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1MzQzMzEsImV4cCI6MjA5MzExMDMzMX0.Lx0PUbxjQ4ukOoJxSMgIrjf1oEtSZpUdWADZeXRE3KM
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
     depends_on:
       - backend
-    command: npm run dev
+    restart: unless-stopped
+    command: npm start
