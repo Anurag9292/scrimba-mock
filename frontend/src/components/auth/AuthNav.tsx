@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import UserDropdown from "./UserDropdown";
 
 export default function AuthNav() {
   const { user, isAuthenticated, isLoading, logout, hasRole } = useAuth();
@@ -63,25 +64,8 @@ export default function AuthNav() {
         Lessons
       </Link>
       <div className="ml-3 h-5 w-px bg-gray-800" />
-      <div className="relative ml-3 flex items-center gap-2">
-        {user?.avatar_url ? (
-          <img
-            src={user.avatar_url}
-            alt={user.username}
-            className="h-7 w-7 rounded-full"
-          />
-        ) : (
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
-            {user?.username?.[0]?.toUpperCase() || "U"}
-          </div>
-        )}
-        <span className="text-sm text-gray-300">{user?.username}</span>
-        <button
-          onClick={logout}
-          className="rounded-lg px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
-        >
-          Logout
-        </button>
+      <div className="ml-3">
+        <UserDropdown />
       </div>
     </div>
   );
