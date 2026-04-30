@@ -47,12 +47,24 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:8000
     volumes:
       - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
+      - frontend_node_modules:/app/node_modules
+      - frontend_next:/app/.next
     depends_on:
       - backend
     command: npm run dev
 
 volumes:
+  # IMPORTANT: To rebuild frontend without losing DB data, use:
+  #   docker-compose up --build frontend
+  # To reset ONLY frontend caches:
+  #   docker volume rm codestudio_frontend_node_modules codestudio_frontend_next
+  # NEVER use "docker-compose down -v" — it deletes ALL volumes including the database!
   postgres_data:
+    # Mark as external=false (default) but document that this is precious data
+    name: codestudio_postgres_data
   upload_data:
+    name: codestudio_upload_data
+  frontend_node_modules:
+    name: codestudio_frontend_node_modules
+  frontend_next:
+    name: codestudio_frontend_next
