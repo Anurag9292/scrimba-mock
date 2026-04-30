@@ -1047,3 +1047,47 @@ export function getCourseSlideImageUrl(
 ): string {
   return `${API_URL}/api/courses/${courseId}/slides/${slideId}/image`;
 }
+
+// ─── Progress API ──────────────────────────────────────────────
+
+export interface CompleteLessonResponse {
+  xp_earned: number;
+  total_xp: number;
+  streak: number;
+  new_achievements: Array<{ key: string; title: string; description: string; icon: string }>;
+  section_completed: boolean;
+  course_completed: boolean;
+  path_completed: boolean;
+}
+
+export interface ProgressSummary {
+  total_xp: number;
+  current_streak: number;
+  longest_streak: number;
+  lessons_completed: number;
+  achievements: Array<{ key: string; title: string; description: string; icon: string; unlocked_at: string }>;
+  completed_lesson_ids: string[];
+}
+
+export interface CourseProgress {
+  completed_lesson_ids: string[];
+  total_lessons: number;
+}
+
+/** Mark a lesson as completed */
+export async function completeLesson(lessonId: string): Promise<ApiResponse<CompleteLessonResponse>> {
+  return apiFetch<CompleteLessonResponse>("/api/progress/complete-lesson", {
+    method: "POST",
+    body: JSON.stringify({ lesson_id: lessonId }),
+  });
+}
+
+/** Get the current user's progress summary */
+export async function fetchProgressSummary(): Promise<ApiResponse<ProgressSummary>> {
+  return apiFetch<ProgressSummary>("/api/progress/summary");
+}
+
+/** Get progress for a specific course */
+export async function fetchCourseProgress(courseId: string): Promise<ApiResponse<CourseProgress>> {
+  return apiFetch<CourseProgress>(`/api/progress/course/${courseId}`);
+}

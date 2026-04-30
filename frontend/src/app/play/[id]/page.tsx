@@ -11,7 +11,12 @@ import LivePreview from "@/components/editor/LivePreview";
 import CodeRunnerPreview from "@/components/editor/CodeRunnerPreview";
 import CheckpointPanel from "@/components/checkpoint/CheckpointPanel";
 import SlideViewer from "@/components/player/SlideViewer";
+import CelebrationModal from "@/components/celebrations/CelebrationModal";
+import { XpToastContainer, useXpToast } from "@/components/celebrations/XpToast";
+import StreakXpBadge from "@/components/celebrations/StreakXpBadge";
 import { usePlayback } from "@/hooks/usePlayback";
+import { useProgress } from "@/lib/progress-context";
+import { useCelebration } from "@/hooks/useCelebration";
 import { segmentEffectiveDuration } from "@/lib/segments";
 import type { CourseSlide } from "@/lib/types";
 
@@ -34,8 +39,13 @@ export default function PlayerPage() {
   const progressRef = useRef<HTMLDivElement>(null);
   const previewIframeRef = useRef<HTMLIFrameElement>(null);
 
+  const { completeLesson, isLessonCompleted } = useProgress();
+  const { celebration, celebrate, dismiss: dismissCelebration } = useCelebration();
+  const { toasts: xpToasts, showXpToast } = useXpToast();
+
   const [fileExplorerVisible, setFileExplorerVisible] = useState(true);
   const [videoSize, setVideoSize] = useState<VideoSize>("mini");
+  const lessonCompletedRef = useRef(false);
 
   // Track which slide is currently shown in the editor's Slide tab
   const [editorActiveSlideId, setEditorActiveSlideId] = useState<string | null>(null);
@@ -62,6 +72,29 @@ export default function PlayerPage() {
       setUserSelectedFile(null);
     }
   }, [playback.activeFileName, playback.isPlaying]);
+
+  // Auto-complete lesson when playback reaches 95%
+  useEffect(() => {
+    if (lessonCompletedRef.current) return;
+    if (!playback.lesson || !playback.durationMs) return;
+    if (isLessonCompleted(id)) {
+      lessonCompletedRef.current = true;
+      return;
+    }
+
+    const fraction = playback.durationMs > 0 ? playback.currentTimeMs / playback.durationMs : 0;
+    if (fraction >= 0.95) {
+      lessonCompletedRef.current = true;
+      completeLesson(id).then((response) => {
+        if (response && response.xp_earned > 0) {
+          // Show XP toast for simple lesson completion
+          showXpToast(response.xp_earned, "Lesson Complete!");
+          // Trigger full celebration for bigger milestones
+          celebrate(response);
+        }
+      });
+    }
+  }, [playback.currentTimeMs, playback.durationMs, playback.lesson, id, isLessonCompleted, completeLesson, showXpToast, celebrate]);
 
   const isCheckpointActive = playback.activeCheckpoint !== null;
 
@@ -214,6 +247,9 @@ export default function PlayerPage() {
           <span className="max-w-[400px] truncate text-xs font-medium text-gray-300">
             {playback.lesson.title}
           </span>
+          <div className="hidden md:block">
+            <StreakXpBadge />
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -230,6 +266,36 @@ export default function PlayerPage() {
               : playback.isPlaying ? "Playing"
               : "Paused"}
           </div>
+
+          {/* Mark complete button */}
+          {!lessonCompletedRef.current && !isLessonCompleted(id) && (
+            <button
+              type="button"
+              onClick={() => {
+                lessonCompletedRef.current = true;
+                completeLesson(id).then((response) => {
+                  if (response && response.xp_earned > 0) {
+                    showXpToast(response.xp_earned, "Lesson Complete!");
+                    celebrate(response);
+                  }
+                });
+              }}
+              className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300 hover:bg-emerald-500/20"
+            >
+              <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+              </svg>
+              Mark Complete
+            </button>
+          )}
+          {(lessonCompletedRef.current || isLessonCompleted(id)) && (
+            <div className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+              <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+              </svg>
+              Completed
+            </div>
+          )}
 
           {/* Interactive mode toggle */}
           {isCheckpointActive ? null : playback.isInteractive ? (
@@ -512,6 +578,20 @@ export default function PlayerPage() {
           </div>
         </div>
       </div>
+
+      {/* ─── Celebration overlays ─── */}
+      <XpToastContainer toasts={xpToasts} />
+      <CelebrationModal
+        isOpen={celebration.isOpen}
+        onClose={dismissCelebration}
+        title={celebration.title}
+        subtitle={celebration.subtitle}
+        xpEarned={celebration.xpEarned}
+        totalXp={celebration.totalXp}
+        streak={celebration.streak}
+        achievements={celebration.achievements}
+        confettiLevel={celebration.confettiLevel}
+      />
     </div>
   );
 }
