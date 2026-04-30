@@ -1091,3 +1091,12 @@ export async function fetchProgressSummary(): Promise<ApiResponse<ProgressSummar
 export async function fetchCourseProgress(courseId: string): Promise<ApiResponse<CourseProgress>> {
   return apiFetch<CourseProgress>(`/api/progress/course/${courseId}`);
 }
+
+// ─── Password Reset ────────────────────────────────────────────
+
+export async function resetPassword(email: string, newPassword: string): Promise<ApiResponse<{ message: string }>> {
+  return apiFetch<{ message: string }>("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ email, new_password: newPassword }),
+  });
+}
