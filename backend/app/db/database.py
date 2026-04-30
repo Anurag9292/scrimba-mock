@@ -19,10 +19,7 @@ import app.models.progress  # noqa: F401
 
 connect_args = {}
 if "supabase" in settings.DATABASE_URL:
-    ssl_context = ssl_module.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl_module.CERT_NONE
-    connect_args["ssl"] = ssl_context
+    connect_args["ssl"] = True
 
 engine = create_async_engine(settings.DATABASE_URL, echo=False, connect_args=connect_args)
 
