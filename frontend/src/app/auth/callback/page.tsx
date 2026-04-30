@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { googleOAuthCallback } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -10,8 +10,13 @@ function AuthCallbackContent() {
   const searchParams = useSearchParams();
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  // Prevent React 18 Strict Mode double-execution (codes are single-use)
+  const calledRef = useRef(false);
 
   useEffect(() => {
+    if (calledRef.current) return;
+    calledRef.current = true;
+
     const code = searchParams.get("code");
     if (!code) {
       setError("No authorization code received");
