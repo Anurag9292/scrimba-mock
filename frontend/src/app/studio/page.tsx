@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Lesson, LessonSegment, CourseSlide, FileMap } from "@/lib/types";
@@ -63,7 +63,7 @@ type StudioView =
   | { type: "recording"; lessonId: string | null; lessonTitle: string }
   | { type: "rerecord"; lessonId: string; lessonTitle: string; segmentIndex: number; segmentId: string };
 
-export default function StudioPage() {
+function StudioPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sectionId = searchParams.get("sectionId");
@@ -931,5 +931,13 @@ export default function StudioPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function StudioPage() {
+  return (
+    <Suspense>
+      <StudioPageContent />
+    </Suspense>
   );
 }
