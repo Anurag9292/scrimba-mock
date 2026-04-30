@@ -10,7 +10,10 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # BIND MOUNT: data stored in ./data/postgres on your local filesystem.
+      # This is IMMUNE to "docker-compose down -v" — your data will never be
+      # accidentally deleted by any Docker command.
+      - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -31,7 +34,7 @@ services:
       UPLOAD_DIR: /app/uploads
     volumes:
       - ./backend:/app
-      - upload_data:/app/uploads
+      - ./data/uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -47,24 +50,8 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:8000
     volumes:
       - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
-      - frontend_next:/app/.next
+      - /app/node_modules
+      - /app/.next
     depends_on:
       - backend
     command: npm run dev
-
-volumes:
-  # IMPORTANT: To rebuild frontend without losing DB data, use:
-  #   docker-compose up --build frontend
-  # To reset ONLY frontend caches:
-  #   docker volume rm codestudio_frontend_node_modules codestudio_frontend_next
-  # NEVER use "docker-compose down -v" — it deletes ALL volumes including the database!
-  postgres_data:
-    # Mark as external=false (default) but document that this is precious data
-    name: codestudio_postgres_data
-  upload_data:
-    name: codestudio_upload_data
-  frontend_node_modules:
-    name: codestudio_frontend_node_modules
-  frontend_next:
-    name: codestudio_frontend_next
