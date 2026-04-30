@@ -1,4 +1,4 @@
-import type { Lesson, LessonSegment, Checkpoint, SlideContent, CourseSlide, ApiResponse, User, TokenResponse, CoursePath, Course, Section, FileMap } from "./types";
+import type { Lesson, LessonSegment, Checkpoint, SlideContent, CourseSlide, ApiResponse, User, CoursePath, Course, Section, FileMap } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -609,27 +609,6 @@ export function getSlideImageUrl(
 
 // --- Auth API ---
 
-export async function registerUser(data: {
-  email: string;
-  username: string;
-  password: string;
-}): Promise<ApiResponse<TokenResponse>> {
-  return apiFetch<TokenResponse>("/api/auth/register", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
-
-export async function loginUser(data: {
-  email: string;
-  password: string;
-}): Promise<ApiResponse<TokenResponse>> {
-  return apiFetch<TokenResponse>("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
-
 export async function fetchMe(): Promise<ApiResponse<User>> {
   return apiFetch<User>("/api/auth/me");
 }
@@ -640,24 +619,6 @@ export async function updateMe(data: {
 }): Promise<ApiResponse<User>> {
   return apiFetch<User>("/api/auth/me", {
     method: "PUT",
-    body: JSON.stringify(data),
-  });
-}
-
-export async function getGoogleOAuthUrl(
-  redirectUri: string
-): Promise<ApiResponse<{ url: string }>> {
-  return apiFetch<{ url: string }>(
-    `/api/auth/oauth/google/url?redirect_uri=${encodeURIComponent(redirectUri)}`
-  );
-}
-
-export async function googleOAuthCallback(data: {
-  code: string;
-  redirect_uri: string;
-}): Promise<ApiResponse<TokenResponse>> {
-  return apiFetch<TokenResponse>("/api/auth/oauth/google", {
-    method: "POST",
     body: JSON.stringify(data),
   });
 }
@@ -1092,14 +1053,7 @@ export async function fetchCourseProgress(courseId: string): Promise<ApiResponse
   return apiFetch<CourseProgress>(`/api/progress/course/${courseId}`);
 }
 
-// ─── Password Reset ────────────────────────────────────────────
 
-export async function resetPassword(email: string, newPassword: string): Promise<ApiResponse<{ message: string }>> {
-  return apiFetch<{ message: string }>("/api/auth/reset-password", {
-    method: "POST",
-    body: JSON.stringify({ email, new_password: newPassword }),
-  });
-}
 
 // ─── Course Outline ────────────────────────────────────────────
 

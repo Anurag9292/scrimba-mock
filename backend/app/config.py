@@ -8,10 +8,15 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500 MB
     APP_NAME: str = "CodeStudio API"
 
-    # JWT
+    # JWT (legacy, kept for reference)
     JWT_SECRET: str = "change-me-in-production-use-a-strong-random-key"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRY_HOURS: int = 24
+
+    # Supabase
+    SUPABASE_URL: str | None = None
+    SUPABASE_SERVICE_ROLE_KEY: str | None = None
+    SUPABASE_JWT_SECRET: str | None = None
 
     # Google OAuth
     GOOGLE_CLIENT_ID: str | None = None

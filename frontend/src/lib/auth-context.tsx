@@ -9,7 +9,8 @@ import {
   type ReactNode,
 } from "react";
 import type { User, UserRole } from "./types";
-import { fetchMe, setAuthToken, getAuthToken } from "./api";
+import { createClient } from "./supabase";
+import { setAuthToken, fetchMe } from "./api";
 
 interface AuthContextType {
   user: User | null;
@@ -26,39 +27,64 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const supabase = createClient();
 
   const refreshUser = useCallback(async () => {
-    const token = getAuthToken();
-    if (!token) {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
       setUser(null);
+      setAuthToken(null);
       setIsLoading(false);
       return;
     }
 
+    // Store token for API calls
+    setAuthToken(session.access_token);
+
+    // Fetch our profile from the backend
     const resp = await fetchMe();
     if (resp.success && resp.data) {
       setUser(resp.data);
     } else {
-      // Token invalid or expired
-      setAuthToken(null);
       setUser(null);
+      setAuthToken(null);
     }
     setIsLoading(false);
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
     refreshUser();
-  }, [refreshUser]);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session) {
+          setAuthToken(session.access_token);
+          const resp = await fetchMe();
+          if (resp.success && resp.data) {
+            setUser(resp.data);
+          }
+        } else {
+          setUser(null);
+          setAuthToken(null);
+        }
+        setIsLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [refreshUser, supabase]);
 
   const login = useCallback((token: string, userData: User) => {
     setAuthToken(token);
     setUser(userData);
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     setAuthToken(null);
     setUser(null);
-  }, []);
+  }, [supabase]);
 
   const hasRole = useCallback(
     (...roles: UserRole[]) => {

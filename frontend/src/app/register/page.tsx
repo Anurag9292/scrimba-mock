@@ -3,46 +3,49 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { registerUser, getGoogleOAuthUrl } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
+import { createClient } from "@/lib/supabase";
 import { useToast } from "@/components/ui/Toast";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { login } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const resp = await registerUser({ email, username, password });
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { username, full_name: username },
+      },
+    });
 
-    if (resp.success && resp.data) {
-      login(resp.data.access_token, resp.data.user);
-      toast("Account created successfully!", "success");
-      router.push(resp.data.user.role === "admin" ? "/creator" : "/");
+    if (error) {
+      toast(error.message, "error");
     } else {
-      toast(resp.error?.message || "Registration failed", "error");
+      toast("Account created successfully! Check your email to confirm.", "success");
+      router.push("/");
     }
 
     setIsSubmitting(false);
   };
 
   const handleGoogleSignup = async () => {
-    const redirectUri = `${window.location.origin}/auth/callback`;
-    const resp = await getGoogleOAuthUrl(redirectUri);
-    if (resp.success && resp.data) {
-      window.location.href = resp.data.url;
-    } else {
-      toast(
-        resp.error?.message || "Failed to start Google signup",
-        "error"
-      );
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    if (error) {
+      toast(error.message, "error");
     }
   };
 

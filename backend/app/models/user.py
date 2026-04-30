@@ -12,10 +12,10 @@ class User(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     email: str = Field(max_length=255, sa_column_kwargs={"unique": True, "nullable": False})
     username: str = Field(max_length=100, sa_column_kwargs={"unique": True, "nullable": False})
-    password_hash: str | None = Field(default=None)  # Nullable for OAuth-only users
+    password_hash: str | None = Field(default=None)  # Legacy, not used with Supabase
     role: str = Field(default="user")  # "admin" | "creator" | "user"
     is_active: bool = Field(default=True)
-    auth_provider: str | None = Field(default=None)  # "google" | None (email/password)
+    auth_provider: str | None = Field(default=None)  # "google" | "email" | None
     auth_provider_id: str | None = Field(default=None)  # Provider's user ID
     avatar_url: str | None = Field(default=None)
     created_at: datetime = Field(
@@ -26,17 +26,6 @@ class User(SQLModel, table=True):
         default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
-
-
-class UserCreate(BaseModel):
-    email: str
-    username: str
-    password: str
-
-
-class UserLogin(BaseModel):
-    email: str
-    password: str
 
 
 class UserRead(BaseModel):
@@ -56,14 +45,3 @@ class UserRead(BaseModel):
 class UserUpdate(BaseModel):
     username: str | None = None
     avatar_url: str | None = None
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: UserRead
-
-
-class OAuthCodeRequest(BaseModel):
-    code: str
-    redirect_uri: str

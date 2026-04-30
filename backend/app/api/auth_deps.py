@@ -1,12 +1,12 @@
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from datetime import datetime, timezone
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+import httpx
 
 from app.config import settings
 from app.db.database import get_session
@@ -24,20 +24,25 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def create_access_token(user_id: uuid.UUID) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(hours=settings.JWT_EXPIRY_HOURS)
-    payload = {
-        "sub": str(user_id),
-        "exp": expire,
-    }
-    return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+async def get_supabase_user(token: str) -> dict | None:
+    """Validate token with Supabase and return user data."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{settings.SUPABASE_URL}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+            },
+        )
+    if resp.status_code == 200:
+        return resp.json()
+    return None
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     session: AsyncSession = Depends(get_session),
 ) -> User:
-    """Decode JWT and return the authenticated user. Raises 401 if invalid."""
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -46,28 +51,50 @@ async def get_current_user(
         )
 
     token = credentials.credentials
-    try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
-        user_id_str: str | None = payload.get("sub")
-        if user_id_str is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-        user_id = uuid.UUID(user_id_str)
-    except (JWTError, ValueError):
+    supabase_user = await get_supabase_user(token)
+
+    if supabase_user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user = await session.get(User, user_id)
-    if user is None or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
+    supabase_id = uuid.UUID(supabase_user["id"])
+
+    # Look up or create profile
+    result = await session.execute(select(User).where(User.id == supabase_id))
+    user = result.scalars().first()
+
+    if user is None:
+        # Auto-create profile from Supabase user data
+        email = supabase_user.get("email", "")
+        metadata = supabase_user.get("user_metadata", {})
+
+        # Check if this is the first user (make them admin)
+        count_result = await session.execute(select(User))
+        is_first = count_result.scalars().first() is None
+
+        user = User(
+            id=supabase_id,
+            email=email,
+            username=metadata.get("full_name", email.split("@")[0]).lower().replace(" ", "_"),
+            role="admin" if is_first else "user",
+            avatar_url=metadata.get("avatar_url"),
+            auth_provider=supabase_user.get("app_metadata", {}).get("provider", "email"),
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
 
     return user
 
 
 async def get_optional_user(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     session: AsyncSession = Depends(get_session),
 ) -> User | None:
     """Like get_current_user but returns None instead of raising if unauthenticated."""
