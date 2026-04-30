@@ -1,6 +1,7 @@
 import Link from "next/link";
 import LessonList from "@/components/lesson/LessonList";
 import AuthNav from "@/components/auth/AuthNav";
+import StreakXpBadge from "@/components/celebrations/StreakXpBadge";
 
 function Navbar() {
   return (
@@ -15,7 +16,10 @@ function Navbar() {
           </span>
         </Link>
 
-        <AuthNav />
+        <div className="flex items-center gap-4">
+          <StreakXpBadge />
+          <AuthNav />
+        </div>
       </div>
     </nav>
   );

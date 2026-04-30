@@ -13,6 +13,7 @@ import app.models.user  # noqa: F401
 import app.models.course_path  # noqa: F401
 import app.models.course  # noqa: F401
 import app.models.section  # noqa: F401
+import app.models.progress  # noqa: F401
 
 engine = create_async_engine(settings.DATABASE_URL, echo=False)
 

@@ -17,6 +17,7 @@ from app.api.course_paths import router as course_paths_router
 from app.api.courses import router as courses_router, course_lookup_router
 from app.api.sections import router as sections_router, section_lookup_router
 from app.api.course_slides import router as course_slides_router
+from app.api.progress import router as progress_router
 
 
 @asynccontextmanager
@@ -57,6 +58,7 @@ app.include_router(course_lookup_router)
 app.include_router(sections_router)
 app.include_router(section_lookup_router)
 app.include_router(course_slides_router)
+app.include_router(progress_router)
 
 
 @app.get("/health")
