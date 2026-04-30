@@ -22,6 +22,10 @@ if "supabase" in settings.DATABASE_URL:
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl_module.CERT_NONE
     connect_args["ssl"] = ssl_context
+    # Supabase pooler (Supavisor) in transaction mode doesn't support prepared statements
+    if "pooler.supabase.com" in settings.DATABASE_URL:
+        connect_args["prepared_statement_cache_size"] = 0
+        connect_args["statement_cache_size"] = 0
 
 engine = create_async_engine(settings.DATABASE_URL, echo=False, connect_args=connect_args)
 
